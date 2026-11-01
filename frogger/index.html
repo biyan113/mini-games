@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070b18">
+  <title>青蛙过河 · 霓虹版</title>
+  <style>
+    /* 基础与全屏移动端布局 */
+    :root {
+      color-scheme: dark;
+      --bg: #070b18;
+      --panel: rgba(15, 23, 43, .78);
+      --line: rgba(137, 255, 224, .14);
+      --mint: #79ffc8;
+      --cyan: #60e9ff;
+      --pink: #ff6fcf;
+      --text: #effdff;
+      --muted: #8295ae;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      background: var(--bg);
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      justify-content: center;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at 12% 5%, rgba(40, 118, 132, .2), transparent 34%),
+        radial-gradient(circle at 92% 88%, rgba(132, 45, 132, .16), transparent 38%),
+        linear-gradient(145deg, #080e1e, #050711 70%);
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .2;
+      background-image:
+        linear-gradient(rgba(110, 240, 255, .045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(110, 240, 255, .045) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: linear-gradient(to bottom, black, transparent 75%);
+    }
+
+    button { font: inherit; }
+    button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      width: min(100%, 540px);
+      height: 100vh;
+      height: 100dvh;
+      padding: max(12px, env(safe-area-inset-top)) 14px max(10px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* 顶部品牌与暂停控制 */
+    .topbar {
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex: 0 0 auto;
+    }
+
+    .brand { display: flex; align-items: center; gap: 10px; }
+
+    .brand-mark {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(121, 255, 200, .28);
+      border-radius: 15px;
+      font-size: 25px;
+      background: linear-gradient(145deg, rgba(121, 255, 200, .13), rgba(96, 233, 255, .04));
+      box-shadow: inset 0 0 18px rgba(121, 255, 200, .06), 0 0 24px rgba(121, 255, 200, .08);
+    }
+
+    .eyebrow {
+      margin: 0 0 2px;
+      color: var(--mint);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 2.4px;
+    }
+
+    h1 { margin: 0; font-size: 22px; line-height: 1.1; letter-spacing: 1px; }
+
+    .icon-button {
+      width: 44px;
+      height: 44px;
+      border: 1px solid rgba(145, 204, 225, .18);
+      border-radius: 14px;
+      color: var(--text);
+      background: rgba(15, 24, 43, .82);
+      box-shadow: inset 0 1px rgba(255, 255, 255, .04);
+      cursor: pointer;
+      transition: transform .15s, border-color .15s, opacity .15s;
+    }
+
+    .icon-button:active { transform: scale(.92); }
+    .icon-button:disabled { opacity: .35; cursor: default; }
+
+    /* 数据仪表盘 */
+    .hud {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 7px;
+      flex: 0 0 auto;
+    }
+
+    .stat {
+      min-width: 0;
+      padding: 8px 4px 7px;
+      text-align: center;
+      border: 1px solid rgba(137, 184, 211, .12);
+      border-radius: 13px;
+      background: linear-gradient(180deg, rgba(20, 31, 54, .85), rgba(11, 18, 34, .75));
+      box-shadow: inset 0 1px rgba(255, 255, 255, .025);
+    }
+
+    .stat-label {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .stat-value {
+      display: block;
+      overflow: hidden;
+      color: #f2fdff;
+      font-size: 18px;
+      font-variant-numeric: tabular-nums;
+      font-weight: 800;
+      line-height: 1.15;
+      text-overflow: ellipsis;
+    }
+
+    #scoreValue { color: var(--mint); }
+    #livesValue { color: #ff83bc; letter-spacing: 1px; }
+    #timeValue.urgent { color: #ff7a9e; animation: pulse .7s infinite alternate; }
+
+    .time-track {
+      height: 3px;
+      margin: -4px 4px 0;
+      overflow: hidden;
+      flex: 0 0 auto;
+      border-radius: 9px;
+      background: rgba(255, 255, 255, .055);
+    }
+
+    .time-fill {
+      width: 100%;
+      height: 100%;
+      transform-origin: left;
+      background: linear-gradient(90deg, var(--pink), var(--cyan), var(--mint));
+      box-shadow: 0 0 9px var(--cyan);
+      transition: background .2s;
+    }
+
+    .time-fill.urgent { background: linear-gradient(90deg, #ff477e, #ff9b71); }
+
+    /* 游戏区域由脚本等比缩放，横竖屏均不溢出 */
+    .game-stage {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .board-shell {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(121, 255, 200, .23);
+      border-radius: 22px;
+      background: #09182a;
+      box-shadow:
+        0 18px 55px rgba(0, 0, 0, .45),
+        0 0 32px rgba(57, 231, 206, .07),
+        inset 0 0 0 1px rgba(255, 255, 255, .025);
+      isolation: isolate;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    .board-gloss {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      border-radius: inherit;
+      box-shadow: inset 0 0 35px rgba(0, 0, 0, .26), inset 0 1px rgba(255, 255, 255, .08);
+      background: linear-gradient(120deg, rgba(255, 255, 255, .025), transparent 24%);
+    }
+
+    .zone-badge {
+      position: absolute;
+      z-index: 3;
+      top: 9px;
+      left: 50%;
+      max-width: 80%;
+      padding: 5px 11px;
+      transform: translateX(-50%);
+      border: 1px solid rgba(176, 241, 255, .16);
+      border-radius: 999px;
+      color: rgba(230, 251, 255, .85);
+      background: rgba(4, 11, 24, .62);
+      backdrop-filter: blur(8px);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .6px;
+      white-space: nowrap;
+      pointer-events: none;
+      transition: opacity .2s;
+    }
+
+    .toast {
+      position: absolute;
+      z-index: 5;
+      left: 50%;
+      bottom: 17%;
+      padding: 8px 15px;
+      transform: translate(-50%, 8px);
+      opacity: 0;
+      border: 1px solid rgba(255, 132, 174, .28);
+      border-radius: 999px;
+      color: #fff;
+      background: rgba(24, 13, 34, .88);
+      box-shadow: 0 6px 25px rgba(0, 0, 0, .3);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      pointer-events: none;
+      transition: opacity .2s, transform .2s;
+    }
+
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    /* 开始、暂停与结算共用弹窗 */
+    .modal {
+      position: absolute;
+      z-index: 10;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      opacity: 0;
+      visibility: hidden;
+      background: rgba(3, 7, 18, .68);
+      backdrop-filter: blur(8px);
+      transition: opacity .22s, visibility .22s;
+    }
+
+    .modal.visible { opacity: 1; visibility: visible; }
+
+    .modal-card {
+      width: min(100%, 330px);
+      max-height: 100%;
+      padding: 22px 20px 18px;
+      overflow: auto;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      text-align: center;
+      border: 1px solid rgba(121, 255, 200, .22);
+      border-radius: 23px;
+      background: linear-gradient(155deg, rgba(22, 36, 57, .97), rgba(10, 15, 31, .97));
+      box-shadow: 0 20px 65px rgba(0, 0, 0, .48), inset 0 1px rgba(255, 255, 255, .06);
+      transform: translateY(8px) scale(.98);
+      transition: transform .22s;
+    }
+
+    .modal.visible .modal-card { transform: translateY(0) scale(1); }
+    .modal-icon { margin-bottom: 5px; font-size: 40px; filter: drop-shadow(0 0 13px rgba(121, 255, 200, .25)); }
+
+    .modal-kicker {
+      margin: 0 0 5px;
+      color: var(--mint);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 2px;
+    }
+
+    .modal h2 { margin: 0 0 9px; font-size: 25px; letter-spacing: 1px; }
+
+    .modal-copy {
+      margin: 0 auto 15px;
+      color: #a9bdcf;
+      font-size: 12px;
+      line-height: 1.75;
+    }
+
+    .modal-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 0 0 15px;
+    }
+
+    .modal-stats[hidden] { display: none; }
+
+    .result-box {
+      padding: 9px 6px;
+      border: 1px solid rgba(143, 208, 224, .12);
+      border-radius: 12px;
+      background: rgba(4, 12, 25, .45);
+    }
+
+    .result-box span { display: block; color: var(--muted); font-size: 9px; }
+    .result-box strong { display: block; margin-top: 3px; color: var(--cyan); font-size: 20px; }
+
+    .primary-button, .secondary-button {
+      width: 100%;
+      min-height: 45px;
+      border-radius: 13px;
+      font-weight: 800;
+      letter-spacing: .7px;
+      cursor: pointer;
+    }
+
+    .primary-button {
+      border: 0;
+      color: #06251f;
+      background: linear-gradient(100deg, #68f8c1, #68e8ef);
+      box-shadow: 0 7px 24px rgba(90, 246, 199, .19), inset 0 1px rgba(255, 255, 255, .55);
+    }
+
+    .primary-button:active { transform: translateY(1px); filter: brightness(.92); }
+
+    .secondary-button {
+      margin-top: 8px;
+      border: 1px solid rgba(157, 202, 221, .17);
+      color: #b8cbd9;
+      background: transparent;
+    }
+
+    .secondary-button[hidden] { display: none; }
+
+    /* 底部操作提示 */
+    .help {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 10px;
+      flex: 0 0 auto;
+      border: 1px solid rgba(134, 188, 207, .1);
+      border-radius: 14px;
+      background: rgba(12, 20, 36, .55);
+    }
+
+    .gesture {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border-radius: 10px;
+      color: var(--mint);
+      background: rgba(121, 255, 200, .07);
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .help-copy { min-width: 0; flex: 1; }
+    .help-copy strong, .help-copy span { display: block; }
+    .help-copy strong { margin-bottom: 2px; font-size: 11px; }
+    .help-copy span { overflow: hidden; color: var(--muted); font-size: 9px; white-space: nowrap; text-overflow: ellipsis; }
+    .key-hint { color: #61768e; font-size: 9px; white-space: nowrap; }
+
+    @keyframes pulse { to { opacity: .5; text-shadow: 0 0 12px #ff477e; } }
+
+    @media (max-height: 680px) {
+      .app { gap: 7px; padding-top: max(7px, env(safe-area-inset-top)); }
+      .topbar { min-height: 40px; }
+      .brand-mark { width: 38px; height: 38px; border-radius: 12px; font-size: 22px; }
+      h1 { font-size: 19px; }
+      .icon-button { width: 40px; height: 40px; }
+      .stat { padding: 5px 3px; }
+      .stat-value { font-size: 16px; }
+      .help { min-height: 40px; padding: 3px 9px; }
+      .gesture { width: 30px; height: 30px; }
+      .modal-card { padding: 15px 18px; }
+      .modal-icon { font-size: 32px; }
+      .modal h2 { font-size: 22px; }
+      .modal-copy { margin-bottom: 10px; line-height: 1.55; }
+    }
+
+    @media (max-width: 350px) {
+      .app { padding-left: 9px; padding-right: 9px; }
+      .hud { gap: 4px; }
+      .key-hint { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">🐸</div>
+        <div>
+          <p class="eyebrow">NEON CROSSING</p>
+          <h1>青蛙过河</h1>
+        </div>
+      </div>
+      <button class="icon-button" id="pauseButton" type="button" aria-label="暂停游戏" title="暂停（空格键）" disabled>Ⅱ</button>
+    </header>
+
+    <section class="hud" aria-label="游戏数据">
+      <div class="stat"><span class="stat-label">得分</span><strong class="stat-value" id="scoreValue">0000</strong></div>
+      <div class="stat"><span class="stat-label">最高分</span><strong class="stat-value" id="bestValue">0000</strong></div>
+      <div class="stat"><span class="stat-label">剩余秒数</span><strong class="stat-value" id="timeValue">60</strong></div>
+      <div class="stat"><span class="stat-label">生命</span><strong class="stat-value" id="livesValue">♥♥♥</strong></div>
+    </section>
+    <div class="time-track" aria-hidden="true"><div class="time-fill" id="timeFill"></div></div>
+
+    <section class="game-stage" id="gameStage" aria-label="青蛙过河游戏区">
+      <div class="board-shell" id="boardShell">
+        <canvas id="gameCanvas" aria-label="滑动或使用方向键移动青蛙，躲车并踩浮木过河"></canvas>
+        <div class="board-gloss"></div>
+        <div class="zone-badge" id="zoneBadge">起点 · 准备出发</div>
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+        <div class="modal visible" id="gameModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+          <div class="modal-card">
+            <div class="modal-icon" id="modalIcon" aria-hidden="true">🐸</div>
+            <p class="modal-kicker" id="modalKicker">60 秒霓虹挑战</p>
+            <h2 id="modalTitle">青蛙过河</h2>
+            <p class="modal-copy" id="modalCopy">向上下左右滑动，每次跳一格。<br>穿过车流，踩住浮木，抵达对岸！</p>
+            <div class="modal-stats" id="modalStats" hidden>
+              <div class="result-box"><span id="resultLabelA">本局得分</span><strong id="resultValueA">0</strong></div>
+              <div class="result-box"><span id="resultLabelB">剩余时间</span><strong id="resultValueB">0 秒</strong></div>
+            </div>
+            <button class="primary-button" id="primaryAction" type="button">开始游戏</button>
+            <button class="secondary-button" id="secondaryAction" type="button" hidden>重新开始</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="help">
+      <div class="gesture" aria-hidden="true">⇅</div>
+      <div class="help-copy">
+        <strong>在画面上滑动 · 每次跳一格</strong>
+        <span>躲开车辆，踩浮木渡河；被撞或落水损失生命</span>
+      </div>
+      <span class="key-hint">方向键 / WASD</span>
+    </footer>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // 棋盘与游戏规则常量
+      const COLS = 9;
+      const ROWS = 11;
+      const START_ROW = 10;
+      const GOAL_ROW = 0;
+      const GAME_SECONDS = 60;
+      const STORAGE_KEY = 'neon-frogger-best-v1';
+      const RIVER_ROWS = new Set([1, 2, 3, 4, 5]);
+      const ROAD_ROWS = new Set([7, 8, 9]);
+
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      const stage = document.getElementById('gameStage');
+      const boardShell = document.getElementById('boardShell');
+      const pauseButton = document.getElementById('pauseButton');
+      const scoreValue = document.getElementById('scoreValue');
+      const bestValue = document.getElementById('bestValue');
+      const timeValue = document.getElementById('timeValue');
+      const livesValue = document.getElementById('livesValue');
+      const timeFill = document.getElementById('timeFill');
+      const zoneBadge = document.getElementById('zoneBadge');
+      const toast = document.getElementById('toast');
+      const modal = document.getElementById('gameModal');
+      const modalIcon = document.getElementById('modalIcon');
+      const modalKicker = document.getElementById('modalKicker');
+      const modalTitle = document.getElementById('modalTitle');
+      const modalCopy = document.getElementById('modalCopy');
+      const modalStats = document.getElementById('modalStats');
+      const resultLabelA = document.getElementById('resultLabelA');
+      const resultLabelB = document.getElementById('resultLabelB');
+      const resultValueA = document.getElementById('resultValueA');
+      const resultValueB = document.getElementById('resultValueB');
+      const primaryAction = document.getElementById('primaryAction');
+      const secondaryAction = document.getElementById('secondaryAction');
+
+      const view = { width: 0, height: 0, cellW: 0, cellH: 0, dpr: 1 };
+      let roadLanes = [];
+      let riverLanes = [];
+      let lastFrame = performance.now();
+      let toastTimer = 0;
+      let gesture = null;
+
+      // 本地最高分在隐私模式或禁用存储时也不会影响游戏
+      function loadBest() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10);
+          return Number.isFinite(value) && value > 0 ? value : 0;
+        } catch (error) {
+          return 0;
+        }
+      }
+
+      const state = {
+        mode: 'ready',
+        score: 0,
+        best: loadBest(),
+        lives: 3,
+        timeLeft: GAME_SECONDS,
+        furthestRow: START_ROW,
+        medianBonus: false,
+        shake: 0,
+        deathReason: ''
+      };
+
+      const frog = {
+        x: 4.5,
+        row: START_ROW,
+        direction: 0,
+        hop: null,
+        log: null,
+        dead: false,
+        respawnTimer: 0,
+        invincible: 0
+      };
+
+      // 车辆与浮木采用固定间距循环，保证每条路线始终有可等待的缺口
+      function createLanes() {
+        roadLanes = [
+          { row: 9, dir: 1, speed: 1.75, items: [
+            { x: -2.0, length: 1.55, color: '#ff5ea8' },
+            { x: 3.2, length: 1.55, color: '#ff9d5c' },
+            { x: 8.4, length: 1.55, color: '#b36bff' }
+          ] },
+          { row: 8, dir: -1, speed: 2.15, items: [
+            { x: 1.0, length: 1.35, color: '#57dcff' },
+            { x: 6.2, length: 1.35, color: '#ff647c' },
+            { x: 11.4, length: 1.35, color: '#ffe36b' }
+          ] },
+          { row: 7, dir: 1, speed: 2.4, items: [
+            { x: -4.0, length: 1.8, color: '#8a75ff' },
+            { x: 1.7, length: 1.8, color: '#ff628f' },
+            { x: 7.4, length: 1.8, color: '#4fe2c2' }
+          ] }
+        ];
+
+        riverLanes = [
+          { row: 5, dir: -1, speed: 1.0, items: [
+            { x: 0, length: 3.1 }, { x: 6.2, length: 3.1 }, { x: 12.4, length: 3.1 }
+          ] },
+          { row: 4, dir: 1, speed: 1.3, items: [
+            { x: -2, length: 2.65 }, { x: 3.5, length: 2.65 }, { x: 9, length: 2.65 }
+          ] },
+          { row: 3, dir: -1, speed: 1.5, items: [
+            { x: 1.5, length: 3.4 }, { x: 7.8, length: 3.4 }, { x: 14.1, length: 3.4 }
+          ] },
+          { row: 2, dir: 1, speed: 1.15, items: [
+            { x: -1, length: 2.8 }, { x: 4.8, length: 2.8 }, { x: 10.6, length: 2.8 }
+          ] }
+        ];
+      }
+
+      // 等比适配可用空间，并处理高分屏清晰度
+      function fitBoard() {
+        const available = stage.getBoundingClientRect();
+        if (available.width <= 0 || available.height <= 0) return;
+        const ratio = COLS / ROWS;
+        let width = available.width;
+        let height = width / ratio;
+        if (height > available.height) {
+          height = available.height;
+          width = height * ratio;
+        }
+        boardShell.style.width = `${Math.floor(width)}px`;
+        boardShell.style.height = `${Math.floor(height)}px`;
+        resizeCanvas();
+      }
+
+      function resizeCanvas() {
+        const rect = boardShell.getBoundingClientRect();
+        view.width = rect.width;
+        view.height = rect.height;
+        view.cellW = rect.width / COLS;
+        view.cellH = rect.height / ROWS;
+        view.dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+        canvas.width = Math.max(1, Math.round(rect.width * view.dpr));
+        canvas.height = Math.max(1, Math.round(rect.height * view.dpr));
+      }
+
+      function formatScore(value) {
+        return String(value).padStart(4, '0');
+      }
+
+      function saveBest() {
+        try { localStorage.setItem(STORAGE_KEY, String(state.best)); } catch (error) { /* 存储不可用时仅保留本次记录 */ }
+      }
+
+      function updateHud() {
+        scoreValue.textContent = formatScore(state.score);
+        bestValue.textContent = formatScore(state.best);
+        timeValue.textContent = String(Math.max(0, Math.ceil(state.timeLeft)));
+        livesValue.textContent = '♥'.repeat(state.lives) + '♡'.repeat(3 - state.lives);
+        const urgent = state.timeLeft <= 10 && state.mode === 'playing';
+        timeValue.classList.toggle('urgent', urgent);
+        timeFill.classList.toggle('urgent', urgent);
+        timeFill.style.transform = `scaleX(${Math.max(0, state.timeLeft / GAME_SECONDS)})`;
+      }
+
+      function addScore(points) {
+        state.score += points;
+        if (state.score > state.best) {
+          state.best = state.score;
+          saveBest();
+        }
+        updateHud();
+      }
+
+      function updateZoneBadge() {
+        let text = '起点 · 向上出发';
+        if (frog.row === GOAL_ROW) text = '对岸 · 挑战成功';
+        else if (RIVER_ROWS.has(frog.row)) text = '河流 · 踩稳浮木';
+        else if (ROAD_ROWS.has(frog.row)) text = '公路 · 注意车流';
+        else if (frog.row === 6) text = '安全岛 · 观察水势';
+        zoneBadge.textContent = text;
+      }
+
+      function showToast(message) {
+        window.clearTimeout(toastTimer);
+        toast.textContent = message;
+        toast.classList.add('show');
+        toastTimer = window.setTimeout(() => toast.classList.remove('show'), 1350);
+      }
+
+      // 弹窗只负责展示，具体行为由当前游戏状态决定
+      function showModal(options) {
+        modalIcon.textContent = options.icon;
+        modalKicker.textContent = options.kicker;
+        modalTitle.textContent = options.title;
+        modalCopy.innerHTML = options.copy;
+        primaryAction.textContent = options.primary;
+        secondaryAction.hidden = !options.secondary;
+        modalStats.hidden = !options.stats;
+        modal.classList.add('visible');
+        modal.setAttribute('aria-hidden', 'false');
+      }
+
+      function hideModal() {
+        modal.classList.remove('visible');
+        modal.setAttribute('aria-hidden', 'true');
+      }
+
+      function resetFrog() {
+        frog.x = 4.5;
+        frog.row = START_ROW;
+        frog.direction = 0;
+        frog.hop = null;
+        frog.log = null;
+        frog.dead = false;
+        frog.respawnTimer = 0;
+        frog.invincible = .8;
+        updateZoneBadge();
+      }
+
+      function startGame() {
+        state.mode = 'playing';
+        state.score = 0;
+        state.lives = 3;
+        state.timeLeft = GAME_SECONDS;
+        state.furthestRow = START_ROW;
+        state.medianBonus = false;
+        state.shake = 0;
+        state.deathReason = '';
+        createLanes();
+        resetFrog();
+        pauseButton.disabled = false;
+        pauseButton.textContent = 'Ⅱ';
+        pauseButton.setAttribute('aria-label', '暂停游戏');
+        hideModal();
+        updateHud();
+        lastFrame = performance.now();
+      }
+
+      function pauseGame() {
+        if (state.mode !== 'playing') return;
+        state.mode = 'paused';
+        pauseButton.textContent = '▶';
+        pauseButton.setAttribute('aria-label', '继续游戏');
+        showModal({
+          icon: '⏸️', kicker: '休息一下', title: '游戏暂停',
+          copy: '倒计时与车流均已暂停。<br>准备好后继续过河。',
+          primary: '继续游戏', secondary: true, stats: false
+        });
+        updateHud();
+      }
+
+      function resumeGame() {
+        if (state.mode !== 'paused') return;
+        state.mode = 'playing';
+        pauseButton.textContent = 'Ⅱ';
+        pauseButton.setAttribute('aria-label', '暂停游戏');
+        hideModal();
+        lastFrame = performance.now();
+        updateHud();
+      }
+
+      function finishGame(won, reason = '') {
+        if (state.mode !== 'playing') return;
+        state.mode = won ? 'won' : 'lost';
+        frog.hop = null;
+        pauseButton.disabled = true;
+        if (won) {
+          const bonus = 500 + Math.ceil(state.timeLeft) * 10;
+          addScore(bonus);
+        }
+        if (state.score > state.best) {
+          state.best = state.score;
+          saveBest();
+        }
+        resultLabelA.textContent = '本局得分';
+        resultLabelB.textContent = won ? '剩余时间' : '最高分';
+        resultValueA.textContent = String(state.score);
+        resultValueB.textContent = won ? `${Math.ceil(state.timeLeft)} 秒` : String(state.best);
+        showModal({
+          icon: won ? '🏆' : '💫',
+          kicker: won ? '成功抵达对岸' : '本轮挑战结束',
+          title: won ? '过河成功！' : '游戏结束',
+          copy: won ? `漂亮！通关奖励已计入得分。<br>再用更少时间挑战更高分吧！` : `${reason || '别灰心，再试一次！'}<br>观察节奏，找准空隙再出发。`,
+          primary: '再玩一次', secondary: false, stats: true
+        });
+        updateHud();
+      }
+
+      function loseLife(reason) {
+        if (frog.dead || state.mode !== 'playing') return;
+        state.lives -= 1;
+        state.deathReason = reason;
+        frog.dead = true;
+        frog.hop = null;
+        frog.log = null;
+        frog.respawnTimer = .75;
+        state.shake = .45;
+        showToast(reason);
+        updateHud();
+      }
+
+      function moveLaneItems(lanes, dt) {
+        for (const lane of lanes) {
+          for (const item of lane.items) {
+            item.x += lane.dir * lane.speed * dt;
+            if (lane.dir > 0 && item.x > COLS + 2) item.x = -item.length - 2;
+            if (lane.dir < 0 && item.x + item.length < -2) item.x = COLS + 2;
+          }
+        }
+      }
+
+      function findLog(row, x) {
+        const lane = riverLanes.find(item => item.row === row);
+        if (!lane) return null;
+        return lane.items.find(log => x > log.x + .12 && x < log.x + log.length - .12) || null;
+      }
+
+      function findRiverLane(row) {
+        return riverLanes.find(lane => lane.row === row) || null;
+      }
+
+      function checkVehicleCollision() {
+        const lane = roadLanes.find(item => item.row === frog.row);
+        if (!lane) return false;
+        return lane.items.some(car =>
+          frog.x + .27 > car.x + .08 && frog.x - .27 < car.x + car.length - .08
+        );
+      }
+
+      // 每次跳跃落地后统一处理计分、终点和危险区域
+      function landFrog() {
+        updateZoneBadge();
+        if (frog.row < state.furthestRow) {
+          addScore((state.furthestRow - frog.row) * 10);
+          state.furthestRow = frog.row;
+        }
+        if (frog.row === 6 && !state.medianBonus) {
+          state.medianBonus = true;
+          addScore(50);
+          showToast('穿过车流 · 奖励 50 分');
+        }
+        if (frog.row === GOAL_ROW) {
+          finishGame(true);
+          return;
+        }
+        checkCurrentHazards();
+      }
+
+      function checkCurrentHazards() {
+        if (frog.dead || state.mode !== 'playing') return;
+        if (frog.x < -.05 || frog.x > COLS + .05) {
+          loseLife('被水流冲走了');
+          return;
+        }
+        if (RIVER_ROWS.has(frog.row)) {
+          frog.log = findLog(frog.row, frog.x);
+          if (!frog.log) loseLife('扑通！掉进河里了');
+          return;
+        }
+        frog.log = null;
+        if (ROAD_ROWS.has(frog.row) && frog.invincible <= 0 && checkVehicleCollision()) {
+          loseLife('砰！小心来往车辆');
+        }
+      }
+
+      function attemptMove(dx, dy) {
+        if (state.mode !== 'playing' || frog.dead || frog.hop) return;
+        const currentCol = Math.round(frog.x - .5);
+        const targetCol = Math.max(0, Math.min(COLS - 1, currentCol + dx));
+        const targetRow = frog.row + dy;
+        if (targetRow < GOAL_ROW || targetRow > START_ROW) return;
+        if (targetCol === currentCol && dx !== 0) return;
+
+        frog.direction = Math.atan2(dy, dx) + Math.PI / 2;
+        frog.hop = {
+          fromX: frog.x,
+          fromRow: frog.row,
+          toX: targetCol + .5,
+          toRow: targetRow,
+          elapsed: 0,
+          duration: .16
+        };
+        frog.log = null;
+      }
+
+      function update(dt) {
+        state.timeLeft = Math.max(0, state.timeLeft - dt);
+        state.shake = Math.max(0, state.shake - dt);
+        frog.invincible = Math.max(0, frog.invincible - dt);
+        moveLaneItems(roadLanes, dt);
+        moveLaneItems(riverLanes, dt);
+
+        if (state.timeLeft <= 0) {
+          finishGame(false, '时间到！再加快一点节奏吧。');
+          return;
+        }
+
+        if (frog.dead) {
+          frog.respawnTimer -= dt;
+          if (frog.respawnTimer <= 0) {
+            if (state.lives <= 0) finishGame(false, state.deathReason);
+            else resetFrog();
+          }
+          updateHud();
+          return;
+        }
+
+        if (frog.hop) {
+          frog.hop.elapsed += dt;
+          if (frog.hop.elapsed >= frog.hop.duration) {
+            frog.x = frog.hop.toX;
+            frog.row = frog.hop.toRow;
+            frog.hop = null;
+            landFrog();
+          }
+        } else {
+          // 青蛙站在浮木上时随水流移动，仍可随时向相邻格跳跃
+          if (frog.log && RIVER_ROWS.has(frog.row)) {
+            const lane = findRiverLane(frog.row);
+            if (lane) frog.x += lane.dir * lane.speed * dt;
+          }
+          checkCurrentHazards();
+        }
+        updateHud();
+      }
+
+      // 圆角路径兼容旧版手机浏览器
+      function roundedRect(x, y, width, height, radius) {
+        const r = Math.min(radius, width / 2, height / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + width, y, x + width, y + height, r);
+        ctx.arcTo(x + width, y + height, x, y + height, r);
+        ctx.arcTo(x, y + height, x, y, r);
+        ctx.arcTo(x, y, x + width, y, r);
+        ctx.closePath();
+      }
+
+      function drawBackground(time) {
+        const w = view.width;
+        const h = view.height;
+        const cw = view.cellW;
+        const ch = view.cellH;
+
+        // 对岸与安全草地
+        ctx.fillStyle = '#0b2b31';
+        ctx.fillRect(0, 0, w, ch);
+        ctx.fillStyle = '#0b3032';
+        ctx.fillRect(0, 6 * ch, w, ch);
+        ctx.fillStyle = '#0a292e';
+        ctx.fillRect(0, 10 * ch, w, ch);
+
+        const goalGlow = ctx.createLinearGradient(0, 0, 0, ch);
+        goalGlow.addColorStop(0, 'rgba(80, 255, 183, .16)');
+        goalGlow.addColorStop(1, 'rgba(20, 78, 76, .04)');
+        ctx.fillStyle = goalGlow;
+        ctx.fillRect(0, 0, w, ch);
+
+        // 河面与流动的霓虹水纹
+        const water = ctx.createLinearGradient(0, ch, 0, 6 * ch);
+        water.addColorStop(0, '#082a43');
+        water.addColorStop(.5, '#07263e');
+        water.addColorStop(1, '#092f46');
+        ctx.fillStyle = water;
+        ctx.fillRect(0, ch, w, 5 * ch);
+
+        ctx.lineWidth = 1;
+        for (let row = 1; row <= 5; row++) {
+          for (let i = 0; i < 7; i++) {
+            const px = ((i * 1.53 + row * .71) % 10 - 1) * cw;
+            const py = (row + .28 + .42 * ((i * .37) % 1)) * ch;
+            const drift = Math.sin(time * 1.4 + i + row) * cw * .18;
+            ctx.strokeStyle = `rgba(74, 211, 240, ${.08 + (i % 3) * .025})`;
+            ctx.beginPath();
+            ctx.moveTo(px + drift, py);
+            ctx.quadraticCurveTo(px + cw * .28 + drift, py - 2, px + cw * .58 + drift, py);
+            ctx.stroke();
+          }
+        }
+
+        // 车道采用细微明暗交替，便于快速判断位置
+        ctx.fillStyle = '#111629';
+        ctx.fillRect(0, 7 * ch, w, 3 * ch);
+        ctx.fillStyle = 'rgba(255, 255, 255, .012)';
+        ctx.fillRect(0, 8 * ch, w, ch);
+        ctx.save();
+        ctx.setLineDash([cw * .28, cw * .3]);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(144, 164, 196, .22)';
+        for (const row of [8, 9]) {
+          ctx.beginPath();
+          ctx.moveTo(0, row * ch);
+          ctx.lineTo(w, row * ch);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // 草地边缘、路面边缘与装饰
+        ctx.shadowBlur = 9;
+        ctx.shadowColor = '#55ffc0';
+        ctx.fillStyle = 'rgba(91, 255, 193, .48)';
+        ctx.fillRect(0, ch - 1, w, 2);
+        ctx.fillRect(0, 6 * ch - 1, w, 2);
+        ctx.fillRect(0, 7 * ch - 1, w, 1);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(255, 95, 178, .3)';
+        ctx.fillRect(0, 10 * ch - 1, w, 2);
+
+        for (const row of [0, 6, 10]) {
+          ctx.strokeStyle = 'rgba(106, 255, 187, .18)';
+          ctx.lineWidth = 1;
+          for (let i = 0; i < 15; i++) {
+            const x = ((i * 2.37 + row * .61) % 9) * cw;
+            const y = (row + .25 + ((i * .41) % .5)) * ch;
+            ctx.beginPath();
+            ctx.moveTo(x, y + 3);
+            ctx.lineTo(x + 2, y - 2);
+            ctx.moveTo(x + 3, y + 3);
+            ctx.lineTo(x + 5, y - 1);
+            ctx.stroke();
+          }
+        }
+
+        // 对岸的荷叶灯与淡淡地标文字
+        for (let i = 0; i < 5; i++) {
+          const x = (i * 2 + .5) * cw;
+          const y = .48 * ch;
+          ctx.fillStyle = 'rgba(87, 248, 178, .12)';
+          ctx.beginPath();
+          ctx.ellipse(x, y, cw * .31, ch * .18, -.15, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(121, 255, 200, .23)';
+          ctx.stroke();
+        }
+        ctx.fillStyle = 'rgba(191, 255, 229, .28)';
+        ctx.font = `700 ${Math.max(8, ch * .18)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('对  岸', w / 2, ch * .82);
+        ctx.fillStyle = 'rgba(174, 229, 224, .19)';
+        ctx.fillText('起  点', w / 2, ch * 10.78);
+      }
+
+      function drawCar(car, lane) {
+        const cw = view.cellW;
+        const ch = view.cellH;
+        const x = car.x * cw;
+        const y = (lane.row + .19) * ch;
+        const width = car.length * cw;
+        const height = ch * .62;
+
+        ctx.save();
+        ctx.shadowColor = car.color;
+        ctx.shadowBlur = Math.min(12, cw * .22);
+        roundedRect(x, y, width, height, height * .25);
+        ctx.fillStyle = car.color;
+        ctx.globalAlpha = .88;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+
+        // 车顶玻璃与车身高光
+        const cabinX = x + width * .28;
+        roundedRect(cabinX, y + height * .12, width * .44, height * .76, height * .12);
+        const glass = ctx.createLinearGradient(0, y, 0, y + height);
+        glass.addColorStop(0, '#27344e');
+        glass.addColorStop(1, '#101a31');
+        ctx.fillStyle = glass;
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255, 255, 255, .24)';
+        roundedRect(x + width * .1, y + height * .09, width * .7, Math.max(1, height * .06), 2);
+        ctx.fill();
+
+        // 按行驶方向绘制车灯
+        const frontX = lane.dir > 0 ? x + width - 2 : x - 3;
+        ctx.fillStyle = '#fff8bd';
+        ctx.shadowColor = '#fff3a0';
+        ctx.shadowBlur = 7;
+        ctx.fillRect(frontX, y + height * .15, 5, Math.max(2, height * .14));
+        ctx.fillRect(frontX, y + height * .7, 5, Math.max(2, height * .14));
+        ctx.restore();
+      }
+
+      function drawLog(log, lane) {
+        const cw = view.cellW;
+        const ch = view.cellH;
+        const x = log.x * cw;
+        const y = (lane.row + .22) * ch;
+        const width = log.length * cw;
+        const height = ch * .56;
+
+        ctx.save();
+        ctx.shadowColor = '#d58a56';
+        ctx.shadowBlur = 8;
+        roundedRect(x, y, width, height, height / 2);
+        const wood = ctx.createLinearGradient(0, y, 0, y + height);
+        wood.addColorStop(0, '#b77b52');
+        wood.addColorStop(.45, '#81533f');
+        wood.addColorStop(1, '#543b38');
+        ctx.fillStyle = wood;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = 'rgba(255, 197, 133, .24)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // 木纹和两端年轮让浮木更易辨认
+        ctx.strokeStyle = 'rgba(255, 205, 151, .19)';
+        for (let i = 1; i < 4; i++) {
+          const lx = x + width * i / 4;
+          ctx.beginPath();
+          ctx.moveTo(lx, y + height * .25);
+          ctx.quadraticCurveTo(lx + 5, y + height * .45, lx, y + height * .7);
+          ctx.stroke();
+        }
+        ctx.fillStyle = '#c08a5d';
+        ctx.beginPath();
+        ctx.ellipse(x + height * .43, y + height / 2, height * .17, height * .31, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(80, 43, 38, .55)';
+        ctx.beginPath();
+        ctx.ellipse(x + height * .43, y + height / 2, height * .09, height * .18, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function getFrogPose() {
+        if (!frog.hop) return { x: frog.x, row: frog.row, lift: 0, progress: 0 };
+        const hop = frog.hop;
+        const t = Math.min(1, hop.elapsed / hop.duration);
+        const smooth = t * t * (3 - 2 * t);
+        return {
+          x: hop.fromX + (hop.toX - hop.fromX) * smooth,
+          row: hop.fromRow + (hop.toRow - hop.fromRow) * smooth,
+          lift: Math.sin(t * Math.PI) * view.cellH * .3,
+          progress: t
+        };
+      }
+
+      function drawFrog(time) {
+        if (frog.dead && Math.floor(frog.respawnTimer * 12) % 2 === 0) return;
+        if (frog.invincible > 0 && Math.floor(time * 12) % 2 === 0) return;
+
+        const pose = getFrogPose();
+        const size = Math.min(view.cellW, view.cellH);
+        const groundX = pose.x * view.cellW;
+        const groundY = (pose.row + .5) * view.cellH;
+        const x = groundX;
+        const y = groundY - pose.lift;
+
+        // 地面影子随跳跃高度缩小
+        ctx.save();
+        ctx.globalAlpha = .25 * (1 - pose.lift / (view.cellH * .55));
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.ellipse(groundX, groundY + size * .22, size * .25, size * .1, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(frog.direction);
+        const stretch = frog.hop ? Math.sin(pose.progress * Math.PI) * .08 : 0;
+        ctx.scale(1 - stretch * .4, 1 + stretch);
+        ctx.shadowColor = frog.dead ? '#ff527e' : '#63ffc0';
+        ctx.shadowBlur = size * .22;
+
+        // 后腿与前肢
+        ctx.fillStyle = '#38bd83';
+        ctx.beginPath();
+        ctx.ellipse(-size * .24, size * .14, size * .14, size * .2, -.5, 0, Math.PI * 2);
+        ctx.ellipse(size * .24, size * .14, size * .14, size * .2, .5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#75ffc0';
+        ctx.lineWidth = Math.max(1.5, size * .055);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-size * .16, -size * .04);
+        ctx.lineTo(-size * .31, -size * .19);
+        ctx.moveTo(size * .16, -size * .04);
+        ctx.lineTo(size * .31, -size * .19);
+        ctx.stroke();
+
+        // 身体与头部
+        const body = ctx.createLinearGradient(0, -size * .3, 0, size * .3);
+        body.addColorStop(0, '#9bffd0');
+        body.addColorStop(1, '#42d995');
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.ellipse(0, size * .07, size * .23, size * .28, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(0, -size * .14, size * .25, size * .2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // 眼睛、瞳孔和腹部高光
+        for (const side of [-1, 1]) {
+          ctx.fillStyle = '#c9ffe1';
+          ctx.beginPath();
+          ctx.arc(side * size * .14, -size * .28, size * .09, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#09251f';
+          ctx.beginPath();
+          ctx.arc(side * size * .14, -size * .3, size * .042, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#fff';
+          ctx.beginPath();
+          ctx.arc(side * size * .14 - size * .012, -size * .315, size * .012, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = 'rgba(229, 255, 219, .33)';
+        ctx.beginPath();
+        ctx.ellipse(0, size * .09, size * .12, size * .16, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function render(time) {
+        if (!view.width || !view.height) return;
+        ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+        ctx.clearRect(0, 0, view.width, view.height);
+        ctx.save();
+        if (state.shake > 0) {
+          const strength = state.shake * 10;
+          ctx.translate(Math.sin(time * 83) * strength, Math.cos(time * 71) * strength * .6);
+        }
+        drawBackground(time);
+        for (const lane of riverLanes) for (const log of lane.items) drawLog(log, lane);
+        for (const lane of roadLanes) for (const car of lane.items) drawCar(car, lane);
+        drawFrog(time);
+        ctx.restore();
+      }
+
+      function frame(now) {
+        const dt = Math.min(.05, Math.max(0, (now - lastFrame) / 1000));
+        lastFrame = now;
+        if (state.mode === 'playing') update(dt);
+        render(now / 1000);
+        requestAnimationFrame(frame);
+      }
+
+      // 触屏滑动：达到阈值立即跳一次，避免等待松手造成迟滞
+      function pointerPosition(event) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      }
+
+      canvas.addEventListener('pointerdown', event => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        const point = pointerPosition(event);
+        gesture = { id: event.pointerId, startX: point.x, startY: point.y, moved: false };
+        canvas.setPointerCapture(event.pointerId);
+      });
+
+      canvas.addEventListener('pointermove', event => {
+        if (!gesture || gesture.id !== event.pointerId || gesture.moved) return;
+        event.preventDefault();
+        const point = pointerPosition(event);
+        const dx = point.x - gesture.startX;
+        const dy = point.y - gesture.startY;
+        const threshold = Math.max(16, Math.min(view.cellW, view.cellH) * .35);
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < threshold) return;
+        gesture.moved = true;
+        if (Math.abs(dx) > Math.abs(dy)) attemptMove(dx > 0 ? 1 : -1, 0);
+        else attemptMove(0, dy > 0 ? 1 : -1);
+      });
+
+      function endPointer(event, cancelled) {
+        if (!gesture || gesture.id !== event.pointerId) return;
+        const current = gesture;
+        gesture = null;
+        if (cancelled || current.moved || state.mode !== 'playing') return;
+
+        // 极快滑动可能没有 pointermove，松手时再补判一次手势
+        const point = pointerPosition(event);
+        const swipeX = point.x - current.startX;
+        const swipeY = point.y - current.startY;
+        const threshold = Math.max(16, Math.min(view.cellW, view.cellH) * .35);
+        if (Math.max(Math.abs(swipeX), Math.abs(swipeY)) >= threshold) {
+          if (Math.abs(swipeX) > Math.abs(swipeY)) attemptMove(swipeX > 0 ? 1 : -1, 0);
+          else attemptMove(0, swipeY > 0 ? 1 : -1);
+          return;
+        }
+
+        // 鼠标或轻点兼容：点击青蛙的某一侧即向该方向跳一格
+        const pose = getFrogPose();
+        const dx = point.x - pose.x * view.cellW;
+        const dy = point.y - (pose.row + .5) * view.cellH;
+        if (Math.hypot(dx, dy) < Math.min(view.cellW, view.cellH) * .25) return;
+        if (Math.abs(dx) > Math.abs(dy)) attemptMove(dx > 0 ? 1 : -1, 0);
+        else attemptMove(0, dy > 0 ? 1 : -1);
+      }
+
+      canvas.addEventListener('pointerup', event => endPointer(event, false));
+      canvas.addEventListener('pointercancel', event => endPointer(event, true));
+      canvas.addEventListener('contextmenu', event => event.preventDefault());
+
+      // 键盘支持方向键、WASD、空格暂停和 R 重开
+      document.addEventListener('keydown', event => {
+        if (event.target.tagName === 'BUTTON' && (event.code === 'Space' || event.code === 'Enter')) return;
+        const moves = {
+          ArrowUp: [0, -1], KeyW: [0, -1],
+          ArrowDown: [0, 1], KeyS: [0, 1],
+          ArrowLeft: [-1, 0], KeyA: [-1, 0],
+          ArrowRight: [1, 0], KeyD: [1, 0]
+        };
+        if (moves[event.code]) {
+          event.preventDefault();
+          attemptMove(...moves[event.code]);
+        } else if (event.code === 'Space') {
+          event.preventDefault();
+          if (state.mode === 'playing') pauseGame();
+          else if (state.mode === 'paused') resumeGame();
+          else if (state.mode === 'ready') startGame();
+        } else if (event.code === 'KeyR') {
+          event.preventDefault();
+          startGame();
+        } else if (event.code === 'Enter' && ['ready', 'won', 'lost'].includes(state.mode)) {
+          event.preventDefault();
+          startGame();
+        }
+      });
+
+      pauseButton.addEventListener('click', () => {
+        if (state.mode === 'playing') pauseGame();
+        else if (state.mode === 'paused') resumeGame();
+      });
+
+      primaryAction.addEventListener('click', () => {
+        if (state.mode === 'paused') resumeGame();
+        else startGame();
+      });
+      secondaryAction.addEventListener('click', startGame);
+
+      // 禁止双击缩放、双指缩放与页面回弹滚动
+      document.addEventListener('dblclick', event => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', event => event.preventDefault(), { passive: false });
+      document.addEventListener('touchmove', event => event.preventDefault(), { passive: false });
+      let lastTouchEnd = 0;
+      document.addEventListener('touchend', event => {
+        const now = Date.now();
+        if (now - lastTouchEnd < 300) event.preventDefault();
+        lastTouchEnd = now;
+      }, { passive: false });
+
+      // 切到后台时自动暂停，返回后由玩家主动继续
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state.mode === 'playing') pauseGame();
+      });
+      window.addEventListener('resize', fitBoard);
+
+      createLanes();
+      updateHud();
+      updateZoneBadge();
+      fitBoard();
+      if ('ResizeObserver' in window) new ResizeObserver(fitBoard).observe(stage);
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>

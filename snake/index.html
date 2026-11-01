@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070b18">
+  <title>霓虹贪吃蛇</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070b18;
+      --panel: rgba(15, 23, 42, 0.82);
+      --line: rgba(103, 232, 249, 0.22);
+      --cyan: #22d3ee;
+      --purple: #a78bfa;
+      --pink: #f0abfc;
+      --text: #e5f7ff;
+      --muted: #8fa8bd;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at 12% 12%, rgba(34, 211, 238, 0.13), transparent 34%),
+        radial-gradient(circle at 88% 88%, rgba(168, 85, 247, 0.14), transparent 36%),
+        var(--bg);
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body::before {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      content: "";
+      pointer-events: none;
+      opacity: 0.16;
+      background-image:
+        linear-gradient(rgba(103, 232, 249, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(103, 232, 249, 0.08) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: linear-gradient(to bottom, black, transparent 80%);
+    }
+
+    button { font: inherit; }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+      width: min(100%, 440px);
+      margin: auto;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .eyebrow {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--cyan);
+      font-size: 0.61rem;
+      font-weight: 700;
+      letter-spacing: 0.25em;
+      opacity: 0.75;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.45rem, 6vw, 2rem);
+      line-height: 1.15;
+      letter-spacing: 0.1em;
+      background: linear-gradient(90deg, #67e8f9, #c4b5fd, #f0abfc);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.3));
+    }
+
+    .pause-button,
+    .primary-button {
+      min-height: 44px;
+      border: 1px solid rgba(103, 232, 249, 0.45);
+      border-radius: 10px;
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, transform 0.15s, box-shadow 0.15s;
+    }
+
+    .pause-button {
+      flex-shrink: 0;
+      min-width: 88px;
+      padding: 8px 13px;
+      background: rgba(15, 23, 42, 0.9);
+      font-size: 0.88rem;
+    }
+
+    .pause-button:disabled {
+      cursor: default;
+      opacity: 0.42;
+    }
+
+    .pause-button:focus-visible,
+    .primary-button:focus-visible {
+      outline: 2px solid #a5f3fc;
+      outline-offset: 3px;
+    }
+
+    .pause-button:not(:disabled):active,
+    .primary-button:active { transform: translateY(1px) scale(0.98); }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .stat {
+      position: relative;
+      overflow: hidden;
+      padding: 9px 14px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      text-align: center;
+      background: linear-gradient(145deg, rgba(20, 31, 54, 0.92), var(--panel));
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.04), 0 8px 24px rgba(0, 0, 0, 0.18);
+    }
+
+    .stat::before {
+      position: absolute;
+      top: 0;
+      left: 25%;
+      width: 50%;
+      height: 1px;
+      content: "";
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      opacity: 0.65;
+    }
+
+    .stat-label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.69rem;
+      letter-spacing: 0.15em;
+    }
+
+    .stat-value {
+      display: block;
+      margin-top: 1px;
+      color: #cffafe;
+      font-size: clamp(1.2rem, 5vw, 1.55rem);
+      font-weight: 750;
+      line-height: 1.25;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 13px rgba(34, 211, 238, 0.38);
+    }
+
+    .stat:last-child .stat-value {
+      color: #e9d5ff;
+      text-shadow: 0 0 13px rgba(167, 139, 250, 0.4);
+    }
+
+    .stat-value.bump { animation: score-bump 0.24s ease-out; }
+
+    @keyframes score-bump {
+      50% { transform: scale(1.16); color: #fff; }
+    }
+
+    .board-wrap {
+      position: relative;
+      align-self: center;
+      width: 100%;
+      width: min(100%, calc(100svh - 244px));
+      overflow: hidden;
+      border: 1px solid rgba(103, 232, 249, 0.48);
+      border-radius: 14px;
+      background: #080e20;
+      box-shadow:
+        0 0 0 1px rgba(167, 139, 250, 0.1),
+        0 0 28px rgba(34, 211, 238, 0.15),
+        inset 0 0 30px rgba(34, 211, 238, 0.035);
+      isolation: isolate;
+    }
+
+    #gameCanvas {
+      display: block;
+      width: 100%;
+      aspect-ratio: 1;
+      touch-action: none;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(3, 7, 18, 0.78);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      animation: overlay-in 0.18s ease-out;
+    }
+
+    .overlay[hidden] { display: none; }
+
+    @keyframes overlay-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .overlay-content {
+      width: 100%;
+      max-width: 290px;
+      text-align: center;
+    }
+
+    .overlay-icon {
+      display: grid;
+      place-items: center;
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 12px;
+      border: 1px solid rgba(103, 232, 249, 0.42);
+      border-radius: 15px;
+      color: #a5f3fc;
+      background: rgba(34, 211, 238, 0.08);
+      box-shadow: 0 0 22px rgba(34, 211, 238, 0.18), inset 0 0 14px rgba(34, 211, 238, 0.06);
+      font-size: 1.45rem;
+      text-shadow: 0 0 12px var(--cyan);
+    }
+
+    .overlay h2 {
+      margin: 0 0 9px;
+      color: #a5f3fc;
+      font-size: clamp(1.35rem, 6vw, 1.7rem);
+      letter-spacing: 0.08em;
+      text-shadow: 0 0 18px rgba(34, 211, 238, 0.55);
+    }
+
+    .overlay-message {
+      margin: 0 0 17px;
+      color: #b8c9da;
+      font-size: 0.86rem;
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    .final-stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin: 0 0 17px;
+    }
+
+    .final-stats[hidden] { display: none; }
+
+    .final-item {
+      padding: 8px;
+      border: 1px solid rgba(167, 139, 250, 0.18);
+      border-radius: 9px;
+      background: rgba(15, 23, 42, 0.58);
+    }
+
+    .final-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.66rem;
+    }
+
+    .final-item strong {
+      display: block;
+      margin-top: 2px;
+      color: #e9d5ff;
+      font-size: 1.2rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .primary-button {
+      min-width: 142px;
+      padding: 10px 22px;
+      background: linear-gradient(135deg, rgba(8, 145, 178, 0.72), rgba(126, 34, 206, 0.65));
+      box-shadow: 0 5px 20px rgba(34, 211, 238, 0.12);
+      font-weight: 700;
+      letter-spacing: 0.06em;
+    }
+
+    .hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.7rem;
+      line-height: 1.6;
+      text-align: center;
+    }
+
+    .hint strong { color: #bae6fd; font-weight: 600; }
+    .hint span { margin: 0 5px; opacity: 0.55; }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (hover: hover) {
+      .pause-button:not(:disabled):hover {
+        border-color: #67e8f9;
+        background: rgba(34, 211, 238, 0.13);
+      }
+
+      .primary-button:hover {
+        border-color: #a5f3fc;
+        box-shadow: 0 5px 24px rgba(34, 211, 238, 0.24);
+      }
+    }
+
+    @media (max-height: 620px) {
+      body { padding-top: 8px; padding-bottom: 8px; }
+      .app { gap: 7px; }
+      .eyebrow { display: none; }
+      .stat { padding-top: 5px; padding-bottom: 5px; }
+      .board-wrap { width: min(100%, calc(100svh - 202px)); }
+      .hint { font-size: 0.64rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="霓虹贪吃蛇游戏">
+    <header class="header">
+      <div>
+        <span class="eyebrow">NEON ARCADE</span>
+        <h1>霓虹贪吃蛇</h1>
+      </div>
+      <button class="pause-button" id="pauseButton" type="button" aria-label="暂停游戏" disabled>Ⅱ&nbsp; 暂停</button>
+    </header>
+
+    <section class="stats" aria-label="分数">
+      <div class="stat">
+        <span class="stat-label">当前分数</span>
+        <strong class="stat-value" id="scoreValue">0</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">最高分</span>
+        <strong class="stat-value" id="highScoreValue">0</strong>
+      </div>
+    </section>
+
+    <div class="board-wrap">
+      <canvas id="gameCanvas" role="img" aria-label="贪吃蛇棋盘，滑动或使用方向键控制">
+        你的浏览器不支持 Canvas，请更换浏览器后再试。
+      </canvas>
+
+      <section class="overlay" id="gameOverlay" aria-labelledby="overlayTitle" aria-live="polite">
+        <div class="overlay-content">
+          <div class="overlay-icon" id="overlayIcon" aria-hidden="true">✦</div>
+          <h2 id="overlayTitle">准备开始</h2>
+          <p class="overlay-message" id="overlayMessage">吃掉能量球，让身体变长。
+不要撞墙，也不要咬到自己。</p>
+          <div class="final-stats" id="finalStats" hidden>
+            <div class="final-item"><span>本局得分</span><strong id="finalScore">0</strong></div>
+            <div class="final-item"><span>最高分</span><strong id="finalHighScore">0</strong></div>
+          </div>
+          <button class="primary-button" id="overlayButton" type="button">开始游戏</button>
+        </div>
+      </section>
+    </div>
+
+    <p class="hint"><strong>滑动棋盘改变方向</strong><span>·</span>方向键 / WASD<span>·</span>P 暂停</p>
+    <div class="sr-only" id="statusLive" aria-live="assertive"></div>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // 棋盘与速度配置：每吃一个食物，移动间隔都会缩短。
+      const GRID_SIZE = 20;
+      const INITIAL_LENGTH = 3;
+      const START_MOVE_MS = 160;
+      const MIN_MOVE_MS = 65;
+      const SPEED_UP_MS = 4;
+      const POINTS_PER_FOOD = 10;
+      const STORAGE_KEY = 'neon-snake-high-score';
+
+      const STATE = Object.freeze({
+        READY: 'ready',
+        RUNNING: 'running',
+        PAUSED: 'paused',
+        OVER: 'over'
+      });
+
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      const scoreValue = document.getElementById('scoreValue');
+      const highScoreValue = document.getElementById('highScoreValue');
+      const pauseButton = document.getElementById('pauseButton');
+      const overlay = document.getElementById('gameOverlay');
+      const overlayIcon = document.getElementById('overlayIcon');
+      const overlayTitle = document.getElementById('overlayTitle');
+      const overlayMessage = document.getElementById('overlayMessage');
+      const overlayButton = document.getElementById('overlayButton');
+      const finalStats = document.getElementById('finalStats');
+      const finalScore = document.getElementById('finalScore');
+      const finalHighScore = document.getElementById('finalHighScore');
+      const statusLive = document.getElementById('statusLive');
+
+      let state = STATE.READY;
+      let snake = [];
+      let food = null;
+      let direction = { x: 1, y: 0 };
+      let directionQueue = [];
+      let score = 0;
+      let highScore = loadHighScore();
+      let scoreAtGameStart = highScore;
+      let boardSize = 0;
+      let previousTime = performance.now();
+      let accumulator = 0;
+      let swipeStart = null;
+
+      // 读取最高分；隐私模式或文件环境禁用存储时也能正常游玩。
+      function loadHighScore() {
+        try {
+          const saved = Number.parseInt(localStorage.getItem(STORAGE_KEY), 10);
+          return Number.isFinite(saved) && saved > 0 ? saved : 0;
+        } catch (error) {
+          return 0;
+        }
+      }
+
+      function saveHighScore() {
+        try {
+          localStorage.setItem(STORAGE_KEY, String(highScore));
+        } catch (error) {
+          // 存储不可用时仅保留本次会话中的最高分。
+        }
+      }
+
+      function updateScoreDisplay(animate = false) {
+        scoreValue.textContent = String(score);
+        highScoreValue.textContent = String(highScore);
+        if (animate) {
+          scoreValue.classList.remove('bump');
+          void scoreValue.offsetWidth;
+          scoreValue.classList.add('bump');
+        }
+      }
+
+      function updatePauseButton() {
+        const isPaused = state === STATE.PAUSED;
+        pauseButton.disabled = state === STATE.READY || state === STATE.OVER;
+        pauseButton.innerHTML = isPaused ? '▶&nbsp; 继续' : 'Ⅱ&nbsp; 暂停';
+        pauseButton.setAttribute('aria-label', isPaused ? '继续游戏' : '暂停游戏');
+      }
+
+      function showOverlay({ icon, title, message, buttonText, showScores = false }) {
+        overlayIcon.textContent = icon;
+        overlayTitle.textContent = title;
+        overlayMessage.textContent = message;
+        overlayButton.textContent = buttonText;
+        finalStats.hidden = !showScores;
+        overlay.hidden = false;
+      }
+
+      function hideOverlay() {
+        overlay.hidden = true;
+      }
+
+      // 初始化一局，但不自动开始，方便玩家先看清操作提示。
+      function prepareGame() {
+        const middle = Math.floor(GRID_SIZE / 2);
+        snake = [
+          { x: middle - 1, y: middle },
+          { x: middle - 2, y: middle },
+          { x: middle - 3, y: middle }
+        ];
+        direction = { x: 1, y: 0 };
+        directionQueue = [];
+        score = 0;
+        scoreAtGameStart = highScore;
+        placeFood();
+        updateScoreDisplay();
+        updatePauseButton();
+      }
+
+      function startNewGame() {
+        prepareGame();
+        state = STATE.RUNNING;
+        accumulator = 0;
+        previousTime = performance.now();
+        hideOverlay();
+        updatePauseButton();
+        statusLive.textContent = '游戏开始';
+      }
+
+      function pauseGame() {
+        if (state !== STATE.RUNNING) return;
+        state = STATE.PAUSED;
+        updatePauseButton();
+        showOverlay({
+          icon: 'Ⅱ',
+          title: '游戏暂停',
+          message: '休息一下，准备好再继续。',
+          buttonText: '继续游戏'
+        });
+        statusLive.textContent = '游戏已暂停';
+      }
+
+      function resumeGame() {
+        if (state !== STATE.PAUSED) return;
+        state = STATE.RUNNING;
+        accumulator = 0;
+        previousTime = performance.now();
+        hideOverlay();
+        updatePauseButton();
+        statusLive.textContent = '游戏继续';
+      }
+
+      function togglePause() {
+        if (state === STATE.RUNNING) pauseGame();
+        else if (state === STATE.PAUSED) resumeGame();
+      }
+
+      function endGame(reason) {
+        state = STATE.OVER;
+        updatePauseButton();
+        finalScore.textContent = String(score);
+        finalHighScore.textContent = String(highScore);
+
+        const isNewRecord = score > scoreAtGameStart;
+        let title = '游戏结束';
+        let message = reason === 'self' ? '咬到自己了，再试一次吧！' : '撞到墙了，再试一次吧！';
+        let icon = '×';
+
+        if (reason === 'win') {
+          title = '通关成功！';
+          message = '你填满了整个棋盘，霓虹蛇王就是你！';
+          icon = '★';
+        } else if (isNewRecord) {
+          message = `新纪录！${message}`;
+          icon = '★';
+        }
+
+        showOverlay({
+          icon,
+          title,
+          message,
+          buttonText: '再来一局',
+          showScores: true
+        });
+        statusLive.textContent = `${title}，本局得分 ${score}`;
+        overlayButton.focus({ preventScroll: true });
+      }
+
+      // 只在空格中生成食物，避免食物出现在蛇身上。
+      function placeFood() {
+        const occupied = new Set(snake.map(part => `${part.x},${part.y}`));
+        const emptyCells = [];
+        for (let y = 0; y < GRID_SIZE; y += 1) {
+          for (let x = 0; x < GRID_SIZE; x += 1) {
+            if (!occupied.has(`${x},${y}`)) emptyCells.push({ x, y });
+          }
+        }
+        food = emptyCells.length > 0
+          ? emptyCells[Math.floor(Math.random() * emptyCells.length)]
+          : null;
+        return food !== null;
+      }
+
+      function getMoveInterval() {
+        const eaten = snake.length - INITIAL_LENGTH;
+        return Math.max(MIN_MOVE_MS, START_MOVE_MS - eaten * SPEED_UP_MS);
+      }
+
+      // 每个移动周期只取一个转向，队列可避免快速按键造成瞬间反向。
+      function updateGame() {
+        if (directionQueue.length > 0) direction = directionQueue.shift();
+
+        const head = {
+          x: snake[0].x + direction.x,
+          y: snake[0].y + direction.y
+        };
+
+        if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE) {
+          endGame('wall');
+          return;
+        }
+
+        const eating = food !== null && head.x === food.x && head.y === food.y;
+        // 未进食时尾格会在同一周期移走，因此不把它算作碰撞。
+        const collisionLength = eating ? snake.length : snake.length - 1;
+        for (let i = 0; i < collisionLength; i += 1) {
+          if (snake[i].x === head.x && snake[i].y === head.y) {
+            endGame('self');
+            return;
+          }
+        }
+
+        snake.unshift(head);
+        if (eating) {
+          score += POINTS_PER_FOOD;
+          if (score > highScore) {
+            highScore = score;
+            saveHighScore();
+          }
+          updateScoreDisplay(true);
+          if (!placeFood()) {
+            endGame('win');
+            return;
+          }
+        } else {
+          snake.pop();
+        }
+      }
+
+      function queueDirection(nextDirection) {
+        if (state !== STATE.READY && state !== STATE.RUNNING) return;
+
+        const lastDirection = directionQueue.length > 0
+          ? directionQueue[directionQueue.length - 1]
+          : direction;
+        const isSame = nextDirection.x === lastDirection.x && nextDirection.y === lastDirection.y;
+        const isReverse = nextDirection.x === -lastDirection.x && nextDirection.y === -lastDirection.y;
+        if (isReverse) return;
+        if (!isSame && directionQueue.length < 2) directionQueue.push(nextDirection);
+
+        // 准备界面中的有效方向输入也会直接开始游戏。
+        if (state === STATE.READY) {
+          state = STATE.RUNNING;
+          accumulator = 0;
+          previousTime = performance.now();
+          hideOverlay();
+          updatePauseButton();
+          statusLive.textContent = '游戏开始';
+        }
+      }
+
+      // 使用 CSS 像素绘制，同时按设备像素比提升高分屏清晰度。
+      function resizeCanvas() {
+        const size = canvas.getBoundingClientRect().width;
+        if (size <= 0) return;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(size * dpr);
+        canvas.height = Math.round(size * dpr);
+        boardSize = size;
+        ctx.setTransform(canvas.width / size, 0, 0, canvas.height / size, 0, 0);
+      }
+
+      function roundedRectPath(x, y, width, height, radius) {
+        const r = Math.min(radius, width / 2, height / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + width, y, x + width, y + height, r);
+        ctx.arcTo(x + width, y + height, x, y + height, r);
+        ctx.arcTo(x, y + height, x, y, r);
+        ctx.arcTo(x, y, x + width, y, r);
+        ctx.closePath();
+      }
+
+      function drawBoard() {
+        ctx.fillStyle = '#080e20';
+        ctx.fillRect(0, 0, boardSize, boardSize);
+
+        const cell = boardSize / GRID_SIZE;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(103, 232, 249, 0.055)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let i = 1; i < GRID_SIZE; i += 1) {
+          const position = i * cell;
+          ctx.moveTo(position, 0);
+          ctx.lineTo(position, boardSize);
+          ctx.moveTo(0, position);
+          ctx.lineTo(boardSize, position);
+        }
+        ctx.stroke();
+        ctx.restore();
+
+        const vignette = ctx.createRadialGradient(
+          boardSize / 2, boardSize / 2, boardSize * 0.15,
+          boardSize / 2, boardSize / 2, boardSize * 0.72
+        );
+        vignette.addColorStop(0, 'rgba(34, 211, 238, 0.018)');
+        vignette.addColorStop(1, 'rgba(3, 7, 18, 0.22)');
+        ctx.fillStyle = vignette;
+        ctx.fillRect(0, 0, boardSize, boardSize);
+      }
+
+      function drawFood(time) {
+        if (!food) return;
+        const cell = boardSize / GRID_SIZE;
+        const centerX = (food.x + 0.5) * cell;
+        const centerY = (food.y + 0.5) * cell;
+        const pulse = 1 + Math.sin(time / 150) * 0.08;
+        const radius = cell * 0.25 * pulse;
+
+        ctx.save();
+        ctx.shadowColor = '#e879f9';
+        ctx.shadowBlur = cell * 0.65;
+        const gradient = ctx.createRadialGradient(
+          centerX - radius * 0.3, centerY - radius * 0.35, radius * 0.08,
+          centerX, centerY, radius
+        );
+        gradient.addColorStop(0, '#fdf4ff');
+        gradient.addColorStop(0.28, '#f0abfc');
+        gradient.addColorStop(1, '#a855f7');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.beginPath();
+        ctx.arc(centerX - radius * 0.3, centerY - radius * 0.35, Math.max(1, radius * 0.17), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawSnake() {
+        const cell = boardSize / GRID_SIZE;
+        const padding = cell * 0.1;
+        const size = cell - padding * 2;
+
+        // 从尾到头绘制，蛇头始终位于最上层。
+        for (let i = snake.length - 1; i >= 0; i -= 1) {
+          const part = snake[i];
+          const ratio = snake.length > 1 ? i / (snake.length - 1) : 0;
+          const hue = 187 + ratio * 73;
+          const x = part.x * cell + padding;
+          const y = part.y * cell + padding;
+
+          ctx.save();
+          ctx.fillStyle = `hsl(${hue} 86% ${i === 0 ? 67 : 59}%)`;
+          ctx.shadowColor = `hsl(${hue} 90% 60%)`;
+          ctx.shadowBlur = i === 0 ? cell * 0.55 : cell * 0.2;
+          roundedRectPath(x, y, size, size, cell * (i === 0 ? 0.28 : 0.23));
+          ctx.fill();
+
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+          ctx.lineWidth = Math.max(0.6, cell * 0.035);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        drawEyes(cell);
+      }
+
+      function drawEyes(cell) {
+        const head = snake[0];
+        if (!head) return;
+        const centerX = (head.x + 0.5) * cell;
+        const centerY = (head.y + 0.5) * cell;
+        const perpendicular = { x: -direction.y, y: direction.x };
+        const eyeRadius = Math.max(1.2, cell * 0.072);
+
+        ctx.save();
+        ctx.fillStyle = '#06101d';
+        for (const side of [-1, 1]) {
+          const x = centerX + direction.x * cell * 0.16 + perpendicular.x * cell * 0.16 * side;
+          const y = centerY + direction.y * cell * 0.16 + perpendicular.y * cell * 0.16 * side;
+          ctx.beginPath();
+          ctx.arc(x, y, eyeRadius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function draw(time) {
+        if (boardSize <= 0) return;
+        ctx.clearRect(0, 0, boardSize, boardSize);
+        drawBoard();
+        drawFood(time);
+        drawSnake();
+      }
+
+      // 固定步长更新与逐帧绘制分离，加速后仍保持稳定手感。
+      function gameLoop(time) {
+        const elapsed = Math.min(time - previousTime, 100);
+        previousTime = time;
+
+        if (state === STATE.RUNNING) {
+          accumulator += elapsed;
+          const moveInterval = getMoveInterval();
+          if (accumulator >= moveInterval) {
+            accumulator %= moveInterval;
+            updateGame();
+          }
+        }
+
+        draw(time);
+        requestAnimationFrame(gameLoop);
+      }
+
+      // 键盘支持方向键与 WASD，P 或空格可暂停。
+      document.addEventListener('keydown', event => {
+        const key = event.key.toLowerCase();
+        const directions = {
+          arrowup: { x: 0, y: -1 },
+          w: { x: 0, y: -1 },
+          arrowdown: { x: 0, y: 1 },
+          s: { x: 0, y: 1 },
+          arrowleft: { x: -1, y: 0 },
+          a: { x: -1, y: 0 },
+          arrowright: { x: 1, y: 0 },
+          d: { x: 1, y: 0 }
+        };
+
+        if (directions[key]) {
+          event.preventDefault();
+          queueDirection(directions[key]);
+          return;
+        }
+
+        if ((key === 'p' || key === ' ') && !event.repeat) {
+          // 按钮获得焦点时保留空格键的原生点击行为，避免触发两次。
+          if (key === ' ' && event.target instanceof HTMLButtonElement) return;
+          event.preventDefault();
+          togglePause();
+        }
+      });
+
+      // 记录一次触摸的起点与终点，按位移较大的轴判断滑动方向。
+      canvas.addEventListener('pointerdown', event => {
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        event.preventDefault();
+        swipeStart = { x: event.clientX, y: event.clientY, id: event.pointerId };
+        canvas.setPointerCapture(event.pointerId);
+      });
+
+      canvas.addEventListener('pointerup', event => {
+        if (!swipeStart || swipeStart.id !== event.pointerId) return;
+        event.preventDefault();
+        const deltaX = event.clientX - swipeStart.x;
+        const deltaY = event.clientY - swipeStart.y;
+        swipeStart = null;
+
+        if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 22) return;
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+          queueDirection({ x: deltaX > 0 ? 1 : -1, y: 0 });
+        } else {
+          queueDirection({ x: 0, y: deltaY > 0 ? 1 : -1 });
+        }
+      });
+
+      canvas.addEventListener('pointercancel', () => { swipeStart = null; });
+      canvas.addEventListener('contextmenu', event => event.preventDefault());
+      pauseButton.addEventListener('click', togglePause);
+      overlayButton.addEventListener('click', () => {
+        if (state === STATE.PAUSED) resumeGame();
+        else startNewGame();
+      });
+
+      // 阻止浏览器手势、双击缩放和橡皮筋滚动，按钮点击不受影响。
+      document.addEventListener('touchmove', event => {
+        if (event.cancelable) event.preventDefault();
+      }, { passive: false });
+      document.addEventListener('gesturestart', event => event.preventDefault(), { passive: false });
+      document.addEventListener('dblclick', event => event.preventDefault(), { passive: false });
+
+      // 切到后台时自动暂停，避免返回页面后已经撞墙。
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state === STATE.RUNNING) pauseGame();
+      });
+
+      window.addEventListener('resize', resizeCanvas, { passive: true });
+      if ('ResizeObserver' in window) {
+        new ResizeObserver(resizeCanvas).observe(canvas);
+      }
+
+      prepareGame();
+      showOverlay({
+        icon: '✦',
+        title: '准备开始',
+        message: '吃掉能量球，让身体变长。\n不要撞墙，也不要咬到自己。',
+        buttonText: '开始游戏'
+      });
+      highScoreValue.textContent = String(highScore);
+      resizeCanvas();
+      requestAnimationFrame(gameLoop);
+    })();
+  </script>
+</body>
+</html>

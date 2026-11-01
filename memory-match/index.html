@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070a16">
+  <title>记忆矩阵 · 霓虹翻牌</title>
+  <style>
+    /* 基础与手机全屏适配 */
+    :root {
+      color-scheme: dark;
+      --bg: #070a16;
+      --panel: rgba(16, 22, 43, 0.78);
+      --line: rgba(139, 160, 255, 0.14);
+      --text: #f2f5ff;
+      --muted: #8792b3;
+      --cyan: #54edff;
+      --violet: #a78bfa;
+      --pink: #ff6bd6;
+      --cols: 4;
+      --rows: 4;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
+      background: var(--bg);
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      color: var(--text);
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    button {
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    button:disabled {
+      cursor: default;
+      opacity: 0.45;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* 深色霓虹背景 */
+    .ambient {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 15% 5%, rgba(92, 70, 190, 0.2), transparent 35%),
+        radial-gradient(circle at 90% 90%, rgba(0, 210, 235, 0.11), transparent 38%),
+        linear-gradient(145deg, #090b1a 0%, #060812 60%, #080b18 100%);
+    }
+
+    .ambient::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: 0.22;
+      background-image:
+        linear-gradient(rgba(100, 130, 210, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 130, 210, 0.08) 1px, transparent 1px);
+      background-size: 36px 36px;
+      mask-image: linear-gradient(to bottom, black, transparent 85%);
+    }
+
+    .orb {
+      position: absolute;
+      width: 44vw;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      filter: blur(70px);
+      opacity: 0.12;
+      animation: drift 12s ease-in-out infinite alternate;
+    }
+
+    .orb-one {
+      top: -16vw;
+      right: -18vw;
+      background: var(--violet);
+    }
+
+    .orb-two {
+      bottom: -20vw;
+      left: -16vw;
+      background: var(--cyan);
+      animation-delay: -5s;
+    }
+
+    @keyframes drift {
+      to { transform: translate3d(20px, 28px, 0) scale(1.12); }
+    }
+
+    /* 主界面：纵向填满可用空间，棋盘占据剩余区域 */
+    .app {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: clamp(8px, 1.5dvh, 14px);
+      width: 100%;
+      max-width: 560px;
+      height: 100dvh;
+      margin: 0 auto;
+      padding:
+        max(14px, env(safe-area-inset-top))
+        max(14px, env(safe-area-inset-right))
+        max(12px, env(safe-area-inset-bottom))
+        max(14px, env(safe-area-inset-left));
+    }
+
+    .topbar {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 46px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .brand-mark {
+      position: relative;
+      display: grid;
+      flex: 0 0 auto;
+      grid-template-columns: repeat(2, 9px);
+      gap: 3px;
+      width: 38px;
+      height: 38px;
+      place-content: center;
+      border: 1px solid rgba(84, 237, 255, 0.35);
+      border-radius: 12px;
+      background: linear-gradient(145deg, rgba(84, 237, 255, 0.12), rgba(167, 139, 250, 0.1));
+      box-shadow: inset 0 0 14px rgba(84, 237, 255, 0.06), 0 0 24px rgba(84, 237, 255, 0.08);
+      transform: rotate(45deg);
+    }
+
+    .brand-mark i {
+      width: 9px;
+      height: 9px;
+      border-radius: 2px;
+      background: var(--cyan);
+      box-shadow: 0 0 8px rgba(84, 237, 255, 0.8);
+    }
+
+    .brand-mark i:nth-child(2),
+    .brand-mark i:nth-child(3) {
+      background: var(--violet);
+      box-shadow: 0 0 8px rgba(167, 139, 250, 0.8);
+    }
+
+    .eyebrow {
+      margin-bottom: 2px;
+      color: var(--cyan);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+    }
+
+    h1 {
+      font-size: clamp(20px, 5.5vw, 26px);
+      font-weight: 750;
+      letter-spacing: 0.08em;
+      line-height: 1.1;
+    }
+
+    .glass-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-width: 44px;
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(18, 25, 48, 0.7);
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.04);
+      color: #c8d2ef;
+      font-size: 13px;
+      transition: border-color 160ms, background 160ms, transform 160ms;
+    }
+
+    .glass-button:active {
+      transform: scale(0.95);
+      background: rgba(39, 51, 85, 0.85);
+    }
+
+    .glass-button svg {
+      width: 17px;
+      height: 17px;
+      fill: currentColor;
+    }
+
+    #pauseButton {
+      padding: 0 13px;
+    }
+
+    /* 数据面板 */
+    .stats {
+      display: grid;
+      flex: 0 0 auto;
+      grid-template-columns: repeat(4, 1fr);
+      padding: 10px 4px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: linear-gradient(120deg, rgba(19, 26, 50, 0.88), rgba(13, 18, 36, 0.75));
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18), inset 0 1px rgba(255, 255, 255, 0.035);
+      backdrop-filter: blur(16px);
+    }
+
+    .stat {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .stat + .stat::before {
+      content: "";
+      position: absolute;
+      top: 5px;
+      bottom: 5px;
+      left: 0;
+      width: 1px;
+      background: var(--line);
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+    }
+
+    .stat-value {
+      max-width: 100%;
+      overflow: hidden;
+      color: #edf3ff;
+      font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      font-size: clamp(15px, 4.4vw, 20px);
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+    }
+
+    .stat:nth-child(1) .stat-value { color: var(--cyan); }
+    .stat:nth-child(4) .stat-value { color: #c7b8ff; }
+
+    .stat-value.bump {
+      animation: bump 260ms ease-out;
+    }
+
+    @keyframes bump {
+      45% { transform: translateY(-2px) scale(1.12); text-shadow: 0 0 14px currentColor; }
+    }
+
+    /* 难度及配对进度 */
+    .controls {
+      display: grid;
+      flex: 0 0 auto;
+      gap: 9px;
+    }
+
+    .difficulty {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid rgba(139, 160, 255, 0.1);
+      border-radius: 14px;
+      background: rgba(8, 12, 27, 0.68);
+    }
+
+    .difficulty-button {
+      min-height: 40px;
+      padding: 5px 4px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      transition: color 180ms, background 180ms, box-shadow 180ms;
+    }
+
+    .difficulty-button small {
+      margin-left: 3px;
+      font-family: ui-monospace, monospace;
+      font-size: 9px;
+      opacity: 0.65;
+    }
+
+    .difficulty-button[aria-pressed="true"] {
+      border-color: rgba(84, 237, 255, 0.22);
+      background: linear-gradient(120deg, rgba(55, 192, 218, 0.17), rgba(118, 90, 207, 0.18));
+      box-shadow: inset 0 0 18px rgba(84, 237, 255, 0.04);
+      color: #dffcff;
+    }
+
+    .progress-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 12px;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.04em;
+    }
+
+    .progress-track {
+      position: relative;
+      flex: 1;
+      height: 3px;
+      overflow: hidden;
+      border-radius: 99px;
+      background: rgba(135, 146, 179, 0.14);
+    }
+
+    .progress-fill {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--violet), var(--cyan));
+      box-shadow: 0 0 8px var(--cyan);
+      transition: width 350ms ease;
+    }
+
+    #comboBadge {
+      min-width: 48px;
+      color: var(--pink);
+      font-weight: 700;
+      text-align: right;
+      opacity: 0;
+      transform: translateY(3px);
+      transition: opacity 180ms, transform 180ms;
+    }
+
+    #comboBadge.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* 3D 翻牌棋盘 */
+    .board-area {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      padding: 2px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+      grid-template-rows: repeat(var(--rows), minmax(0, 1fr));
+      gap: clamp(6px, 1.8vw, 11px);
+      width: 100%;
+      height: 100%;
+    }
+
+    .card {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      border-radius: clamp(10px, 3vw, 17px);
+      background: none;
+      perspective: 800px;
+      animation: deal 420ms both cubic-bezier(0.2, 0.75, 0.25, 1);
+      animation-delay: calc(var(--i) * 24ms);
+    }
+
+    .card:focus-visible {
+      outline-offset: 2px;
+    }
+
+    .card-inner {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      transform-style: preserve-3d;
+      transition: transform 420ms cubic-bezier(0.2, 0.72, 0.25, 1.15);
+    }
+
+    .card.is-flipped .card-inner,
+    .card.is-matched .card-inner {
+      transform: rotateY(180deg);
+    }
+
+    .card-face {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      overflow: hidden;
+      border-radius: inherit;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      place-items: center;
+    }
+
+    .card-front {
+      border: 1px solid rgba(133, 157, 226, 0.18);
+      background:
+        radial-gradient(circle at 50% 45%, rgba(105, 95, 184, 0.13), transparent 50%),
+        linear-gradient(145deg, rgba(28, 36, 66, 0.98), rgba(13, 18, 36, 0.98));
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.045), 0 5px 14px rgba(0, 0, 0, 0.2);
+    }
+
+    .card-front::before {
+      content: "";
+      position: absolute;
+      inset: 5px;
+      border: 1px solid rgba(151, 169, 233, 0.055);
+      border-radius: calc(clamp(10px, 3vw, 17px) - 4px);
+    }
+
+    .front-glyph {
+      position: relative;
+      width: clamp(17px, 5.5vmin, 30px);
+      aspect-ratio: 1;
+      border: 1px solid rgba(123, 211, 239, 0.45);
+      border-radius: 25%;
+      box-shadow: inset 0 0 9px rgba(84, 237, 255, 0.1), 0 0 10px rgba(84, 237, 255, 0.08);
+      transform: rotate(45deg);
+    }
+
+    .front-glyph::after {
+      content: "";
+      position: absolute;
+      inset: 28%;
+      border-radius: 50%;
+      background: #77deef;
+      box-shadow: 0 0 8px rgba(84, 237, 255, 0.7);
+      opacity: 0.75;
+    }
+
+    .card-back {
+      border: 1px solid hsl(var(--hue) 75% 70% / 0.42);
+      background:
+        radial-gradient(circle at 50% 42%, hsl(var(--hue) 80% 60% / 0.2), transparent 62%),
+        linear-gradient(145deg, hsl(var(--hue) 38% 21% / 0.98), rgba(12, 17, 34, 0.98));
+      box-shadow: inset 0 0 20px hsl(var(--hue) 80% 60% / 0.06), 0 0 16px hsl(var(--hue) 80% 60% / 0.08);
+      transform: rotateY(180deg);
+    }
+
+    .card-back::after {
+      content: "";
+      position: absolute;
+      inset: 5px;
+      border: 1px solid hsl(var(--hue) 80% 75% / 0.09);
+      border-radius: calc(clamp(10px, 3vw, 17px) - 4px);
+    }
+
+    .card-symbol {
+      position: relative;
+      z-index: 1;
+      font-size: clamp(22px, 7vmin, 42px);
+      line-height: 1;
+      filter: drop-shadow(0 0 8px hsl(var(--hue) 90% 70% / 0.35));
+      transform: translateZ(1px);
+    }
+
+    .card.is-matched .card-back {
+      border-color: hsl(var(--hue) 90% 72% / 0.78);
+      box-shadow: inset 0 0 24px hsl(var(--hue) 85% 60% / 0.12), 0 0 18px hsl(var(--hue) 90% 62% / 0.2);
+    }
+
+    .card.is-matched .card-symbol {
+      animation: matchPop 480ms ease-out;
+    }
+
+    .card.is-wrong {
+      animation: shake 330ms ease-in-out;
+    }
+
+    @keyframes deal {
+      from { opacity: 0; transform: translateY(12px) scale(0.92); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes matchPop {
+      45% { transform: translateZ(1px) scale(1.22); filter: drop-shadow(0 0 13px hsl(var(--hue) 90% 70% / 0.75)); }
+    }
+
+    @keyframes shake {
+      25% { transform: translateX(-3px); }
+      50% { transform: translateX(3px); }
+      75% { transform: translateX(-2px); }
+    }
+
+    @media (hover: hover) {
+      .card:not(.is-flipped):not(.is-matched):hover .card-front {
+        border-color: rgba(84, 237, 255, 0.42);
+        box-shadow: inset 0 0 18px rgba(84, 237, 255, 0.06), 0 0 14px rgba(84, 237, 255, 0.08);
+      }
+
+      .glass-button:hover { border-color: rgba(84, 237, 255, 0.35); }
+      .difficulty-button:hover { color: #e7edff; }
+    }
+
+    /* 暂停遮罩会完全盖住牌面，避免暂停时偷看 */
+    .pause-layer {
+      position: absolute;
+      z-index: 5;
+      inset: 0;
+      display: grid;
+      border: 1px solid rgba(139, 160, 255, 0.14);
+      border-radius: 18px;
+      background: rgba(7, 10, 22, 0.94);
+      backdrop-filter: blur(14px);
+      place-items: center;
+    }
+
+    .pause-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      text-align: center;
+    }
+
+    .pause-icon {
+      display: grid;
+      width: 54px;
+      height: 54px;
+      margin-bottom: 3px;
+      border: 1px solid rgba(167, 139, 250, 0.35);
+      border-radius: 50%;
+      background: rgba(167, 139, 250, 0.1);
+      box-shadow: 0 0 28px rgba(167, 139, 250, 0.12);
+      color: #c4b5fd;
+      font-size: 21px;
+      place-items: center;
+    }
+
+    .pause-content h2 {
+      font-size: 21px;
+      letter-spacing: 0.08em;
+    }
+
+    .pause-content p {
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .primary-button,
+    .secondary-button {
+      min-height: 46px;
+      padding: 0 24px;
+      border-radius: 13px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      transition: transform 160ms, filter 160ms;
+    }
+
+    .primary-button {
+      border: 1px solid rgba(126, 246, 255, 0.45);
+      background: linear-gradient(115deg, #52dce9, #8b7cf1);
+      box-shadow: 0 8px 24px rgba(84, 237, 255, 0.14), inset 0 1px rgba(255, 255, 255, 0.35);
+      color: #08111e;
+    }
+
+    .secondary-button {
+      border: 1px solid var(--line);
+      background: rgba(22, 29, 53, 0.75);
+      color: #c4cde5;
+    }
+
+    .primary-button:active,
+    .secondary-button:active {
+      transform: scale(0.96);
+      filter: brightness(0.9);
+    }
+
+    /* 底部提示与重开 */
+    .footer {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 38px;
+    }
+
+    .game-hint {
+      display: -webkit-box;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    #restartButton {
+      flex: 0 0 auto;
+      min-height: 40px;
+      padding: 0 12px;
+      background: transparent;
+    }
+
+    /* 胜利结算弹窗 */
+    .result-dialog {
+      width: min(88vw, 390px);
+      max-height: 90dvh;
+      overflow-x: visible;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      scrollbar-width: thin;
+      border: 1px solid rgba(116, 229, 255, 0.28);
+      border-radius: 26px;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(103, 84, 190, 0.24), transparent 45%),
+        linear-gradient(155deg, #151b34, #0a0e20);
+      box-shadow: 0 28px 90px rgba(0, 0, 0, 0.55), 0 0 45px rgba(84, 237, 255, 0.08), inset 0 1px rgba(255, 255, 255, 0.07);
+      color: var(--text);
+      text-align: center;
+    }
+
+    .result-dialog::backdrop {
+      background: rgba(3, 5, 13, 0.82);
+      backdrop-filter: blur(9px);
+    }
+
+    .result-dialog[open] {
+      animation: modalIn 380ms cubic-bezier(0.18, 0.85, 0.25, 1.15);
+    }
+
+    .result-content {
+      position: relative;
+      padding: 28px 24px 24px;
+    }
+
+    .result-emblem {
+      display: grid;
+      width: 66px;
+      height: 66px;
+      margin: 0 auto 16px;
+      border: 1px solid rgba(84, 237, 255, 0.45);
+      border-radius: 20px;
+      background: linear-gradient(145deg, rgba(84, 237, 255, 0.16), rgba(167, 139, 250, 0.18));
+      box-shadow: 0 0 32px rgba(84, 237, 255, 0.13), inset 0 0 18px rgba(84, 237, 255, 0.07);
+      color: var(--cyan);
+      font-size: 30px;
+      place-items: center;
+      transform: rotate(45deg);
+    }
+
+    .result-emblem span { transform: rotate(-45deg); }
+
+    .result-kicker {
+      margin-bottom: 5px;
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+    }
+
+    .result-content h2 {
+      font-size: 24px;
+      letter-spacing: 0.05em;
+    }
+
+    .record-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 25px;
+      margin-top: 10px;
+      padding: 0 12px;
+      border: 1px solid rgba(255, 107, 214, 0.28);
+      border-radius: 99px;
+      background: rgba(255, 107, 214, 0.09);
+      color: #ff9ce3;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .final-score {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin: 20px 0 16px;
+    }
+
+    .final-score span {
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+    }
+
+    .final-score strong {
+      background: linear-gradient(90deg, var(--cyan), #c4b5fd);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+      font-family: ui-monospace, monospace;
+      font-size: 43px;
+      line-height: 1.2;
+      text-shadow: 0 0 30px rgba(84, 237, 255, 0.1);
+    }
+
+    .result-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      margin-bottom: 22px;
+      padding: 12px 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .result-stats div {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .result-stats span {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .result-stats strong {
+      font-family: ui-monospace, monospace;
+      font-size: 16px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .result-actions {
+      display: grid;
+      grid-template-columns: 1fr 1.25fr;
+      gap: 10px;
+    }
+
+    .result-actions button { padding: 0 12px; }
+
+    .spark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 5px;
+      height: 5px;
+      border-radius: 1px;
+      background: var(--spark-color);
+      box-shadow: 0 0 7px var(--spark-color);
+      pointer-events: none;
+      animation: sparkle 1.3s ease-out both;
+      animation-delay: var(--delay);
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: translateY(18px) scale(0.94); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes sparkle {
+      from { opacity: 1; transform: translate(-50%, -50%) rotate(var(--angle)) translateX(20px) scale(1); }
+      to { opacity: 0; transform: translate(-50%, -50%) rotate(var(--angle)) translateX(var(--distance)) scale(0); }
+    }
+
+    /* 小屏高度压缩留白，保留足够触控面积 */
+    @media (max-height: 680px) and (orientation: portrait) {
+      .app { gap: 7px; padding-top: max(9px, env(safe-area-inset-top)); }
+      .topbar { min-height: 40px; }
+      .brand-mark { width: 33px; height: 33px; }
+      .stats { padding: 7px 4px; }
+      .controls { gap: 6px; }
+      .difficulty-button { min-height: 38px; }
+      .footer { min-height: 34px; }
+      #restartButton { min-height: 38px; }
+    }
+
+    /* 手机横屏改为左右布局 */
+    @media (orientation: landscape) and (max-height: 540px) {
+      .app {
+        display: grid;
+        grid-template-columns: minmax(190px, 0.72fr) minmax(290px, 1.28fr);
+        grid-template-rows: auto auto 1fr auto;
+        gap: 8px 16px;
+        max-width: 920px;
+        padding: max(9px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(9px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+      }
+
+      .topbar { grid-column: 1; grid-row: 1; }
+      .stats { grid-column: 1; grid-row: 2; padding: 7px 2px; }
+      .controls { grid-column: 1; grid-row: 3; align-content: start; padding-top: 2px; }
+      .board-area { grid-column: 2; grid-row: 1 / 5; }
+      .footer { grid-column: 1; grid-row: 4; }
+      .eyebrow { display: none; }
+      .brand-mark { width: 32px; height: 32px; }
+      h1 { font-size: 19px; }
+      #pauseButton { padding: 0 10px; }
+      .difficulty-button { min-height: 38px; }
+      .difficulty-button small { display: block; margin: 1px 0 0; }
+      .game-hint { font-size: 10px; }
+      .board { gap: 7px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true">
+    <div class="orb orb-one"></div>
+    <div class="orb orb-two"></div>
+  </div>
+
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+        <div>
+          <p class="eyebrow">NEON MEMORY</p>
+          <h1>记忆矩阵</h1>
+        </div>
+      </div>
+      <button class="glass-button" id="pauseButton" type="button" aria-label="暂停游戏" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path id="pauseIcon" d="M7 5h4v14H7zm6 0h4v14h-4z"/></svg>
+        <span id="pauseText">暂停</span>
+      </button>
+    </header>
+
+    <section class="stats" aria-label="本局数据">
+      <div class="stat"><span class="stat-label">时间</span><strong class="stat-value" id="timeValue">00:00</strong></div>
+      <div class="stat"><span class="stat-label">步数</span><strong class="stat-value" id="movesValue">0</strong></div>
+      <div class="stat"><span class="stat-label">得分</span><strong class="stat-value" id="scoreValue">0</strong></div>
+      <div class="stat"><span class="stat-label">最高</span><strong class="stat-value" id="bestValue">0</strong></div>
+    </section>
+
+    <section class="controls" aria-label="游戏设置">
+      <div class="difficulty" role="group" aria-label="选择难度">
+        <button class="difficulty-button" type="button" data-difficulty="easy" aria-pressed="false">轻松<small>3×4</small></button>
+        <button class="difficulty-button" type="button" data-difficulty="normal" aria-pressed="true">进阶<small>4×4</small></button>
+        <button class="difficulty-button" type="button" data-difficulty="hard" aria-pressed="false">挑战<small>4×6</small></button>
+      </div>
+      <div class="progress-row">
+        <span id="progressText">已配对 0 / 8</span>
+        <div class="progress-track" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
+        <span id="comboBadge">连击 ×2</span>
+      </div>
+    </section>
+
+    <main class="board-area">
+      <div class="board" id="board" role="group" aria-label="记忆翻牌棋盘，使用方向键移动，回车或空格翻牌"></div>
+      <div class="pause-layer" id="pauseLayer" hidden>
+        <div class="pause-content">
+          <div class="pause-icon" aria-hidden="true">Ⅱ</div>
+          <h2>矩阵已冻结</h2>
+          <p>稍作休息，计时已经暂停</p>
+          <button class="primary-button" id="resumeButton" type="button">继续游戏</button>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p class="game-hint" id="gameHint">点按卡片翻开，找到两个相同图案</p>
+      <button class="glass-button" id="restartButton" type="button" aria-label="重新开始本局">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5a7 7 0 1 1-6.65 9.2l1.88-.7A5 5 0 1 0 8 8.1V11H6V5h6v2H9.45A6.96 6.96 0 0 1 12 5z"/></svg>
+        重开
+      </button>
+    </footer>
+  </div>
+
+  <dialog class="result-dialog" id="resultDialog" aria-labelledby="resultTitle">
+    <div class="result-content" id="resultContent">
+      <div class="result-emblem" aria-hidden="true"><span>✦</span></div>
+      <p class="result-kicker">同步完成</p>
+      <h2 id="resultTitle">记忆唤醒成功！</h2>
+      <div class="record-badge" id="recordBadge" hidden>✦ 刷新最高纪录</div>
+      <div class="final-score"><span>本局得分</span><strong id="finalScore">0</strong></div>
+      <div class="result-stats">
+        <div><span>完成时间</span><strong id="finalTime">00:00</strong></div>
+        <div><span>翻牌步数</span><strong id="finalMoves">0</strong></div>
+        <div><span>最高得分</span><strong id="finalBest">0</strong></div>
+      </div>
+      <div class="result-actions">
+        <button class="secondary-button" id="changeDifficultyButton" type="button">换个难度</button>
+        <button class="primary-button" id="playAgainButton" type="button">再玩一次</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="sr-only" id="liveRegion" aria-live="polite" aria-atomic="true"></div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // 难度配置：列数适合手机竖屏，挑战模式增加行数而非缩窄卡片
+      const DIFFICULTIES = {
+        easy: { cols: 3, rows: 4, pairs: 6, multiplier: 1, name: "轻松" },
+        normal: { cols: 4, rows: 4, pairs: 8, multiplier: 1.5, name: "进阶" },
+        hard: { cols: 4, rows: 6, pairs: 12, multiplier: 2, name: "挑战" }
+      };
+      const SYMBOLS = [
+        { icon: "🚀", hue: 185 }, { icon: "🪐", hue: 265 },
+        { icon: "👾", hue: 315 }, { icon: "💎", hue: 195 },
+        { icon: "⚡", hue: 48 }, { icon: "🌙", hue: 230 },
+        { icon: "🔮", hue: 280 }, { icon: "🎧", hue: 335 },
+        { icon: "🛸", hue: 155 }, { icon: "🌸", hue: 350 },
+        { icon: "🧬", hue: 175 }, { icon: "🎯", hue: 15 }
+      ];
+      const STORAGE_KEY = "neon-memory-highscores-v1";
+
+      // 缓存所有需要反复访问的界面节点
+      const $ = (selector) => document.querySelector(selector);
+      const board = $("#board");
+      const timeValue = $("#timeValue");
+      const movesValue = $("#movesValue");
+      const scoreValue = $("#scoreValue");
+      const bestValue = $("#bestValue");
+      const progressText = $("#progressText");
+      const progressFill = $("#progressFill");
+      const comboBadge = $("#comboBadge");
+      const gameHint = $("#gameHint");
+      const pauseButton = $("#pauseButton");
+      const pauseText = $("#pauseText");
+      const pauseIcon = $("#pauseIcon");
+      const pauseLayer = $("#pauseLayer");
+      const resultDialog = $("#resultDialog");
+      const liveRegion = $("#liveRegion");
+
+      let difficulty = "normal";
+      let deck = [];
+      let firstCard = null;
+      let secondCard = null;
+      let matchedPairs = 0;
+      let moves = 0;
+      let score = 0;
+      let combo = 0;
+      let locked = false;
+      let paused = false;
+      let gameOver = false;
+      let hasStarted = false;
+      let elapsed = 0;
+      let startedAt = 0;
+      let timerId = null;
+      let turnTimer = null;
+      let turnAction = null;
+      let turnDueAt = 0;
+      let turnRemaining = 0;
+      let highscores = loadHighscores();
+
+      // localStorage 在隐私模式下可能不可用，读写失败不应影响游戏
+      function loadHighscores() {
+        const fallback = { easy: 0, normal: 0, hard: 0 };
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+          Object.keys(fallback).forEach((key) => {
+            const value = Number(saved[key]);
+            fallback[key] = Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+          });
+        } catch (_) {
+          // 无存储权限时使用内存中的默认值
+        }
+        return fallback;
+      }
+
+      function saveHighscores() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(highscores));
+        } catch (_) {
+          // 本次最高分仍保留到页面关闭前
+        }
+      }
+
+      // Fisher–Yates 洗牌，确保每局牌序随机
+      function shuffle(items) {
+        for (let i = items.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [items[i], items[j]] = [items[j], items[i]];
+        }
+        return items;
+      }
+
+      function formatTime(milliseconds) {
+        const totalSeconds = Math.floor(milliseconds / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+      }
+
+      function announce(message) {
+        liveRegion.textContent = "";
+        requestAnimationFrame(() => { liveRegion.textContent = message; });
+      }
+
+      function setHint(message) {
+        gameHint.textContent = message;
+      }
+
+      function bump(element) {
+        element.classList.remove("bump");
+        void element.offsetWidth;
+        element.classList.add("bump");
+      }
+
+      function updateStats() {
+        movesValue.textContent = moves;
+        scoreValue.textContent = score.toLocaleString("zh-CN");
+        bestValue.textContent = highscores[difficulty].toLocaleString("zh-CN");
+        progressText.textContent = `已配对 ${matchedPairs} / ${DIFFICULTIES[difficulty].pairs}`;
+        progressFill.style.width = `${(matchedPairs / DIFFICULTIES[difficulty].pairs) * 100}%`;
+        comboBadge.textContent = `连击 ×${Math.max(2, combo)}`;
+        comboBadge.classList.toggle("visible", combo >= 2);
+      }
+
+      function updateTimer() {
+        if (hasStarted && !paused && !gameOver) {
+          elapsed = Date.now() - startedAt;
+        }
+        timeValue.textContent = formatTime(elapsed);
+      }
+
+      function startTimer() {
+        if (timerId !== null) clearInterval(timerId);
+        startedAt = Date.now() - elapsed;
+        timerId = setInterval(updateTimer, 250);
+        updateTimer();
+      }
+
+      function stopTimer() {
+        if (hasStarted && !paused && !gameOver) elapsed = Date.now() - startedAt;
+        if (timerId !== null) clearInterval(timerId);
+        timerId = null;
+        updateTimer();
+      }
+
+      // 可暂停的回合延时：暂停时保留剩余时间，避免后台自动结算
+      function scheduleTurn(action, delay) {
+        turnAction = action;
+        turnRemaining = delay;
+        turnDueAt = Date.now() + delay;
+        turnTimer = setTimeout(runTurnAction, delay);
+      }
+
+      function runTurnAction() {
+        turnTimer = null;
+        const action = turnAction;
+        turnAction = null;
+        turnRemaining = 0;
+        if (action) action();
+      }
+
+      function pauseTurn() {
+        if (turnTimer === null) return;
+        turnRemaining = Math.max(0, turnDueAt - Date.now());
+        clearTimeout(turnTimer);
+        turnTimer = null;
+      }
+
+      function resumeTurn() {
+        if (!turnAction || turnTimer !== null) return;
+        turnDueAt = Date.now() + turnRemaining;
+        turnTimer = setTimeout(runTurnAction, turnRemaining);
+      }
+
+      // 建立新牌局，同时清理上一局的计时器与待执行翻牌
+      function startGame(nextDifficulty = difficulty) {
+        difficulty = nextDifficulty;
+        const config = DIFFICULTIES[difficulty];
+        if (timerId !== null) clearInterval(timerId);
+        if (turnTimer !== null) clearTimeout(turnTimer);
+        timerId = null;
+        turnTimer = null;
+        turnAction = null;
+        turnRemaining = 0;
+        if (resultDialog.open) resultDialog.close();
+
+        firstCard = null;
+        secondCard = null;
+        matchedPairs = 0;
+        moves = 0;
+        score = 0;
+        combo = 0;
+        locked = false;
+        paused = false;
+        gameOver = false;
+        hasStarted = false;
+        elapsed = 0;
+        timeValue.textContent = "00:00";
+        pauseLayer.hidden = true;
+        board.removeAttribute("inert");
+        pauseButton.disabled = false;
+        pauseButton.setAttribute("aria-pressed", "false");
+        pauseButton.setAttribute("aria-label", "暂停游戏");
+        pauseText.textContent = "暂停";
+        pauseIcon.setAttribute("d", "M7 5h4v14H7zm6 0h4v14h-4z");
+        setHint("点按卡片翻开，找到两个相同图案");
+
+        document.querySelectorAll("[data-difficulty]").forEach((button) => {
+          button.setAttribute("aria-pressed", String(button.dataset.difficulty === difficulty));
+        });
+        board.style.setProperty("--cols", config.cols);
+        board.style.setProperty("--rows", config.rows);
+
+        const selected = SYMBOLS.slice(0, config.pairs);
+        deck = shuffle([...selected, ...selected].map((symbol, index) => ({
+          ...symbol,
+          uid: `${symbol.icon}-${index}`
+        })));
+        renderBoard();
+        updateStats();
+        announce(`${config.name}难度，新游戏开始，共${config.pairs}对卡片`);
+      }
+
+      function renderBoard() {
+        const fragment = document.createDocumentFragment();
+        board.textContent = "";
+        deck.forEach((symbol, index) => {
+          const card = document.createElement("button");
+          card.type = "button";
+          card.className = "card";
+          card.dataset.index = index;
+          card.dataset.symbol = symbol.icon;
+          card.style.setProperty("--i", index);
+          card.style.setProperty("--hue", symbol.hue);
+          card.setAttribute("aria-label", `第${index + 1}张牌，未翻开`);
+          card.setAttribute("aria-pressed", "false");
+          card.innerHTML = `
+            <span class="card-inner" aria-hidden="true">
+              <span class="card-face card-front"><span class="front-glyph"></span></span>
+              <span class="card-face card-back"><span class="card-symbol">${symbol.icon}</span></span>
+            </span>`;
+          fragment.appendChild(card);
+        });
+        board.appendChild(fragment);
+      }
+
+      function setCardLabel(card, revealed, matched = false) {
+        const index = Number(card.dataset.index) + 1;
+        const symbol = card.dataset.symbol;
+        card.setAttribute("aria-label", matched
+          ? `第${index}张牌，${symbol}，已配对`
+          : revealed ? `第${index}张牌，${symbol}` : `第${index}张牌，未翻开`);
+        card.setAttribute("aria-pressed", String(revealed));
+      }
+
+      function flip(card, shouldReveal) {
+        card.classList.toggle("is-flipped", shouldReveal);
+        setCardLabel(card, shouldReveal);
+      }
+
+      function resetTurn() {
+        firstCard = null;
+        secondCard = null;
+        locked = false;
+        board.setAttribute("aria-busy", "false");
+      }
+
+      // 每次翻开两张计为一步；快速连续点击由 locked 拦截
+      function handleCardClick(event) {
+        const card = event.target.closest(".card");
+        if (!card || locked || paused || gameOver || card === firstCard || card.classList.contains("is-matched")) return;
+
+        if (!hasStarted) {
+          hasStarted = true;
+          startTimer();
+        }
+        flip(card, true);
+        if (navigator.vibrate) navigator.vibrate(8);
+
+        if (!firstCard) {
+          firstCard = card;
+          setHint("再翻一张，寻找相同图案");
+          announce(`翻开了${card.dataset.symbol}`);
+          return;
+        }
+
+        secondCard = card;
+        moves += 1;
+        locked = true;
+        board.setAttribute("aria-busy", "true");
+        updateStats();
+        bump(movesValue);
+
+        if (firstCard.dataset.symbol === secondCard.dataset.symbol) {
+          handleMatch();
+        } else {
+          handleMismatch();
+        }
+      }
+
+      function handleMatch() {
+        const matched = [firstCard, secondCard];
+        const config = DIFFICULTIES[difficulty];
+        combo += 1;
+        matchedPairs += 1;
+        const gained = Math.round((100 + (combo - 1) * 25) * config.multiplier);
+        score += gained;
+        setHint(combo >= 2 ? `漂亮！连续配对，得分 +${gained}` : `配对成功，得分 +${gained}`);
+        announce(`配对成功，${matchedPairs}对，共${config.pairs}对，增加${gained}分`);
+        updateStats();
+        bump(scoreValue);
+
+        scheduleTurn(() => {
+          matched.forEach((card) => {
+            card.classList.add("is-matched");
+            card.setAttribute("aria-disabled", "true");
+            setCardLabel(card, true, true);
+          });
+          if (navigator.vibrate) navigator.vibrate([18, 35, 18]);
+          resetTurn();
+          if (matchedPairs === config.pairs) finishGame();
+        }, 360);
+      }
+
+      function handleMismatch() {
+        const mismatched = [firstCard, secondCard];
+        combo = 0;
+        mismatched.forEach((card) => card.classList.add("is-wrong"));
+        setHint("图案不同，记住位置再试一次");
+        announce("图案不同，卡片即将盖回");
+        updateStats();
+
+        scheduleTurn(() => {
+          mismatched.forEach((card) => {
+            card.classList.remove("is-wrong");
+            flip(card, false);
+          });
+          resetTurn();
+        }, 820);
+      }
+
+      // 结算由基础配对分、时间奖励和少走步奖励组成
+      function finishGame() {
+        stopTimer();
+        gameOver = true;
+        const config = DIFFICULTIES[difficulty];
+        const seconds = Math.floor(elapsed / 1000);
+        const timeBonus = Math.round(Math.max(0, config.pairs * 120 - seconds * 8) * config.multiplier);
+        const moveBonus = Math.round(Math.max(0, config.pairs * 2 - moves) * 50 * config.multiplier);
+        score += timeBonus + moveBonus;
+        const isRecord = score > highscores[difficulty];
+        if (isRecord) {
+          highscores[difficulty] = score;
+          saveHighscores();
+        }
+        updateStats();
+        pauseButton.disabled = true;
+        setHint(`矩阵同步完成 · 时间奖励 +${timeBonus} · 步数奖励 +${moveBonus}`);
+
+        $("#finalScore").textContent = score.toLocaleString("zh-CN");
+        $("#finalTime").textContent = formatTime(elapsed);
+        $("#finalMoves").textContent = moves;
+        $("#finalBest").textContent = highscores[difficulty].toLocaleString("zh-CN");
+        $("#recordBadge").hidden = !isRecord;
+        createSparks();
+        announce(`恭喜完成，得分${score}，用时${formatTime(elapsed)}，共${moves}步`);
+        setTimeout(() => {
+          if (gameOver && !resultDialog.open) resultDialog.showModal();
+        }, 420);
+      }
+
+      function createSparks() {
+        resultDialog.querySelectorAll(".spark").forEach((spark) => spark.remove());
+        const colors = ["#54edff", "#a78bfa", "#ff6bd6", "#f9e768"];
+        for (let i = 0; i < 20; i++) {
+          const spark = document.createElement("i");
+          spark.className = "spark";
+          spark.setAttribute("aria-hidden", "true");
+          spark.style.setProperty("--angle", `${i * 18}deg`);
+          spark.style.setProperty("--distance", `${115 + (i % 4) * 24}px`);
+          spark.style.setProperty("--delay", `${(i % 5) * 35}ms`);
+          spark.style.setProperty("--spark-color", colors[i % colors.length]);
+          $("#resultContent").appendChild(spark);
+        }
+      }
+
+      // 暂停会停止计时并遮住棋盘；未翻第一张时也允许暂停
+      function pauseGame(shouldFocus = true) {
+        if (paused || gameOver) return;
+        if (hasStarted) stopTimer();
+        pauseTurn();
+        paused = true;
+        pauseLayer.hidden = false;
+        board.setAttribute("inert", "");
+        pauseButton.setAttribute("aria-pressed", "true");
+        pauseButton.setAttribute("aria-label", "继续游戏");
+        pauseText.textContent = "继续";
+        pauseIcon.setAttribute("d", "M8 5v14l11-7z");
+        announce("游戏已暂停");
+        if (shouldFocus) $("#resumeButton").focus();
+      }
+
+      function resumeGame() {
+        if (!paused || gameOver) return;
+        paused = false;
+        pauseLayer.hidden = true;
+        board.removeAttribute("inert");
+        pauseButton.setAttribute("aria-pressed", "false");
+        pauseButton.setAttribute("aria-label", "暂停游戏");
+        pauseText.textContent = "暂停";
+        pauseIcon.setAttribute("d", "M7 5h4v14H7zm6 0h4v14h-4z");
+        if (hasStarted) startTimer();
+        resumeTurn();
+        announce("游戏继续");
+        pauseButton.focus();
+      }
+
+      // 棋盘方向键导航，回车与空格沿用按钮原生点击行为
+      function handleBoardKeys(event) {
+        const card = event.target.closest(".card");
+        if (!card) return;
+        const config = DIFFICULTIES[difficulty];
+        const cards = [...board.querySelectorAll(".card")];
+        const index = Number(card.dataset.index);
+        let row = Math.floor(index / config.cols);
+        let col = index % config.cols;
+
+        if (event.key === "ArrowLeft") col = (col - 1 + config.cols) % config.cols;
+        else if (event.key === "ArrowRight") col = (col + 1) % config.cols;
+        else if (event.key === "ArrowUp") row = (row - 1 + config.rows) % config.rows;
+        else if (event.key === "ArrowDown") row = (row + 1) % config.rows;
+        else if (event.key === "Home") { row = 0; col = 0; }
+        else if (event.key === "End") { row = config.rows - 1; col = config.cols - 1; }
+        else return;
+
+        event.preventDefault();
+        cards[row * config.cols + col].focus();
+      }
+
+      // 触屏点击、鼠标点击及键盘按钮事件统一走 click
+      board.addEventListener("click", handleCardClick);
+      board.addEventListener("keydown", handleBoardKeys);
+      document.querySelectorAll("[data-difficulty]").forEach((button) => {
+        button.addEventListener("click", () => startGame(button.dataset.difficulty));
+      });
+      $("#restartButton").addEventListener("click", () => startGame());
+      $("#resumeButton").addEventListener("click", resumeGame);
+      pauseButton.addEventListener("click", () => paused ? resumeGame() : pauseGame());
+      $("#playAgainButton").addEventListener("click", () => startGame());
+      $("#changeDifficultyButton").addEventListener("click", () => {
+        resultDialog.close();
+        $(`[data-difficulty="${difficulty}"]`).focus();
+      });
+      resultDialog.addEventListener("cancel", (event) => event.preventDefault());
+
+      // 切到后台时自动暂停，避免计时失真
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && hasStarted && !paused && !gameOver) pauseGame(false);
+      });
+
+      // 阻止双击缩放、双指缩放手势和弹性滚动
+      document.addEventListener("dblclick", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("touchmove", (event) => {
+        if (!event.target.closest(".result-dialog")) event.preventDefault();
+      }, { passive: false });
+
+      startGame();
+    })();
+  </script>
+</body>
+</html>

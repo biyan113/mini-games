@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080817">
+  <title>霓虹消消乐</title>
+  <style>
+    /* ---------- 基础与霓虹背景 ---------- */
+    :root {
+      color-scheme: dark;
+      --bg: #080817;
+      --panel: rgba(20, 22, 48, .72);
+      --line: rgba(153, 165, 255, .15);
+      --text: #f5f5ff;
+      --muted: #9195b8;
+      --cyan: #52efff;
+      --violet: #a678ff;
+      --pink: #ff69c8;
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 12%, rgba(93, 67, 190, .22), transparent 35%),
+        radial-gradient(circle at 88% 82%, rgba(0, 209, 255, .12), transparent 34%),
+        var(--bg);
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .22;
+      background-image:
+        linear-gradient(rgba(132, 137, 210, .08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(132, 137, 210, .08) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: linear-gradient(to bottom, black, transparent 85%);
+    }
+
+    .ambient {
+      position: fixed;
+      width: 42vw;
+      height: 42vw;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: .12;
+      pointer-events: none;
+      animation: breathe 7s ease-in-out infinite alternate;
+    }
+    .ambient.one { top: -15vw; right: -10vw; background: #704cff; }
+    .ambient.two { bottom: -18vw; left: -12vw; background: #00d9ff; animation-delay: -3s; }
+
+    button { font: inherit; }
+    button, .gem { touch-action: none; }
+    button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+
+    /* ---------- 页面布局 ---------- */
+    .game-shell {
+      position: relative;
+      z-index: 1;
+      width: min(100%, 480px);
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: max(12px, env(safe-area-inset-top)) 16px max(12px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 11px;
+    }
+
+    .topbar { display: flex; align-items: center; justify-content: space-between; min-height: 44px; }
+    .brand { display: flex; align-items: center; gap: 11px; }
+    .brand-mark {
+      position: relative;
+      width: 38px;
+      height: 38px;
+      transform: rotate(45deg);
+      border: 1px solid rgba(119, 239, 255, .7);
+      border-radius: 11px;
+      background: linear-gradient(135deg, rgba(91, 239, 255, .25), rgba(153, 92, 255, .22));
+      box-shadow: inset 0 0 12px rgba(113, 231, 255, .2), 0 0 20px rgba(73, 211, 255, .16);
+    }
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      inset: 9px;
+      border-radius: 4px;
+      background: linear-gradient(135deg, #b5f9ff, #62d9ff 45%, #9c72ff);
+      box-shadow: 0 0 13px #59ddff;
+    }
+    .brand h1 { margin: 0; font-size: 19px; line-height: 1.1; letter-spacing: .12em; font-weight: 800; }
+    .brand p { margin: 5px 0 0; color: var(--muted); font-size: 8px; letter-spacing: .28em; }
+    .actions { display: flex; gap: 8px; }
+    .icon-btn {
+      width: 42px;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      display: grid;
+      place-items: center;
+      color: #c9ccec;
+      background: rgba(25, 27, 55, .75);
+      box-shadow: inset 0 1px rgba(255, 255, 255, .05);
+      cursor: pointer;
+      transition: border-color .2s, color .2s, transform .2s;
+    }
+    .icon-btn:active { transform: scale(.93); }
+    .icon-btn:hover { color: white; border-color: rgba(82, 239, 255, .4); }
+    .icon-btn:disabled { opacity: .38; cursor: default; }
+    .icon-btn svg { width: 19px; height: 19px; fill: currentColor; }
+
+    /* ---------- 数据面板 ---------- */
+    .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .stat {
+      position: relative;
+      min-width: 0;
+      padding: 9px 10px 8px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: linear-gradient(145deg, rgba(28, 31, 63, .88), rgba(15, 17, 39, .82));
+      box-shadow: inset 0 1px rgba(255, 255, 255, .04);
+      text-align: center;
+    }
+    .stat-label { display: block; color: var(--muted); font-size: 10px; letter-spacing: .12em; }
+    .stat-value { display: block; margin-top: 3px; font-size: 21px; line-height: 1.1; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .stat.score .stat-value { color: var(--cyan); text-shadow: 0 0 15px rgba(82, 239, 255, .35); }
+    .stat.moves .stat-value { color: #d8ccff; }
+    .stat.moves.danger .stat-value { color: #ff719d; animation: dangerPulse 1s ease-in-out infinite; }
+
+    .goal-panel {
+      padding: 9px 12px 10px;
+      border: 1px solid rgba(144, 126, 255, .13);
+      border-radius: 14px;
+      background: rgba(15, 17, 38, .6);
+    }
+    .goal-copy { display: flex; justify-content: space-between; align-items: center; min-height: 17px; font-size: 11px; color: var(--muted); }
+    .goal-copy strong { color: #d9dcf8; font-weight: 600; }
+    .combo-badge { color: #ff9add; font-weight: 700; text-shadow: 0 0 12px rgba(255, 105, 200, .5); animation: comboIn .25s ease-out; }
+    .progress-track { height: 5px; margin-top: 7px; overflow: hidden; border-radius: 10px; background: rgba(255, 255, 255, .07); }
+    .progress-bar {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #6c7cff, #55eaff 60%, #ff83d5);
+      box-shadow: 0 0 10px rgba(82, 239, 255, .55);
+      transition: width .35s ease;
+    }
+
+    /* ---------- 棋盘与宝石 ---------- */
+    .board-frame {
+      position: relative;
+      width: fit-content;
+      margin: 0 auto;
+      padding: 9px;
+      border: 1px solid rgba(119, 150, 255, .22);
+      border-radius: 25px;
+      background: linear-gradient(145deg, rgba(29, 32, 67, .92), rgba(11, 13, 32, .95));
+      box-shadow: 0 18px 55px rgba(0, 0, 0, .38), inset 0 1px rgba(255, 255, 255, .06), 0 0 30px rgba(91, 90, 210, .08);
+    }
+    .board-frame::before {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      z-index: -1;
+      border-radius: inherit;
+      background: linear-gradient(135deg, rgba(82, 239, 255, .14), transparent 35%, transparent 70%, rgba(255, 105, 200, .12));
+      filter: blur(8px);
+    }
+    .board-frame.invalid { animation: shake .3s ease; }
+    .board {
+      width: min(calc(100vw - 54px), 420px);
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: clamp(3px, 1vw, 6px);
+      touch-action: none;
+    }
+    .gem {
+      --shape: polygon(50% 0, 92% 25%, 92% 75%, 50% 100%, 8% 75%, 8% 25%);
+      --c1: #bdfcff;
+      --c2: #3de5ff;
+      --c3: #1682dc;
+      position: relative;
+      aspect-ratio: 1;
+      min-width: 0;
+      padding: 0;
+      border: 1px solid rgba(144, 155, 225, .07);
+      border-radius: clamp(8px, 2.5vw, 13px);
+      background: radial-gradient(circle at 50% 40%, rgba(95, 104, 165, .11), rgba(4, 6, 20, .25));
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, .22);
+      cursor: pointer;
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .gem[data-type="0"] { --c1: #c5fdff; --c2: #42e8ff; --c3: #167bd8; --shape: polygon(50% 0, 93% 25%, 84% 78%, 50% 100%, 16% 78%, 7% 25%); }
+    .gem[data-type="1"] { --c1: #ffd2f2; --c2: #ff68c6; --c3: #bb298e; --shape: polygon(50% 0, 96% 50%, 50% 100%, 4% 50%); }
+    .gem[data-type="2"] { --c1: #e5d5ff; --c2: #a477ff; --c3: #6138d2; --shape: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%); }
+    .gem[data-type="3"] { --c1: #fff3ad; --c2: #ffd45e; --c3: #ee842d; --shape: polygon(50% 0, 61% 34%, 98% 35%, 68% 56%, 79% 94%, 50% 72%, 21% 94%, 32% 56%, 2% 35%, 39% 34%); }
+    .gem[data-type="4"] { --c1: #c5ffe8; --c2: #50edaf; --c3: #139c7d; --shape: polygon(18% 5%, 82% 5%, 100% 25%, 88% 88%, 70% 100%, 20% 92%, 0 70%, 4% 22%); }
+    .gem[data-type="5"] { --c1: #ffd4d9; --c2: #ff758e; --c3: #d53567; --shape: circle(48% at 50% 50%); }
+    .gem-core {
+      position: absolute;
+      inset: 14%;
+      clip-path: var(--shape);
+      background: linear-gradient(145deg, var(--c1) 0%, var(--c2) 43%, var(--c3) 100%);
+      filter: drop-shadow(0 0 5px var(--c2)) drop-shadow(0 4px 3px rgba(0, 0, 0, .35));
+      transition: transform .16s ease, filter .16s ease;
+      will-change: transform;
+    }
+    .gem-core::before {
+      content: "";
+      position: absolute;
+      top: 12%;
+      left: 20%;
+      width: 48%;
+      height: 24%;
+      border-radius: 50%;
+      background: linear-gradient(120deg, rgba(255, 255, 255, .78), rgba(255, 255, 255, 0));
+      transform: rotate(-24deg);
+      opacity: .7;
+    }
+    .gem-core::after {
+      content: "";
+      position: absolute;
+      inset: 12%;
+      clip-path: var(--shape);
+      border: 1px solid rgba(255, 255, 255, .2);
+    }
+    .gem:hover .gem-core { filter: drop-shadow(0 0 8px var(--c2)) drop-shadow(0 4px 3px rgba(0, 0, 0, .35)); }
+    .gem.selected {
+      border-color: color-mix(in srgb, var(--c2) 60%, transparent);
+      background: color-mix(in srgb, var(--c2) 12%, rgba(10, 12, 30, .5));
+      box-shadow: inset 0 0 12px color-mix(in srgb, var(--c2) 18%, transparent), 0 0 10px color-mix(in srgb, var(--c2) 15%, transparent);
+    }
+    .gem.selected .gem-core { transform: scale(1.13); filter: drop-shadow(0 0 9px var(--c2)) brightness(1.14); }
+    .gem:focus-visible { outline: 2px solid white; outline-offset: -3px; }
+    .gem.matched { pointer-events: none; }
+    .gem.matched .gem-core { animation: vanish .3s ease-in forwards; }
+    .gem.spawn .gem-core { animation: dropIn .34s cubic-bezier(.2, .8, .3, 1.15) both; animation-delay: calc(var(--row) * 14ms); }
+    .gem.hint .gem-core { animation: hintPulse .85s ease-in-out 2; }
+
+    .tips { min-height: 28px; text-align: center; color: var(--muted); font-size: 11px; line-height: 1.6; }
+    .tips .main-tip { color: #b4b8d8; }
+    .tips .dot { margin: 0 5px; color: #505575; }
+    .keyboard-tip { font-size: 9px; opacity: .72; }
+
+    /* ---------- 消除特效与消息 ---------- */
+    .fx-layer { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none; z-index: 8; }
+    .particle {
+      position: absolute;
+      width: 5px;
+      height: 5px;
+      margin: -2px;
+      border-radius: 50%;
+      background: var(--particle-color);
+      box-shadow: 0 0 7px var(--particle-color);
+      animation: particleFly .58s ease-out forwards;
+    }
+    .score-float {
+      position: absolute;
+      left: 50%;
+      top: 46%;
+      z-index: 10;
+      pointer-events: none;
+      opacity: 0;
+      white-space: nowrap;
+      font-size: 25px;
+      font-weight: 900;
+      color: white;
+      text-shadow: 0 0 15px var(--cyan), 0 3px 12px #000;
+      transform: translate(-50%, -50%);
+    }
+    .score-float small { display: block; margin-bottom: 3px; color: #ff9cda; font-size: 12px; letter-spacing: .1em; text-align: center; }
+    .score-float.show { animation: scoreRise .8s ease-out forwards; }
+    .toast {
+      position: fixed;
+      left: 50%;
+      top: max(16px, env(safe-area-inset-top));
+      z-index: 60;
+      max-width: calc(100vw - 40px);
+      padding: 10px 17px;
+      border: 1px solid rgba(118, 225, 255, .24);
+      border-radius: 30px;
+      color: #e6faff;
+      background: rgba(18, 23, 49, .94);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, .35), 0 0 18px rgba(82, 239, 255, .08);
+      backdrop-filter: blur(12px);
+      font-size: 12px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, -15px);
+      transition: opacity .22s, transform .22s;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    /* ---------- 暂停与结算弹窗 ---------- */
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(4, 5, 17, .72);
+      backdrop-filter: blur(12px);
+      animation: fadeIn .22s ease-out;
+    }
+    .modal-card {
+      width: min(100%, 350px);
+      padding: 28px 24px 22px;
+      border: 1px solid rgba(139, 150, 255, .25);
+      border-radius: 27px;
+      background: linear-gradient(155deg, rgba(32, 34, 72, .98), rgba(12, 14, 34, .98));
+      box-shadow: 0 25px 80px rgba(0, 0, 0, .55), inset 0 1px rgba(255, 255, 255, .07), 0 0 45px rgba(105, 88, 230, .12);
+      text-align: center;
+      animation: modalIn .3s cubic-bezier(.2, .8, .25, 1.15);
+    }
+    .modal-gem {
+      width: 59px;
+      height: 59px;
+      margin: 0 auto 19px;
+      clip-path: polygon(50% 0, 93% 25%, 82% 79%, 50% 100%, 16% 78%, 7% 25%);
+      background: linear-gradient(145deg, #d4fcff, #53e5ff 40%, #8264ff);
+      filter: drop-shadow(0 0 14px rgba(82, 239, 255, .65));
+    }
+    .modal-gem.pause { clip-path: none; border-radius: 18px; background: linear-gradient(145deg, #d8ccff, #8a6bff 55%, #4f39b5); filter: drop-shadow(0 0 14px rgba(166, 120, 255, .55)); }
+    .modal-gem.lose { background: linear-gradient(145deg, #ffd0e4, #ff70ae 45%, #943375); filter: drop-shadow(0 0 14px rgba(255, 105, 174, .5)); }
+    .modal-eyebrow { margin: 0 0 7px; color: var(--cyan); font-size: 9px; letter-spacing: .25em; }
+    .modal-card h2 { margin: 0; font-size: 25px; letter-spacing: .05em; }
+    .modal-desc { margin: 11px auto 19px; max-width: 260px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .result-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 19px; }
+    .result-item { padding: 10px; border-radius: 13px; background: rgba(255, 255, 255, .045); }
+    .result-item span { display: block; color: var(--muted); font-size: 10px; }
+    .result-item strong { display: block; margin-top: 4px; font-size: 20px; font-variant-numeric: tabular-nums; }
+    .modal-buttons { display: grid; gap: 9px; }
+    .primary-btn, .secondary-btn {
+      min-height: 47px;
+      border-radius: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform .15s, filter .15s;
+    }
+    .primary-btn { border: 0; color: #091329; background: linear-gradient(100deg, #66efff, #9f9aff); box-shadow: 0 8px 24px rgba(82, 224, 255, .18); }
+    .secondary-btn { border: 1px solid var(--line); color: #c4c7e4; background: rgba(255, 255, 255, .035); }
+    .primary-btn:active, .secondary-btn:active { transform: scale(.97); }
+    .primary-btn:hover, .secondary-btn:hover { filter: brightness(1.08); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+    /* ---------- 动画 ---------- */
+    @keyframes breathe { to { transform: scale(1.2) translate(4%, 3%); opacity: .18; } }
+    @keyframes dangerPulse { 50% { opacity: .55; } }
+    @keyframes comboIn { from { opacity: 0; transform: translateY(4px); } }
+    @keyframes vanish { 35% { transform: scale(1.24); filter: drop-shadow(0 0 15px var(--c2)) brightness(1.6); } to { transform: scale(0); opacity: 0; filter: drop-shadow(0 0 18px var(--c2)) brightness(2); } }
+    @keyframes dropIn { from { transform: translateY(-55%) scale(.75); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+    @keyframes hintPulse { 50% { transform: scale(1.16); filter: drop-shadow(0 0 12px var(--c2)) brightness(1.25); } }
+    @keyframes shake { 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
+    @keyframes particleFly { to { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; } }
+    @keyframes scoreRise { 0% { opacity: 0; transform: translate(-50%, -20%) scale(.75); } 20% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -120%) scale(1); } }
+    @keyframes fadeIn { from { opacity: 0; } }
+    @keyframes modalIn { from { opacity: 0; transform: translateY(15px) scale(.94); } }
+
+    /* 矮屏压缩间距，横屏使用双栏布局 */
+    @media (max-height: 700px) and (orientation: portrait) {
+      .game-shell { gap: 7px; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+      .board { width: min(calc(100vw - 54px), calc(100dvh - 270px)); }
+      .stat { padding-top: 7px; padding-bottom: 6px; }
+      .stat-value { font-size: 19px; }
+      .goal-panel { padding-top: 7px; padding-bottom: 8px; }
+      .keyboard-tip { display: none; }
+    }
+    @media (orientation: landscape) and (max-height: 600px) {
+      .game-shell {
+        width: min(100%, 850px);
+        max-width: 850px;
+        display: grid;
+        grid-template-columns: minmax(210px, 1fr) auto;
+        grid-template-areas: "top board" "stats board" "goal board" "tips board";
+        align-content: center;
+        column-gap: 25px;
+        row-gap: 10px;
+        padding: max(9px, env(safe-area-inset-top)) max(22px, env(safe-area-inset-right)) max(9px, env(safe-area-inset-bottom)) max(22px, env(safe-area-inset-left));
+      }
+      .topbar { grid-area: top; }
+      .stats { grid-area: stats; }
+      .goal-panel { grid-area: goal; }
+      .board-frame { grid-area: board; }
+      .tips { grid-area: tips; }
+      .board { width: min(calc(100dvh - 40px), calc(100vw - 310px)); }
+      .stat { padding: 7px 4px; }
+      .stat-label { font-size: 8px; }
+      .stat-value { font-size: 17px; }
+      .keyboard-tip { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient one"></div>
+  <div class="ambient two"></div>
+
+  <main class="game-shell" aria-label="霓虹消消乐游戏">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div><h1>霓虹消消乐</h1><p>NEON MATCH</p></div>
+      </div>
+      <div class="actions">
+        <button class="icon-btn" id="restartBtn" type="button" aria-label="重新开始" title="重新开始">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.75 10h-2.1A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35Z"/></svg>
+        </button>
+        <button class="icon-btn" id="pauseBtn" type="button" aria-label="暂停游戏" title="暂停游戏">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6V5Zm8 0h4v14h-4V5Z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <section class="stats" aria-label="游戏数据">
+      <div class="stat score"><span class="stat-label">当前得分</span><strong class="stat-value" id="scoreValue">0</strong></div>
+      <div class="stat"><span class="stat-label">最高分</span><strong class="stat-value" id="bestValue">0</strong></div>
+      <div class="stat moves" id="movesStat"><span class="stat-label">剩余步数</span><strong class="stat-value" id="movesValue">24</strong></div>
+    </section>
+
+    <section class="goal-panel" aria-label="胜利目标">
+      <div class="goal-copy">
+        <span>目标 <strong id="targetValue">5,000</strong> 分</span>
+        <span class="combo-badge" id="comboBadge" hidden>连击 ×2</span>
+      </div>
+      <div class="progress-track" role="progressbar" aria-label="目标进度" aria-valuemin="0" aria-valuemax="5000" aria-valuenow="0" id="progressTrack">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+    </section>
+
+    <section class="board-frame" id="boardFrame" aria-label="宝石棋盘区域">
+      <div class="board" id="board" role="grid" aria-label="7 行 7 列宝石棋盘，滑动或轻点两颗相邻宝石交换" aria-busy="false"></div>
+      <div class="fx-layer" id="fxLayer" aria-hidden="true"></div>
+      <div class="score-float" id="scoreFloat" aria-hidden="true"></div>
+    </section>
+
+    <footer class="tips">
+      <div class="main-tip">滑动交换相邻宝石<span class="dot">·</span>轻点两颗也可以</div>
+      <div class="keyboard-tip">键盘：方向键移动，空格选中，选中后按方向键交换</div>
+    </footer>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="sr-only" id="announcer" aria-live="polite"></div>
+
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDesc" hidden>
+    <div class="modal-card">
+      <div class="modal-gem" id="modalGem" aria-hidden="true"></div>
+      <p class="modal-eyebrow" id="modalEyebrow">NEON BREAK</p>
+      <h2 id="modalTitle">星光暂停中</h2>
+      <p class="modal-desc" id="modalDesc">棋盘已冻结，准备好后继续你的璀璨连击。</p>
+      <div class="result-stats" id="resultStats" hidden>
+        <div class="result-item"><span>本局得分</span><strong id="finalScore">0</strong></div>
+        <div class="result-item"><span>历史最高</span><strong id="finalBest">0</strong></div>
+      </div>
+      <div class="modal-buttons">
+        <button class="primary-btn" id="modalPrimary" type="button">继续游戏</button>
+        <button class="secondary-btn" id="modalSecondary" type="button">重新开始</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      /* ---------- 常量与 DOM ---------- */
+      const SIZE = 7;
+      const TYPE_COUNT = 6;
+      const START_MOVES = 24;
+      const TARGET_SCORE = 5000;
+      const BEST_KEY = "neon-match3-best-v1";
+      const GEM_NAMES = ["冰蓝钻", "樱粉晶", "幻紫石", "流星黄", "翡翠绿", "蔷薇珠"];
+      const numberFormat = new Intl.NumberFormat("zh-CN");
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      const $ = id => document.getElementById(id);
+      const boardEl = $("board");
+      const boardFrame = $("boardFrame");
+      const scoreValue = $("scoreValue");
+      const bestValue = $("bestValue");
+      const movesValue = $("movesValue");
+      const movesStat = $("movesStat");
+      const progressBar = $("progressBar");
+      const progressTrack = $("progressTrack");
+      const comboBadge = $("comboBadge");
+      const pauseBtn = $("pauseBtn");
+      const modal = $("modal");
+      const modalGem = $("modalGem");
+      const modalTitle = $("modalTitle");
+      const modalDesc = $("modalDesc");
+      const modalEyebrow = $("modalEyebrow");
+      const modalPrimary = $("modalPrimary");
+      const modalSecondary = $("modalSecondary");
+      const resultStats = $("resultStats");
+      const scoreFloat = $("scoreFloat");
+      const fxLayer = $("fxLayer");
+      const toast = $("toast");
+      const announcer = $("announcer");
+
+      let board = [];
+      let score = 0;
+      let best = loadBest();
+      let moves = START_MOVES;
+      let selected = null;
+      let focusIndex = 0;
+      let busy = false;
+      let paused = false;
+      let gameOver = false;
+      let session = 0;
+      let gesture = null;
+      let hintTimer = null;
+      let toastTimer = null;
+      let modalMode = null;
+
+      const wait = ms => new Promise(resolve => setTimeout(resolve, reducedMotion ? Math.min(ms, 30) : ms));
+      const indexOf = (row, col) => row * SIZE + col;
+      const rowOf = index => Math.floor(index / SIZE);
+      const colOf = index => index % SIZE;
+      const format = value => numberFormat.format(value);
+      const canInteract = () => !busy && !paused && !gameOver;
+
+      function loadBest() {
+        try { return Math.max(0, Number(localStorage.getItem(BEST_KEY)) || 0); }
+        catch (_) { return 0; }
+      }
+
+      function saveBest() {
+        try { localStorage.setItem(BEST_KEY, String(best)); }
+        catch (_) { /* 隐私模式下存储不可用时仍可正常游戏 */ }
+      }
+
+      /* ---------- 棋盘生成与匹配算法 ---------- */
+      function randomType() { return Math.floor(Math.random() * TYPE_COUNT); }
+
+      function findMatches(source = board) {
+        const cells = new Set();
+        const groups = [];
+
+        // 横向连续三个或更多同类宝石
+        for (let row = 0; row < SIZE; row++) {
+          let start = 0;
+          for (let col = 1; col <= SIZE; col++) {
+            const same = col < SIZE && source[indexOf(row, col)] !== null &&
+              source[indexOf(row, col)] === source[indexOf(row, start)];
+            if (!same) {
+              const length = col - start;
+              if (source[indexOf(row, start)] !== null && length >= 3) {
+                const group = [];
+                for (let x = start; x < col; x++) group.push(indexOf(row, x));
+                groups.push(group);
+                group.forEach(cell => cells.add(cell));
+              }
+              start = col;
+            }
+          }
+        }
+
+        // 纵向连续三个或更多同类宝石
+        for (let col = 0; col < SIZE; col++) {
+          let start = 0;
+          for (let row = 1; row <= SIZE; row++) {
+            const same = row < SIZE && source[indexOf(row, col)] !== null &&
+              source[indexOf(row, col)] === source[indexOf(start, col)];
+            if (!same) {
+              const length = row - start;
+              if (source[indexOf(start, col)] !== null && length >= 3) {
+                const group = [];
+                for (let y = start; y < row; y++) group.push(indexOf(y, col));
+                groups.push(group);
+                group.forEach(cell => cells.add(cell));
+              }
+              start = row;
+            }
+          }
+        }
+        return { cells, groups };
+      }
+
+      function areAdjacent(a, b) {
+        return a >= 0 && b >= 0 && a < SIZE * SIZE && b < SIZE * SIZE &&
+          Math.abs(rowOf(a) - rowOf(b)) + Math.abs(colOf(a) - colOf(b)) === 1;
+      }
+
+      function swapCells(a, b) {
+        [board[a], board[b]] = [board[b], board[a]];
+      }
+
+      function findValidMove() {
+        for (let index = 0; index < board.length; index++) {
+          const neighbors = [];
+          if (colOf(index) < SIZE - 1) neighbors.push(index + 1);
+          if (rowOf(index) < SIZE - 1) neighbors.push(index + SIZE);
+          for (const neighbor of neighbors) {
+            swapCells(index, neighbor);
+            const valid = findMatches().cells.size > 0;
+            swapCells(index, neighbor);
+            if (valid) return [index, neighbor];
+          }
+        }
+        return null;
+      }
+
+      function createBoard() {
+        // 逐格排除会直接成三的颜色，同时保证开局至少有一步可走
+        do {
+          board = new Array(SIZE * SIZE);
+          for (let row = 0; row < SIZE; row++) {
+            for (let col = 0; col < SIZE; col++) {
+              const index = indexOf(row, col);
+              const forbidden = new Set();
+              if (col >= 2 && board[index - 1] === board[index - 2]) forbidden.add(board[index - 1]);
+              if (row >= 2 && board[index - SIZE] === board[index - SIZE * 2]) forbidden.add(board[index - SIZE]);
+              const choices = [];
+              for (let type = 0; type < TYPE_COUNT; type++) {
+                if (!forbidden.has(type)) choices.push(type);
+              }
+              board[index] = choices[Math.floor(Math.random() * choices.length)];
+            }
+          }
+        } while (!findValidMove());
+      }
+
+      function collapseBoard(matched) {
+        // 每列由下向上压实，再在顶部补充新宝石
+        for (let col = 0; col < SIZE; col++) {
+          let writeRow = SIZE - 1;
+          for (let row = SIZE - 1; row >= 0; row--) {
+            const index = indexOf(row, col);
+            if (!matched.has(index)) {
+              board[indexOf(writeRow, col)] = board[index];
+              writeRow--;
+            }
+          }
+          while (writeRow >= 0) {
+            board[indexOf(writeRow, col)] = randomType();
+            writeRow--;
+          }
+        }
+      }
+
+      /* ---------- 渲染与状态显示 ---------- */
+      function updateHUD() {
+        scoreValue.textContent = format(score);
+        bestValue.textContent = format(best);
+        movesValue.textContent = moves;
+        movesStat.classList.toggle("danger", moves <= 5 && !gameOver);
+        const progress = Math.min(100, score / TARGET_SCORE * 100);
+        progressBar.style.width = `${progress}%`;
+        progressTrack.setAttribute("aria-valuenow", String(Math.min(score, TARGET_SCORE)));
+        pauseBtn.disabled = busy || paused || gameOver;
+        boardEl.setAttribute("aria-busy", String(busy));
+        boardEl.setAttribute("aria-disabled", String(!canInteract()));
+      }
+
+      function renderBoard(spawn = false) {
+        const restoreFocus = boardEl.contains(document.activeElement);
+        boardEl.innerHTML = board.map((type, index) => {
+          const classes = ["gem"];
+          if (index === selected) classes.push("selected");
+          if (spawn) classes.push("spawn");
+          const row = rowOf(index) + 1;
+          const col = colOf(index) + 1;
+          return `<button type="button" role="gridcell" class="${classes.join(" ")}" data-index="${index}" data-type="${type}" style="--row:${row - 1}" tabindex="${index === focusIndex ? 0 : -1}" aria-selected="${index === selected}" aria-label="第 ${row} 行第 ${col} 列，${GEM_NAMES[type]}"></button>`;
+        }).join("");
+
+        // 每颗宝石的内芯单独绘制，保留统一的光泽与切面
+        boardEl.querySelectorAll(".gem").forEach(gem => {
+          const core = document.createElement("span");
+          core.className = "gem-core";
+          core.setAttribute("aria-hidden", "true");
+          gem.appendChild(core);
+        });
+        if (restoreFocus) requestAnimationFrame(() => boardEl.children[focusIndex]?.focus({ preventScroll: true }));
+      }
+
+      function setSelected(index) {
+        selected = index;
+        boardEl.querySelectorAll(".gem").forEach((gem, i) => {
+          gem.classList.toggle("selected", i === selected);
+          gem.setAttribute("aria-selected", String(i === selected));
+        });
+      }
+
+      function moveFocus(index, focus = true) {
+        focusIndex = index;
+        boardEl.querySelectorAll(".gem").forEach((gem, i) => gem.tabIndex = i === index ? 0 : -1);
+        if (focus) boardEl.children[index]?.focus({ preventScroll: true });
+      }
+
+      function announce(text) { announcer.textContent = text; }
+
+      function showToast(text) {
+        clearTimeout(toastTimer);
+        toast.textContent = text;
+        toast.classList.add("show");
+        toastTimer = setTimeout(() => toast.classList.remove("show"), 1800);
+      }
+
+      function showCombo(chain) {
+        comboBadge.hidden = chain < 2;
+        if (chain >= 2) comboBadge.textContent = `连击 ×${chain} · 加成 ${(chain - 1) * 50}%`;
+      }
+
+      function showScoreFloat(gained, chain) {
+        scoreFloat.innerHTML = `${chain > 1 ? `<small>连锁反应 ×${chain}</small>` : ""}+${format(gained)}`;
+        scoreFloat.classList.remove("show");
+        void scoreFloat.offsetWidth;
+        scoreFloat.classList.add("show");
+      }
+
+      function spawnSparkles(matched) {
+        if (reducedMotion) return;
+        const frameRect = boardFrame.getBoundingClientRect();
+        matched.forEach(index => {
+          const gem = boardEl.children[index];
+          if (!gem) return;
+          const rect = gem.getBoundingClientRect();
+          const color = getComputedStyle(gem).getPropertyValue("--c2");
+          for (let n = 0; n < 2; n++) {
+            const particle = document.createElement("i");
+            particle.className = "particle";
+            particle.style.left = `${rect.left - frameRect.left + rect.width / 2}px`;
+            particle.style.top = `${rect.top - frameRect.top + rect.height / 2}px`;
+            particle.style.setProperty("--particle-color", color);
+            particle.style.setProperty("--dx", `${(Math.random() - .5) * 75}px`);
+            particle.style.setProperty("--dy", `${(Math.random() - .5) * 75}px`);
+            fxLayer.appendChild(particle);
+            setTimeout(() => particle.remove(), 650);
+          }
+        });
+      }
+
+      function clearHint() {
+        clearTimeout(hintTimer);
+        boardEl.querySelectorAll(".hint").forEach(gem => gem.classList.remove("hint"));
+      }
+
+      function scheduleHint() {
+        clearHint();
+        if (!canInteract()) return;
+        hintTimer = setTimeout(() => {
+          if (!canInteract()) return;
+          const move = findValidMove();
+          if (move) move.forEach(index => boardEl.children[index]?.classList.add("hint"));
+        }, 6000);
+      }
+
+      /* ---------- 交换、消除与连击 ---------- */
+      function animateSwap(a, b) {
+        const gemA = boardEl.children[a];
+        const gemB = boardEl.children[b];
+        if (!gemA || !gemB || reducedMotion) return [];
+        const rectA = gemA.getBoundingClientRect();
+        const rectB = gemB.getBoundingClientRect();
+        const dx = rectB.left - rectA.left;
+        const dy = rectB.top - rectA.top;
+        const options = { duration: 180, easing: "cubic-bezier(.2,.8,.3,1)", fill: "forwards" };
+        gemA.style.zIndex = "4";
+        gemB.style.zIndex = "3";
+        return [
+          gemA.animate([{ transform: "translate(0, 0)" }, { transform: `translate(${dx}px, ${dy}px)` }], options),
+          gemB.animate([{ transform: "translate(0, 0)" }, { transform: `translate(${-dx}px, ${-dy}px)` }], options)
+        ];
+      }
+
+      async function settleAnimations(animations, reverse = false) {
+        if (!animations.length) { await wait(100); return; }
+        try {
+          if (reverse) animations.forEach(animation => animation.reverse());
+          await Promise.all(animations.map(animation => animation.finished));
+        } catch (_) { /* 动画被重开等操作取消时无需报错 */ }
+      }
+
+      function calculateScore(match, chain) {
+        // 每颗 60 分，四连以上追加长度奖励；每级连击增加 50%
+        const base = match.groups.reduce((sum, group) =>
+          sum + group.length * 60 + Math.max(0, group.length - 3) * 50, 0);
+        return Math.round(base * (1 + (chain - 1) * .5));
+      }
+
+      async function attemptSwap(a, b) {
+        if (!canInteract() || !areAdjacent(a, b)) return;
+        const token = session;
+        busy = true;
+        clearHint();
+        setSelected(null);
+        showCombo(0);
+        updateHUD();
+
+        const animations = animateSwap(a, b);
+        await settleAnimations(animations);
+        if (token !== session) return;
+
+        swapCells(a, b);
+        const match = findMatches();
+        if (!match.cells.size) {
+          // 无效交换弹回原位，不扣步数
+          swapCells(a, b);
+          await settleAnimations(animations, true);
+          if (token !== session) return;
+          animations.forEach(animation => animation.cancel());
+          boardFrame.classList.remove("invalid");
+          void boardFrame.offsetWidth;
+          boardFrame.classList.add("invalid");
+          renderBoard();
+          busy = false;
+          updateHUD();
+          showToast("没有形成三连，再试一次");
+          announce("无效交换，未消耗步数");
+          scheduleHint();
+          return;
+        }
+
+        animations.forEach(animation => animation.cancel());
+        moves--;
+        renderBoard();
+        updateHUD();
+        await resolveMatches(token);
+      }
+
+      async function resolveMatches(token) {
+        let chain = 0;
+        while (token === session) {
+          const match = findMatches();
+          if (!match.cells.size) break;
+          chain++;
+          const gained = calculateScore(match, chain);
+          score += gained;
+          if (score > best) { best = score; saveBest(); }
+          updateHUD();
+          showCombo(chain);
+          showScoreFloat(gained, chain);
+          spawnSparkles(match.cells);
+          match.cells.forEach(index => boardEl.children[index]?.classList.add("matched"));
+          announce(`消除 ${match.cells.size} 颗宝石，获得 ${gained} 分${chain > 1 ? `，${chain} 连击` : ""}`);
+
+          await wait(300);
+          if (token !== session) return;
+          collapseBoard(match.cells);
+          renderBoard(true);
+          await wait(390);
+        }
+        if (token !== session) return;
+
+        // 达标优先判胜；步数耗尽且未达标则失败
+        if (score >= TARGET_SCORE) { finishGame(true); return; }
+        if (moves <= 0) { finishGame(false); return; }
+
+        // 死局自动重排，不额外扣除步数
+        if (!findValidMove()) {
+          showToast("没有可消除组合，已自动重排");
+          createBoard();
+          selected = null;
+          renderBoard(true);
+          await wait(390);
+          if (token !== session) return;
+        }
+        busy = false;
+        updateHUD();
+        scheduleHint();
+      }
+
+      function handleTap(index) {
+        if (!canInteract()) return;
+        clearHint();
+        if (selected === null) {
+          setSelected(index);
+          announce(`已选中${GEM_NAMES[board[index]]}`);
+        } else if (selected === index) {
+          setSelected(null);
+        } else if (areAdjacent(selected, index)) {
+          attemptSwap(selected, index);
+        } else {
+          setSelected(index);
+          announce(`已改选${GEM_NAMES[board[index]]}`);
+        }
+      }
+
+      /* ---------- 开始、暂停与结算 ---------- */
+      function startGame() {
+        session++;
+        clearHint();
+        score = 0;
+        moves = START_MOVES;
+        selected = null;
+        focusIndex = 0;
+        busy = false;
+        paused = false;
+        gameOver = false;
+        gesture = null;
+        modal.hidden = true;
+        modalMode = null;
+        fxLayer.replaceChildren();
+        showCombo(0);
+        createBoard();
+        renderBoard(true);
+        updateHUD();
+        announce("新游戏开始，24 步内获得 5000 分即可胜利");
+        scheduleHint();
+      }
+
+      function openModal(mode) {
+        modalMode = mode;
+        modal.hidden = false;
+        requestAnimationFrame(() => modalPrimary.focus({ preventScroll: true }));
+      }
+
+      function pauseGame() {
+        if (gameOver || paused) return;
+        if (busy) { showToast("本次消除完成后即可暂停"); return; }
+        paused = true;
+        clearHint();
+        setSelected(null);
+        modalGem.className = "modal-gem pause";
+        modalEyebrow.textContent = "NEON BREAK";
+        modalTitle.textContent = "星光暂停中";
+        modalDesc.textContent = "棋盘已冻结，准备好后继续你的璀璨连击。";
+        resultStats.hidden = true;
+        modalPrimary.textContent = "继续游戏";
+        modalSecondary.hidden = false;
+        updateHUD();
+        openModal("pause");
+      }
+
+      function resumeGame() {
+        if (!paused) return;
+        paused = false;
+        modal.hidden = true;
+        modalMode = null;
+        updateHUD();
+        scheduleHint();
+        pauseBtn.focus({ preventScroll: true });
+        announce("游戏继续");
+      }
+
+      function finishGame(won) {
+        gameOver = true;
+        busy = false;
+        clearHint();
+        setSelected(null);
+        updateHUD();
+        modalGem.className = `modal-gem${won ? "" : " lose"}`;
+        modalEyebrow.textContent = won ? "BRILLIANT CLEAR" : "KEEP SHINING";
+        modalTitle.textContent = won ? "璀璨胜利！" : "步数用完啦";
+        modalDesc.textContent = won
+          ? "目标达成！每一颗宝石都因你而闪耀。"
+          : `距离目标还差 ${format(Math.max(0, TARGET_SCORE - score))} 分，再来一局刷新纪录吧。`;
+        $("finalScore").textContent = format(score);
+        $("finalBest").textContent = format(best);
+        resultStats.hidden = false;
+        modalPrimary.textContent = "再来一局";
+        modalSecondary.hidden = true;
+        openModal("end");
+        announce(won ? "恭喜胜利" : "游戏结束");
+      }
+
+      /* ---------- 触屏与鼠标：Pointer Events 统一处理 ---------- */
+      boardEl.addEventListener("pointerdown", event => {
+        const gem = event.target.closest(".gem");
+        if (!gem || !canInteract() || (event.pointerType === "mouse" && event.button !== 0)) return;
+        event.preventDefault();
+        clearHint();
+        const index = Number(gem.dataset.index);
+        moveFocus(index, false);
+        gesture = { id: event.pointerId, index, x: event.clientX, y: event.clientY, swiped: false };
+        try { boardEl.setPointerCapture(event.pointerId); } catch (_) { /* 部分旧浏览器不支持捕获 */ }
+      });
+
+      boardEl.addEventListener("pointermove", event => {
+        if (!gesture || gesture.id !== event.pointerId || gesture.swiped || !canInteract()) return;
+        event.preventDefault();
+        const dx = event.clientX - gesture.x;
+        const dy = event.clientY - gesture.y;
+        const threshold = Math.max(13, boardEl.children[gesture.index].clientWidth * .18);
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < threshold) return;
+
+        let target;
+        if (Math.abs(dx) > Math.abs(dy)) target = gesture.index + (dx > 0 ? 1 : -1);
+        else target = gesture.index + (dy > 0 ? SIZE : -SIZE);
+        if (!areAdjacent(gesture.index, target)) {
+          gesture.swiped = true;
+          return;
+        }
+        const from = gesture.index;
+        gesture.swiped = true;
+        attemptSwap(from, target);
+      }, { passive: false });
+
+      boardEl.addEventListener("pointerup", event => {
+        if (!gesture || gesture.id !== event.pointerId) return;
+        const current = gesture;
+        gesture = null;
+        if (!current.swiped) handleTap(current.index);
+      });
+      boardEl.addEventListener("pointercancel", () => { gesture = null; });
+      boardEl.addEventListener("contextmenu", event => event.preventDefault());
+
+      /* ---------- 键盘操作 ---------- */
+      boardEl.addEventListener("focusin", event => {
+        const gem = event.target.closest(".gem");
+        if (gem) moveFocus(Number(gem.dataset.index), false);
+      });
+
+      boardEl.addEventListener("keydown", event => {
+        const gem = event.target.closest(".gem");
+        if (!gem) return;
+        const directions = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -SIZE, ArrowDown: SIZE };
+        if (event.key in directions) {
+          event.preventDefault();
+          if (!canInteract()) return;
+          clearHint();
+          const origin = selected === null ? focusIndex : selected;
+          const target = origin + directions[event.key];
+          if (!areAdjacent(origin, target)) return;
+          moveFocus(target, false);
+          if (selected !== null) attemptSwap(origin, target);
+          else boardEl.children[target]?.focus({ preventScroll: true });
+        } else if (event.key === " " || event.key === "Enter") {
+          event.preventDefault();
+          handleTap(focusIndex);
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          if (selected !== null) setSelected(null);
+          else pauseGame();
+        }
+      });
+
+      /* ---------- 控件与弹窗焦点管理 ---------- */
+      $("restartBtn").addEventListener("click", startGame);
+      pauseBtn.addEventListener("click", pauseGame);
+      modalPrimary.addEventListener("click", () => modalMode === "pause" ? resumeGame() : startGame());
+      modalSecondary.addEventListener("click", startGame);
+
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && paused) { event.preventDefault(); resumeGame(); return; }
+        if (event.key === "Tab" && !modal.hidden) {
+          const buttons = [...modal.querySelectorAll("button:not([hidden])")];
+          const first = buttons[0];
+          const last = buttons[buttons.length - 1];
+          if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+          else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+        }
+      });
+
+      // 页面切到后台时自动暂停，避免玩家错失棋盘状态
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && !paused && !gameOver && !busy) pauseGame();
+      });
+
+      // 禁止双击缩放、双指缩放手势与页面橡皮筋滚动
+      document.addEventListener("dblclick", event => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", event => event.preventDefault(), { passive: false });
+      document.addEventListener("touchmove", event => event.preventDefault(), { passive: false });
+      document.addEventListener("touchstart", event => {
+        if (event.touches.length > 1) event.preventDefault();
+      }, { passive: false });
+
+      startGame();
+    })();
+  </script>
+</body>
+</html>

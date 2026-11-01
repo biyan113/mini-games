@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080b18">
+  <title>霓虹数独</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080b18;
+      --panel: rgba(17, 23, 44, .78);
+      --line: rgba(133, 153, 205, .18);
+      --text: #f3f6ff;
+      --muted: #8590b2;
+      --cyan: #55e6ff;
+      --violet: #a78bfa;
+      --pink: #ff5f9e;
+      --board-size: min(430px, calc(100dvh - 318px));
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      background: var(--bg);
+    }
+
+    body {
+      color: var(--text);
+      user-select: none;
+      -webkit-user-select: none;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(88, 80, 236, .17), transparent 32%),
+        radial-gradient(circle at 90% 82%, rgba(0, 213, 255, .10), transparent 34%),
+        linear-gradient(155deg, #0b1022 0%, #070a14 58%, #0a0c1b 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .18;
+      background-image:
+        linear-gradient(rgba(115, 137, 190, .08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(115, 137, 190, .08) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: linear-gradient(to bottom, black, transparent 72%);
+    }
+
+    button { font: inherit; color: inherit; }
+    button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+    .app {
+      position: relative;
+      width: min(100%, 480px);
+      height: 100dvh;
+      min-height: 100svh;
+      margin: 0 auto;
+      padding: max(12px, env(safe-area-inset-top)) 16px max(10px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .topbar { display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto; }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .logo {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(85, 230, 255, .38);
+      border-radius: 13px;
+      color: var(--cyan);
+      font-size: 22px;
+      font-weight: 800;
+      background: linear-gradient(145deg, rgba(85, 230, 255, .13), rgba(167, 139, 250, .12));
+      box-shadow: inset 0 0 18px rgba(85, 230, 255, .07), 0 0 20px rgba(85, 230, 255, .09);
+    }
+    h1 { margin: 0; font-size: 20px; line-height: 1.15; letter-spacing: 2px; }
+    .brand-subtitle { margin-top: 4px; color: var(--muted); font-size: 10px; letter-spacing: 2px; }
+    .best-card { text-align: right; padding: 5px 0 5px 12px; }
+    .best-label { display: block; color: var(--muted); font-size: 10px; letter-spacing: 1px; }
+    .best-value { display: block; margin-top: 1px; color: #ffe39a; font-size: 19px; font-weight: 750; font-variant-numeric: tabular-nums; }
+
+    .difficulty {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(13, 18, 35, .72);
+    }
+    .difficulty button {
+      min-height: 34px;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+      transition: .2s ease;
+    }
+    .difficulty button.active {
+      color: #eafcff;
+      font-weight: 650;
+      background: linear-gradient(120deg, rgba(44, 185, 219, .25), rgba(124, 92, 240, .25));
+      box-shadow: inset 0 0 0 1px rgba(85, 230, 255, .22), 0 0 14px rgba(85, 230, 255, .06);
+    }
+
+    .game-layout { display: flex; flex-direction: column; align-items: center; gap: 10px; min-height: 0; }
+    .play-column { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+
+    .stats {
+      width: min(100%, var(--board-size));
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .stat { display: flex; align-items: baseline; gap: 5px; color: var(--muted); font-size: 11px; }
+    .stat strong { color: var(--text); font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; }
+    #mistakes.danger { color: var(--pink); }
+    .stat.score strong { color: var(--cyan); }
+    .pause-btn, .new-game-btn {
+      border: 1px solid var(--line);
+      background: rgba(19, 26, 48, .8);
+      cursor: pointer;
+    }
+    .pause-btn {
+      min-width: 58px;
+      min-height: 32px;
+      padding: 0 10px;
+      border-radius: 10px;
+      color: #bdc7e5;
+      font-size: 12px;
+    }
+
+    .board-shell {
+      position: relative;
+      width: min(100%, var(--board-size));
+      padding: 5px;
+      border: 1px solid rgba(109, 140, 207, .3);
+      border-radius: 15px;
+      background: linear-gradient(145deg, rgba(29, 39, 70, .92), rgba(12, 17, 34, .96));
+      box-shadow: 0 18px 55px rgba(0, 0, 0, .34), 0 0 28px rgba(85, 230, 255, .055), inset 0 1px rgba(255, 255, 255, .035);
+    }
+    .board {
+      width: 100%;
+      aspect-ratio: 1;
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      overflow: hidden;
+      border: 2px solid rgba(157, 177, 224, .42);
+      border-radius: 9px;
+      background: rgba(7, 11, 24, .68);
+    }
+    .cell {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-right: 1px solid rgba(126, 148, 197, .16);
+      border-bottom: 1px solid rgba(126, 148, 197, .16);
+      border-radius: 0;
+      background: transparent;
+      cursor: pointer;
+      transition: background .12s ease;
+    }
+    .cell:nth-child(9n) { border-right: 0; }
+    .cell:nth-child(n+73) { border-bottom: 0; }
+    .cell.box-right { border-right: 2px solid rgba(157, 177, 224, .42); }
+    .cell.box-bottom { border-bottom: 2px solid rgba(157, 177, 224, .42); }
+    .cell.peer { background: rgba(85, 153, 221, .075); }
+    .cell.same { background: rgba(85, 230, 255, .13); }
+    .cell.selected {
+      z-index: 1;
+      background: rgba(85, 230, 255, .19);
+      box-shadow: inset 0 0 0 2px rgba(85, 230, 255, .78), inset 0 0 18px rgba(85, 230, 255, .13);
+    }
+    .cell .value { font-size: clamp(17px, 5.7vw, 28px); line-height: 1; font-weight: 520; font-variant-numeric: tabular-nums; }
+    .cell.given .value { color: #e6ebfa; font-weight: 650; }
+    .cell.user .value { color: var(--cyan); text-shadow: 0 0 12px rgba(85, 230, 255, .28); }
+    .cell.error { background: rgba(255, 70, 125, .16); }
+    .cell.error .value { color: var(--pink); text-shadow: 0 0 12px rgba(255, 95, 158, .35); }
+    .cell.selected.error { box-shadow: inset 0 0 0 2px rgba(255, 95, 158, .82); }
+    .cell.just-filled .value { animation: pop .25s ease-out; }
+    .cell.just-error { animation: shake .3s ease; }
+
+    .notes {
+      position: absolute;
+      inset: 2px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      align-items: center;
+      justify-items: center;
+      color: #8294bd;
+      font-size: clamp(7px, 2.15vw, 11px);
+      line-height: 1;
+    }
+    .notes span { width: 100%; text-align: center; }
+    .cell.selected .notes { color: #b5f5ff; }
+
+    .controls { width: min(100%, 430px); display: flex; flex-direction: column; gap: 8px; }
+    .actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+    .action-btn {
+      min-height: 46px;
+      padding: 4px 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: linear-gradient(160deg, rgba(25, 33, 59, .94), rgba(14, 20, 39, .94));
+      color: #b8c3e1;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .action-btn .action-icon { color: #8f9fc7; font-size: 18px; line-height: 1; }
+    .action-btn.active {
+      border-color: rgba(167, 139, 250, .55);
+      color: #eee9ff;
+      background: rgba(124, 92, 240, .22);
+      box-shadow: inset 0 0 15px rgba(167, 139, 250, .12), 0 0 12px rgba(167, 139, 250, .08);
+    }
+    .action-btn.active .action-icon { color: #c5b5ff; }
+    .action-btn:disabled { opacity: .35; cursor: default; }
+
+    .number-pad { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; }
+    .number-btn {
+      position: relative;
+      min-width: 0;
+      height: 51px;
+      padding: 3px 0 8px;
+      border: 1px solid rgba(105, 133, 191, .23);
+      border-radius: 10px;
+      background: linear-gradient(160deg, rgba(25, 35, 62, .98), rgba(13, 19, 37, .98));
+      color: #e0faff;
+      font-size: 22px;
+      font-weight: 580;
+      cursor: pointer;
+      box-shadow: inset 0 1px rgba(255, 255, 255, .025);
+    }
+    .number-btn .remaining {
+      position: absolute;
+      bottom: 4px;
+      left: 0;
+      right: 0;
+      color: #6f7da2;
+      font-size: 8px;
+      font-weight: 500;
+      line-height: 1;
+    }
+    .number-btn.completed { opacity: .3; }
+    .number-btn:active, .action-btn:active, .pause-btn:active { transform: scale(.96); }
+    .tip { margin: 0; text-align: center; color: #5f6b8b; font-size: 10px; letter-spacing: .3px; }
+
+    .toast {
+      position: fixed;
+      z-index: 30;
+      left: 50%;
+      bottom: max(22px, env(safe-area-inset-bottom));
+      max-width: calc(100vw - 40px);
+      padding: 9px 16px;
+      border: 1px solid rgba(85, 230, 255, .25);
+      border-radius: 999px;
+      background: rgba(13, 20, 39, .96);
+      color: #d9faff;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, .35);
+      font-size: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, 10px);
+      transition: .2s ease;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    .modal {
+      position: fixed;
+      z-index: 50;
+      inset: 0;
+      padding: 24px;
+      display: grid;
+      place-items: center;
+      background: rgba(3, 5, 13, .78);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity .22s ease, visibility .22s;
+    }
+    .modal.open { opacity: 1; visibility: visible; }
+    .modal-card {
+      width: min(100%, 360px);
+      padding: 28px 24px 22px;
+      border: 1px solid rgba(113, 151, 218, .3);
+      border-radius: 24px;
+      text-align: center;
+      background: linear-gradient(150deg, rgba(25, 33, 61, .98), rgba(10, 15, 30, .99));
+      box-shadow: 0 24px 80px rgba(0, 0, 0, .55), inset 0 1px rgba(255, 255, 255, .05);
+      transform: translateY(12px) scale(.97);
+      transition: transform .25s ease;
+    }
+    .modal.open .modal-card { transform: translateY(0) scale(1); }
+    .modal-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 15px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(85, 230, 255, .35);
+      border-radius: 20px;
+      color: var(--cyan);
+      background: rgba(85, 230, 255, .08);
+      box-shadow: 0 0 26px rgba(85, 230, 255, .1);
+      font-size: 30px;
+      font-weight: 300;
+    }
+    .modal h2 { margin: 0 0 8px; font-size: 25px; letter-spacing: 1px; }
+    .modal p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .result-score { margin: 18px 0 14px; color: var(--cyan); font-size: 38px; font-weight: 750; font-variant-numeric: tabular-nums; }
+    .result-score small { display: block; margin-bottom: 2px; color: var(--muted); font-size: 10px; font-weight: 500; letter-spacing: 2px; }
+    .result-details { display: flex; justify-content: center; gap: 24px; margin-bottom: 20px; color: #aeb9d6; font-size: 12px; }
+    .record { display: none; margin: -5px 0 15px; color: #ffe39a; font-size: 12px; }
+    .record.show { display: block; }
+    .modal-actions { display: grid; gap: 9px; }
+    .modal-btn {
+      min-height: 48px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(26, 34, 60, .8);
+      color: #b8c3df;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .modal-btn.primary {
+      border-color: rgba(85, 230, 255, .35);
+      color: #07131d;
+      font-weight: 700;
+      background: linear-gradient(110deg, #65e8ff, #a7c7ff);
+      box-shadow: 0 6px 22px rgba(85, 230, 255, .16);
+    }
+
+    @keyframes pop { 0% { transform: scale(.65); } 65% { transform: scale(1.14); } 100% { transform: scale(1); } }
+    @keyframes shake { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-3px); } 65% { transform: translateX(3px); } }
+
+    @media (hover: hover) {
+      .cell:hover { background: rgba(85, 230, 255, .09); }
+      .number-btn:hover, .action-btn:hover, .pause-btn:hover { border-color: rgba(85, 230, 255, .4); color: #effdff; }
+      .difficulty button:hover { color: #eafcff; }
+    }
+
+    @media (max-width: 360px) {
+      .app { padding-left: 10px; padding-right: 10px; gap: 7px; }
+      .game-layout, .play-column { gap: 7px; }
+      .number-pad { gap: 3px; }
+      .number-btn { height: 47px; font-size: 20px; }
+      .actions { gap: 5px; }
+      .action-btn { font-size: 11px; }
+    }
+
+    @media (max-height: 700px) and (orientation: portrait) {
+      :root { --board-size: min(400px, calc(100dvh - 282px)); }
+      .app { padding-top: max(7px, env(safe-area-inset-top)); gap: 6px; }
+      .game-layout, .play-column, .controls { gap: 6px; }
+      .logo { width: 35px; height: 35px; border-radius: 11px; font-size: 19px; }
+      h1 { font-size: 17px; }
+      .brand-subtitle { display: none; }
+      .difficulty button { min-height: 29px; }
+      .stats { min-height: 28px; }
+      .action-btn { min-height: 40px; }
+      .number-btn { height: 44px; }
+      .tip { display: none; }
+    }
+
+    @media (orientation: landscape) and (max-height: 600px) {
+      :root { --board-size: min(430px, calc(100dvh - 114px)); }
+      .app { width: min(100%, 880px); padding: 7px 18px; gap: 5px; }
+      .topbar { position: absolute; top: 10px; right: 20px; width: calc(45% - 24px); }
+      .logo { width: 34px; height: 34px; font-size: 18px; }
+      h1 { font-size: 16px; }
+      .brand-subtitle, .tip { display: none; }
+      .difficulty { position: absolute; top: 52px; right: 20px; width: calc(45% - 24px); }
+      .game-layout { height: 100%; display: grid; grid-template-columns: 55% 45%; gap: 16px; align-items: center; }
+      .play-column { grid-column: 1; gap: 4px; }
+      .controls { grid-column: 2; padding-top: 92px; align-self: stretch; justify-content: center; }
+      .stats { min-height: 25px; }
+      .number-pad { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+      .number-btn { height: 39px; font-size: 19px; }
+      .number-btn .remaining { bottom: 2px; }
+      .action-btn { min-height: 37px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">数</div>
+        <div>
+          <h1>霓虹数独</h1>
+          <div class="brand-subtitle">静心 · 推理 · 挑战</div>
+        </div>
+      </div>
+      <div class="best-card">
+        <span class="best-label">最高分</span>
+        <strong class="best-value" id="bestScore">0</strong>
+      </div>
+    </header>
+
+    <nav class="difficulty" aria-label="选择难度，点击后将开始新游戏">
+      <button type="button" data-difficulty="easy" class="active" aria-pressed="true">简单</button>
+      <button type="button" data-difficulty="medium" aria-pressed="false">中等</button>
+      <button type="button" data-difficulty="hard" aria-pressed="false">困难</button>
+    </nav>
+
+    <main class="game-layout">
+      <section class="play-column" aria-label="数独游戏区">
+        <div class="stats">
+          <div class="stat score">得分 <strong id="score">0</strong></div>
+          <div class="stat">错误 <strong id="mistakes">0/3</strong></div>
+          <div class="stat"><strong id="timer">00:00</strong></div>
+          <button type="button" class="pause-btn" id="pauseBtn" aria-label="暂停游戏">Ⅱ 暂停</button>
+        </div>
+        <div class="board-shell">
+          <div class="board" id="board" role="grid" aria-label="9乘9数独棋盘"></div>
+        </div>
+      </section>
+
+      <section class="controls" aria-label="游戏控制">
+        <div class="actions">
+          <button type="button" class="action-btn" id="undoBtn"><span class="action-icon" aria-hidden="true">↶</span>撤销</button>
+          <button type="button" class="action-btn" id="eraseBtn"><span class="action-icon" aria-hidden="true">⌫</span>擦除</button>
+          <button type="button" class="action-btn" id="notesBtn" aria-pressed="false"><span class="action-icon" aria-hidden="true">✎</span>笔记</button>
+          <button type="button" class="action-btn" id="hintBtn"><span class="action-icon" aria-hidden="true">◇</span>提示</button>
+        </div>
+        <div class="number-pad" id="numberPad" aria-label="数字键盘"></div>
+        <p class="tip">先选格子，再点数字 · 笔记可记录候选数 · 3 次错误结束</p>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-icon" id="modalIcon" aria-hidden="true">Ⅱ</div>
+      <h2 id="modalTitle">游戏已暂停</h2>
+      <p id="modalText">稍作休息，准备好后继续。</p>
+      <div class="result-score" id="resultScore" hidden><small>本局得分</small><span id="finalScore">0</span></div>
+      <div class="result-details" id="resultDetails" hidden>
+        <span id="finalTime">用时 00:00</span>
+        <span id="finalMistakes">错误 0 次</span>
+      </div>
+      <div class="record" id="recordBadge">✦ 新的最高分 ✦</div>
+      <div class="modal-actions">
+        <button type="button" class="modal-btn primary" id="modalPrimary">继续游戏</button>
+        <button type="button" class="modal-btn" id="modalSecondary">重新开始</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    // 难度配置：保留数字越多越简单，填入正确数字的基础分也相应不同。
+    const DIFFICULTIES = {
+      easy: { label: '简单', clues: 42, points: 80, timeBonus: 600 },
+      medium: { label: '中等', clues: 34, points: 120, timeBonus: 900 },
+      hard: { label: '困难', clues: 28, points: 160, timeBonus: 1200 }
+    };
+    const STORAGE_KEY = 'neonSudokuBestV1';
+    const ALL_MASK = 0x1ff;
+    const $ = (selector) => document.querySelector(selector);
+
+    const boardEl = $('#board');
+    const numberPadEl = $('#numberPad');
+    const scoreEl = $('#score');
+    const bestScoreEl = $('#bestScore');
+    const mistakesEl = $('#mistakes');
+    const timerEl = $('#timer');
+    const notesBtn = $('#notesBtn');
+    const undoBtn = $('#undoBtn');
+    const pauseBtn = $('#pauseBtn');
+    const modalEl = $('#modal');
+    const modalPrimary = $('#modalPrimary');
+    const modalSecondary = $('#modalSecondary');
+
+    let difficulty = 'easy';
+    let solution = [];
+    let puzzle = [];
+    let values = [];
+    let notes = [];
+    let cells = [];
+    let numberButtons = [];
+    let selected = -1;
+    let history = [];
+    let score = 0;
+    let bestScore = loadBestScore();
+    let bestAtStart = bestScore;
+    let mistakes = 0;
+    let combo = 0;
+    let noteMode = false;
+    let gameState = 'playing';
+    let elapsedBeforeStart = 0;
+    let startedAt = Date.now();
+    let modalType = '';
+    let lastChanged = -1;
+    let toastTimer = 0;
+
+    // 安全读取最高分；隐私模式或禁用存储时仍可正常游戏。
+    function loadBestScore() {
+      try {
+        const saved = Number.parseInt(localStorage.getItem(STORAGE_KEY), 10);
+        return Number.isFinite(saved) && saved > 0 ? saved : 0;
+      } catch (_) {
+        return 0;
+      }
+    }
+
+    function saveBestScore() {
+      try { localStorage.setItem(STORAGE_KEY, String(bestScore)); } catch (_) { /* 存储不可用时忽略 */ }
+    }
+
+    function shuffle(list) {
+      const result = list.slice();
+      for (let i = result.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [result[i], result[j]] = [result[j], result[i]];
+      }
+      return result;
+    }
+
+    // 用合法数独图案配合随机行列与数字映射，快速生成完整解盘。
+    function generateSolution() {
+      const bands = shuffle([0, 1, 2]);
+      const stacks = shuffle([0, 1, 2]);
+      const rows = bands.flatMap(band => shuffle([0, 1, 2]).map(row => band * 3 + row));
+      const cols = stacks.flatMap(stack => shuffle([0, 1, 2]).map(col => stack * 3 + col));
+      const digits = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+      const grid = [];
+      for (let r = 0; r < 9; r++) {
+        for (let c = 0; c < 9; c++) {
+          const pattern = (rows[r] * 3 + Math.floor(rows[r] / 3) + cols[c]) % 9;
+          grid.push(digits[pattern]);
+        }
+      }
+      return grid;
+    }
+
+    function bitCount(mask) {
+      let count = 0;
+      while (mask) {
+        mask &= mask - 1;
+        count++;
+      }
+      return count;
+    }
+
+    // 使用位掩码和最少候选数优先搜索，统计解的数量（最多找到 limit 个）。
+    function countSolutions(grid, limit = 2) {
+      const rowMasks = Array(9).fill(0);
+      const colMasks = Array(9).fill(0);
+      const boxMasks = Array(9).fill(0);
+      for (let i = 0; i < 81; i++) {
+        const value = grid[i];
+        if (!value) continue;
+        const r = Math.floor(i / 9);
+        const c = i % 9;
+        const b = Math.floor(r / 3) * 3 + Math.floor(c / 3);
+        const bit = 1 << (value - 1);
+        if ((rowMasks[r] | colMasks[c] | boxMasks[b]) & bit) return 0;
+        rowMasks[r] |= bit;
+        colMasks[c] |= bit;
+        boxMasks[b] |= bit;
+      }
+
+      let found = 0;
+      function search() {
+        if (found >= limit) return;
+        let bestIndex = -1;
+        let bestMask = 0;
+        let fewest = 10;
+
+        for (let i = 0; i < 81; i++) {
+          if (grid[i]) continue;
+          const r = Math.floor(i / 9);
+          const c = i % 9;
+          const b = Math.floor(r / 3) * 3 + Math.floor(c / 3);
+          const mask = ALL_MASK & ~(rowMasks[r] | colMasks[c] | boxMasks[b]);
+          const count = bitCount(mask);
+          if (count === 0) return;
+          if (count < fewest) {
+            fewest = count;
+            bestIndex = i;
+            bestMask = mask;
+            if (count === 1) break;
+          }
+        }
+
+        if (bestIndex === -1) {
+          found++;
+          return;
+        }
+
+        const r = Math.floor(bestIndex / 9);
+        const c = bestIndex % 9;
+        const b = Math.floor(r / 3) * 3 + Math.floor(c / 3);
+        while (bestMask && found < limit) {
+          const bit = bestMask & -bestMask;
+          bestMask ^= bit;
+          grid[bestIndex] = Math.log2(bit) + 1;
+          rowMasks[r] |= bit;
+          colMasks[c] |= bit;
+          boxMasks[b] |= bit;
+          search();
+          rowMasks[r] ^= bit;
+          colMasks[c] ^= bit;
+          boxMasks[b] ^= bit;
+          grid[bestIndex] = 0;
+        }
+      }
+      search();
+      return found;
+    }
+
+    // 随机挖空并逐格验证，保证最终题面只有一个解。
+    function generatePuzzle(fullGrid, clues) {
+      const grid = fullGrid.slice();
+      let remaining = 81;
+      for (const index of shuffle(Array.from({ length: 81 }, (_, i) => i))) {
+        if (remaining <= clues) break;
+        const backup = grid[index];
+        grid[index] = 0;
+        if (countSolutions(grid, 2) === 1) {
+          remaining--;
+        } else {
+          grid[index] = backup;
+        }
+      }
+      return grid;
+    }
+
+    // 棋盘和数字键只创建一次，之后仅更新内容以减少移动端重绘。
+    function buildInterface() {
+      const boardFragment = document.createDocumentFragment();
+      for (let i = 0; i < 81; i++) {
+        const r = Math.floor(i / 9);
+        const c = i % 9;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'cell';
+        if (c === 2 || c === 5) button.classList.add('box-right');
+        if (r === 2 || r === 5) button.classList.add('box-bottom');
+        button.dataset.index = i;
+        button.setAttribute('role', 'gridcell');
+        const value = document.createElement('span');
+        value.className = 'value';
+        const noteGrid = document.createElement('span');
+        noteGrid.className = 'notes';
+        noteGrid.setAttribute('aria-hidden', 'true');
+        const noteSpans = [];
+        for (let n = 1; n <= 9; n++) {
+          const span = document.createElement('span');
+          noteGrid.appendChild(span);
+          noteSpans.push(span);
+        }
+        button.append(value, noteGrid);
+        boardFragment.appendChild(button);
+        cells.push({ button, value, noteSpans });
+      }
+      boardEl.appendChild(boardFragment);
+
+      const numberFragment = document.createDocumentFragment();
+      for (let n = 1; n <= 9; n++) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'number-btn';
+        button.dataset.number = n;
+        button.setAttribute('aria-label', `填入数字${n}`);
+        const digit = document.createElement('span');
+        digit.textContent = n;
+        const remaining = document.createElement('span');
+        remaining.className = 'remaining';
+        remaining.textContent = '9';
+        button.append(digit, remaining);
+        numberFragment.appendChild(button);
+        numberButtons.push({ button, remaining });
+      }
+      numberPadEl.appendChild(numberFragment);
+    }
+
+    function newGame(nextDifficulty = difficulty) {
+      difficulty = nextDifficulty;
+      solution = generateSolution();
+      puzzle = generatePuzzle(solution, DIFFICULTIES[difficulty].clues);
+      values = puzzle.slice();
+      notes = Array.from({ length: 81 }, () => new Set());
+      selected = values.findIndex(value => value === 0);
+      history = [];
+      score = 0;
+      mistakes = 0;
+      combo = 0;
+      noteMode = false;
+      gameState = 'playing';
+      elapsedBeforeStart = 0;
+      startedAt = Date.now();
+      bestAtStart = bestScore;
+      lastChanged = -1;
+      closeModal();
+      document.querySelectorAll('[data-difficulty]').forEach(button => {
+        const active = button.dataset.difficulty === difficulty;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+      });
+      notesBtn.classList.remove('active');
+      notesBtn.setAttribute('aria-pressed', 'false');
+      pauseBtn.textContent = 'Ⅱ 暂停';
+      render();
+    }
+
+    function getElapsed() {
+      if (gameState === 'playing') {
+        return elapsedBeforeStart + (Date.now() - startedAt) / 1000;
+      }
+      return elapsedBeforeStart;
+    }
+
+    function formatTime(totalSeconds) {
+      const seconds = Math.max(0, Math.floor(totalSeconds));
+      const minutes = Math.floor(seconds / 60);
+      return `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+    }
+
+    function render() {
+      const selectedValue = selected >= 0 ? values[selected] : 0;
+      const selectedRow = selected >= 0 ? Math.floor(selected / 9) : -1;
+      const selectedCol = selected >= 0 ? selected % 9 : -1;
+      const selectedBox = selected >= 0 ? Math.floor(selectedRow / 3) * 3 + Math.floor(selectedCol / 3) : -1;
+
+      for (let i = 0; i < 81; i++) {
+        const cell = cells[i];
+        const r = Math.floor(i / 9);
+        const c = i % 9;
+        const box = Math.floor(r / 3) * 3 + Math.floor(c / 3);
+        const value = values[i];
+        const given = puzzle[i] !== 0;
+        const wrong = value !== 0 && value !== solution[i];
+        const isPeer = selected >= 0 && i !== selected && (r === selectedRow || c === selectedCol || box === selectedBox);
+        cell.button.classList.toggle('given', given);
+        cell.button.classList.toggle('user', !given && value !== 0 && !wrong);
+        cell.button.classList.toggle('error', wrong);
+        cell.button.classList.toggle('selected', i === selected);
+        cell.button.classList.toggle('peer', isPeer);
+        cell.button.classList.toggle('same', selectedValue !== 0 && i !== selected && value === selectedValue);
+        cell.button.classList.toggle('just-filled', i === lastChanged && !wrong);
+        cell.button.classList.toggle('just-error', i === lastChanged && wrong);
+        cell.value.textContent = value || '';
+        cell.button.setAttribute('aria-selected', String(i === selected));
+        cell.button.setAttribute('aria-label', `第${r + 1}行第${c + 1}列，${given ? '题目数字' : value ? '已填数字' : '空格'}${value || ''}${wrong ? '，错误' : ''}`);
+        for (let n = 1; n <= 9; n++) {
+          cell.noteSpans[n - 1].textContent = !value && notes[i].has(n) ? n : '';
+        }
+      }
+
+      for (let n = 1; n <= 9; n++) {
+        const used = values.reduce((total, value, i) => total + (value === n && value === solution[i] ? 1 : 0), 0);
+        numberButtons[n - 1].remaining.textContent = Math.max(0, 9 - used);
+        numberButtons[n - 1].button.classList.toggle('completed', used >= 9);
+        numberButtons[n - 1].button.setAttribute('aria-label', `填入数字${n}，剩余${Math.max(0, 9 - used)}个`);
+      }
+      scoreEl.textContent = score.toLocaleString('zh-CN');
+      bestScoreEl.textContent = bestScore.toLocaleString('zh-CN');
+      mistakesEl.textContent = `${mistakes}/3`;
+      mistakesEl.classList.toggle('danger', mistakes > 0);
+      timerEl.textContent = formatTime(getElapsed());
+      undoBtn.disabled = history.length === 0 || gameState !== 'playing';
+      lastChanged = -1;
+    }
+
+    function selectCell(index) {
+      if (gameState !== 'playing' || index < 0 || index >= 81) return;
+      selected = index;
+      lastChanged = -1;
+      render();
+    }
+
+    function pushHistory() {
+      history.push({
+        values: values.slice(),
+        notes: notes.map(set => new Set(set)),
+        score,
+        mistakes,
+        combo
+      });
+      if (history.length > 120) history.shift();
+    }
+
+    // 正确填数后，自动清理同行、同列、同宫中已失效的候选笔记。
+    function clearPeerNotes(index, number) {
+      const r = Math.floor(index / 9);
+      const c = index % 9;
+      const box = Math.floor(r / 3) * 3 + Math.floor(c / 3);
+      for (let i = 0; i < 81; i++) {
+        const ir = Math.floor(i / 9);
+        const ic = i % 9;
+        const ib = Math.floor(ir / 3) * 3 + Math.floor(ic / 3);
+        if (ir === r || ic === c || ib === box) notes[i].delete(number);
+      }
+    }
+
+    function inputNumber(number) {
+      if (gameState !== 'playing' || selected < 0) return;
+      if (puzzle[selected] !== 0) {
+        showToast('题目数字不可修改');
+        return;
+      }
+
+      if (noteMode) {
+        if (values[selected] !== 0) {
+          showToast('请先擦除已填数字');
+          return;
+        }
+        pushHistory();
+        if (notes[selected].has(number)) notes[selected].delete(number);
+        else notes[selected].add(number);
+        lastChanged = -1;
+        render();
+        return;
+      }
+
+      if (values[selected] === number) return;
+      pushHistory();
+      values[selected] = number;
+      notes[selected].clear();
+      lastChanged = selected;
+
+      if (number === solution[selected]) {
+        score += DIFFICULTIES[difficulty].points + Math.min(combo * 10, 50);
+        combo++;
+        clearPeerNotes(selected, number);
+        render();
+        if (values.every((value, i) => value === solution[i])) finishGame(true);
+      } else {
+        mistakes++;
+        combo = 0;
+        score = Math.max(0, score - 50);
+        render();
+        if (mistakes >= 3) finishGame(false);
+      }
+    }
+
+    function eraseSelected() {
+      if (gameState !== 'playing' || selected < 0 || puzzle[selected] !== 0) return;
+      if (values[selected] === 0 && notes[selected].size === 0) return;
+      pushHistory();
+      values[selected] = 0;
+      notes[selected].clear();
+      lastChanged = -1;
+      render();
+    }
+
+    function undo() {
+      if (gameState !== 'playing' || history.length === 0) return;
+      const previous = history.pop();
+      values = previous.values;
+      notes = previous.notes;
+      score = previous.score;
+      mistakes = previous.mistakes;
+      combo = previous.combo;
+      lastChanged = -1;
+      render();
+    }
+
+    function toggleNotes() {
+      if (gameState !== 'playing') return;
+      noteMode = !noteMode;
+      notesBtn.classList.toggle('active', noteMode);
+      notesBtn.setAttribute('aria-pressed', String(noteMode));
+      showToast(noteMode ? '笔记模式已开启' : '笔记模式已关闭');
+    }
+
+    function useHint() {
+      if (gameState !== 'playing') return;
+      let index = selected;
+      if (index < 0 || puzzle[index] !== 0 || values[index] === solution[index]) {
+        index = values.findIndex((value, i) => puzzle[i] === 0 && value !== solution[i]);
+      }
+      if (index < 0) return;
+      pushHistory();
+      selected = index;
+      values[index] = solution[index];
+      notes[index].clear();
+      clearPeerNotes(index, solution[index]);
+      score = Math.max(0, score - 100);
+      combo = 0;
+      lastChanged = index;
+      render();
+      showToast('提示已填入 · 扣除 100 分');
+      if (values.every((value, i) => value === solution[i])) finishGame(true);
+    }
+
+    function pauseGame() {
+      if (gameState !== 'playing') return;
+      elapsedBeforeStart = getElapsed();
+      gameState = 'paused';
+      pauseBtn.textContent = '▶ 继续';
+      render();
+      openModal('pause');
+    }
+
+    function resumeGame() {
+      if (gameState !== 'paused') return;
+      gameState = 'playing';
+      startedAt = Date.now();
+      pauseBtn.textContent = 'Ⅱ 暂停';
+      closeModal();
+      render();
+    }
+
+    function finishGame(won) {
+      elapsedBeforeStart = getElapsed();
+      gameState = won ? 'won' : 'lost';
+      if (won) {
+        const bonus = Math.max(0, DIFFICULTIES[difficulty].timeBonus - Math.floor(elapsedBeforeStart) * 2);
+        score += bonus + (3 - mistakes) * 100;
+      }
+      const isRecord = score > bestAtStart && score > 0;
+      if (score > bestScore) {
+        bestScore = score;
+        saveBestScore();
+      }
+      render();
+      openModal(won ? 'win' : 'lose', isRecord);
+    }
+
+    function openModal(type, isRecord = false) {
+      modalType = type;
+      const resultVisible = type === 'win' || type === 'lose';
+      $('#resultScore').hidden = !resultVisible;
+      $('#resultDetails').hidden = !resultVisible;
+      $('#recordBadge').classList.toggle('show', type === 'win' && isRecord);
+      modalSecondary.hidden = false;
+
+      if (type === 'pause') {
+        $('#modalIcon').textContent = 'Ⅱ';
+        $('#modalTitle').textContent = '游戏已暂停';
+        $('#modalText').textContent = '稍作休息，准备好后继续。';
+        modalPrimary.textContent = '继续游戏';
+        modalSecondary.textContent = '重新开始';
+      } else if (type === 'win') {
+        $('#modalIcon').textContent = '✓';
+        $('#modalTitle').textContent = '恭喜通关！';
+        $('#modalText').textContent = `${DIFFICULTIES[difficulty].label}难度 · 每一步都是漂亮的推理`;
+        $('#finalScore').textContent = score.toLocaleString('zh-CN');
+        $('#finalTime').textContent = `用时 ${formatTime(elapsedBeforeStart)}`;
+        $('#finalMistakes').textContent = `错误 ${mistakes} 次`;
+        modalPrimary.textContent = '再来一局';
+        modalSecondary.textContent = '查看棋盘';
+      } else {
+        $('#modalIcon').textContent = '×';
+        $('#modalTitle').textContent = '本局结束';
+        $('#modalText').textContent = '已经达到 3 次错误，再试一次吧。';
+        $('#finalScore').textContent = score.toLocaleString('zh-CN');
+        $('#finalTime').textContent = `坚持 ${formatTime(elapsedBeforeStart)}`;
+        $('#finalMistakes').textContent = `错误 ${mistakes} 次`;
+        modalPrimary.textContent = '重新挑战';
+        modalSecondary.textContent = '查看棋盘';
+      }
+      modalEl.classList.add('open');
+      modalEl.setAttribute('aria-hidden', 'false');
+      window.setTimeout(() => modalPrimary.focus({ preventScroll: true }), 80);
+    }
+
+    function closeModal() {
+      modalType = '';
+      modalEl.classList.remove('open');
+      modalEl.setAttribute('aria-hidden', 'true');
+    }
+
+    function showToast(message) {
+      const toast = $('#toast');
+      window.clearTimeout(toastTimer);
+      toast.textContent = message;
+      toast.classList.add('show');
+      toastTimer = window.setTimeout(() => toast.classList.remove('show'), 1500);
+    }
+
+    // 触屏采用事件委托，避免 81 个格子分别绑定监听器。
+    boardEl.addEventListener('click', event => {
+      const cell = event.target.closest('.cell');
+      if (cell) selectCell(Number(cell.dataset.index));
+    });
+
+    numberPadEl.addEventListener('click', event => {
+      const button = event.target.closest('[data-number]');
+      if (button) inputNumber(Number(button.dataset.number));
+    });
+
+    document.querySelectorAll('[data-difficulty]').forEach(button => {
+      button.addEventListener('click', () => newGame(button.dataset.difficulty));
+    });
+
+    $('#undoBtn').addEventListener('click', undo);
+    $('#eraseBtn').addEventListener('click', eraseSelected);
+    $('#notesBtn').addEventListener('click', toggleNotes);
+    $('#hintBtn').addEventListener('click', useHint);
+    pauseBtn.addEventListener('click', () => gameState === 'paused' ? resumeGame() : pauseGame());
+
+    modalPrimary.addEventListener('click', () => {
+      if (modalType === 'pause') resumeGame();
+      else newGame();
+    });
+    modalSecondary.addEventListener('click', () => {
+      if (modalType === 'pause') newGame();
+      else closeModal();
+    });
+
+    // 桌面端兼容数字键、方向键、删除、N 笔记和 P 暂停。
+    document.addEventListener('keydown', event => {
+      if (modalEl.classList.contains('open')) {
+        if (event.key === 'Escape' && (modalType === 'win' || modalType === 'lose')) closeModal();
+        if ((event.key === 'p' || event.key === 'P' || event.key === ' ') && modalType === 'pause') {
+          event.preventDefault();
+          resumeGame();
+        }
+        return;
+      }
+      if (/^[1-9]$/.test(event.key)) {
+        event.preventDefault();
+        inputNumber(Number(event.key));
+        return;
+      }
+      if (event.key === 'Backspace' || event.key === 'Delete' || event.key === '0') {
+        event.preventDefault();
+        eraseSelected();
+        return;
+      }
+      if (event.key === 'n' || event.key === 'N') {
+        toggleNotes();
+        return;
+      }
+      if (event.key === 'p' || event.key === 'P' || event.key === ' ') {
+        event.preventDefault();
+        pauseGame();
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        undo();
+        return;
+      }
+      const directions = { ArrowUp: -9, ArrowDown: 9, ArrowLeft: -1, ArrowRight: 1 };
+      if (event.key in directions && selected >= 0) {
+        event.preventDefault();
+        const next = selected + directions[event.key];
+        const sameRow = Math.floor(next / 9) === Math.floor(selected / 9);
+        if (next >= 0 && next < 81 && ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') ? sameRow : true)) {
+          selectCell(next);
+        }
+      }
+    });
+
+    // 禁止双击缩放、双指缩放及页面拖动，同时保留按钮点击。
+    document.addEventListener('dblclick', event => event.preventDefault(), { passive: false });
+    document.addEventListener('gesturestart', event => event.preventDefault(), { passive: false });
+    document.addEventListener('touchmove', event => event.preventDefault(), { passive: false });
+    document.addEventListener('touchstart', event => {
+      if (event.touches.length > 1) event.preventDefault();
+    }, { passive: false });
+
+    // 切到后台时自动暂停，避免计时在玩家看不见时继续。
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && gameState === 'playing') pauseGame();
+    });
+
+    window.setInterval(() => {
+      if (gameState === 'playing') timerEl.textContent = formatTime(getElapsed());
+    }, 250);
+
+    buildInterface();
+    bestScoreEl.textContent = bestScore.toLocaleString('zh-CN');
+    newGame('easy');
+  </script>
+</body>
+</html>

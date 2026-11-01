@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#07091a">
+  <title>笨鸟先飞 · 霓虹飞行</title>
+  <style>
+    /* 基础重置：游戏期间禁止滚动、缩放与文字选中 */
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: #f4f7ff;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(75, 45, 160, .28), transparent 38%),
+        radial-gradient(circle at 85% 85%, rgba(0, 224, 255, .16), transparent 40%),
+        #03040d;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    button { font: inherit; }
+    button, canvas { touch-action: none; }
+    [hidden] { display: none !important; }
+
+    /* 手机铺满屏幕，桌面端呈现为精致的游戏窗口 */
+    .game-shell {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      isolation: isolate;
+      background: #080a1c;
+    }
+    #gameCanvas {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+
+    /* 顶部信息栏 */
+    .hud {
+      position: absolute;
+      z-index: 3;
+      top: 0;
+      left: 0;
+      right: 0;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: start;
+      padding: max(16px, env(safe-area-inset-top)) 18px 0;
+      pointer-events: none;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding-top: 7px;
+      color: rgba(218, 231, 255, .64);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+    }
+    .brand-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #45f4de;
+      box-shadow: 0 0 12px #45f4de;
+    }
+    .score-box { text-align: center; }
+    #score {
+      display: block;
+      min-width: 76px;
+      font-size: clamp(36px, 10vw, 50px);
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      line-height: .95;
+      letter-spacing: -2px;
+      text-shadow: 0 0 24px rgba(85, 239, 255, .36);
+      transform-origin: center;
+    }
+    #score.bump { animation: score-bump .24s ease-out; }
+    .score-label {
+      display: block;
+      margin-top: 7px;
+      color: rgba(218, 231, 255, .5);
+      font-size: 9px;
+      letter-spacing: 3px;
+    }
+    .icon-button {
+      justify-self: end;
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      padding: 0;
+      border: 1px solid rgba(151, 180, 255, .2);
+      border-radius: 14px;
+      color: #eaf7ff;
+      background: rgba(14, 20, 46, .6);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      cursor: pointer;
+      pointer-events: auto;
+      transition: transform .15s, background .15s, opacity .15s;
+    }
+    .icon-button:active { transform: scale(.92); }
+    .icon-button:disabled { opacity: .3; cursor: default; }
+    #pauseIcon { font-size: 15px; line-height: 1; transform: translateX(-1px); }
+
+    .stats-row {
+      position: absolute;
+      z-index: 3;
+      top: max(88px, calc(env(safe-area-inset-top) + 76px));
+      left: 18px;
+      right: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: rgba(218, 231, 255, .58);
+      font-size: 11px;
+      letter-spacing: .6px;
+      pointer-events: none;
+    }
+    .stat-pill {
+      padding: 7px 11px;
+      border: 1px solid rgba(151, 180, 255, .12);
+      border-radius: 999px;
+      background: rgba(8, 13, 34, .38);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    .stat-pill strong { margin-left: 4px; color: #fff; font-size: 12px; }
+    .stat-pill.target strong { color: #58f5df; }
+
+    /* 底部目标进度 */
+    .flight-footer {
+      position: absolute;
+      z-index: 3;
+      right: 22px;
+      bottom: max(17px, env(safe-area-inset-bottom));
+      left: 22px;
+      pointer-events: none;
+    }
+    .progress-track {
+      height: 3px;
+      overflow: hidden;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, .1);
+    }
+    #progressBar {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #6478ff, #4cf6dd);
+      box-shadow: 0 0 10px #4cf6dd;
+      transition: width .25s ease-out;
+    }
+    .tap-hint {
+      margin-top: 10px;
+      color: rgba(220, 232, 255, .42);
+      font-size: 10px;
+      text-align: center;
+      letter-spacing: 2px;
+    }
+
+    /* 开始、暂停与结算弹层 */
+    .overlay {
+      position: absolute;
+      z-index: 5;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(3, 5, 17, .34);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+    }
+    .card {
+      position: relative;
+      width: min(100%, 360px);
+      overflow: hidden;
+      padding: 30px 26px 25px;
+      border: 1px solid rgba(145, 176, 255, .2);
+      border-radius: 28px;
+      text-align: center;
+      background:
+        linear-gradient(145deg, rgba(23, 29, 64, .92), rgba(9, 13, 34, .94));
+      box-shadow:
+        0 24px 80px rgba(0, 0, 0, .46),
+        inset 0 1px 0 rgba(255, 255, 255, .09),
+        0 0 45px rgba(74, 91, 255, .08);
+      animation: card-in .35s cubic-bezier(.2, .8, .2, 1);
+    }
+    .card::before {
+      content: "";
+      position: absolute;
+      top: -80px;
+      left: 50%;
+      width: 220px;
+      height: 140px;
+      border-radius: 50%;
+      background: rgba(82, 103, 255, .2);
+      filter: blur(38px);
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+    .bird-mark {
+      position: relative;
+      width: 70px;
+      height: 70px;
+      margin: 0 auto 17px;
+      border: 1px solid rgba(91, 246, 222, .26);
+      border-radius: 23px;
+      background: linear-gradient(145deg, rgba(71, 246, 218, .13), rgba(103, 92, 255, .15));
+      box-shadow: 0 0 30px rgba(69, 244, 222, .1);
+      transform: rotate(-7deg);
+    }
+    .bird-mark .body {
+      position: absolute;
+      top: 23px;
+      left: 16px;
+      width: 38px;
+      height: 28px;
+      border-radius: 55% 48% 52% 50%;
+      background: linear-gradient(145deg, #fff58a, #ff9d55);
+      box-shadow: 0 0 18px rgba(255, 205, 94, .42);
+    }
+    .bird-mark .wing {
+      position: absolute;
+      top: 32px;
+      left: 17px;
+      width: 23px;
+      height: 14px;
+      border-radius: 60% 45% 60% 45%;
+      background: #ff6ea9;
+      transform: rotate(-18deg);
+    }
+    .bird-mark .eye {
+      position: absolute;
+      top: 25px;
+      left: 42px;
+      width: 8px;
+      height: 8px;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      background: #17203d;
+    }
+    .bird-mark .beak {
+      position: absolute;
+      top: 34px;
+      left: 51px;
+      width: 0;
+      height: 0;
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+      border-left: 11px solid #ff7c5c;
+    }
+    .eyebrow {
+      position: relative;
+      margin: 0 0 9px;
+      color: #58f5df;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 3px;
+    }
+    h1, h2 {
+      position: relative;
+      margin: 0;
+      font-weight: 800;
+      letter-spacing: 2px;
+    }
+    h1 { font-size: clamp(34px, 9vw, 43px); }
+    h2 { font-size: 30px; }
+    .gradient-text {
+      color: #f7f8ff;
+      background: linear-gradient(110deg, #fff 15%, #9ffff0 52%, #b7a4ff 90%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle {
+      margin: 12px 0 22px;
+      color: rgba(218, 228, 252, .6);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    .how-to {
+      display: flex;
+      justify-content: center;
+      gap: 9px;
+      margin: 0 0 22px;
+    }
+    .how-item {
+      flex: 1;
+      padding: 11px 5px;
+      border: 1px solid rgba(145, 176, 255, .11);
+      border-radius: 13px;
+      color: rgba(221, 232, 255, .62);
+      background: rgba(255, 255, 255, .025);
+      font-size: 10px;
+      line-height: 1.55;
+    }
+    .how-item b { display: block; color: #f1f5ff; font-size: 16px; font-weight: 500; }
+    .primary-button, .secondary-button {
+      position: relative;
+      width: 100%;
+      min-height: 51px;
+      border-radius: 16px;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: transform .15s, filter .15s;
+    }
+    .primary-button {
+      border: 0;
+      color: #071521;
+      background: linear-gradient(105deg, #62f6dc, #68d9ff 52%, #9d9aff);
+      box-shadow: 0 9px 28px rgba(69, 225, 222, .2), inset 0 1px 0 rgba(255, 255, 255, .5);
+    }
+    .primary-button:active, .secondary-button:active { transform: scale(.97); }
+    .primary-button:hover { filter: brightness(1.08); }
+    .secondary-button {
+      min-height: 44px;
+      margin-top: 9px;
+      border: 1px solid rgba(145, 176, 255, .15);
+      color: rgba(230, 237, 255, .65);
+      background: transparent;
+      font-size: 12px;
+    }
+    .start-best {
+      margin: 15px 0 0;
+      color: rgba(218, 228, 252, .42);
+      font-size: 11px;
+    }
+    .start-best strong { color: rgba(255, 255, 255, .75); }
+
+    .modal-icon {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: 62px;
+      height: 62px;
+      margin: 0 auto 18px;
+      border: 1px solid rgba(100, 244, 222, .25);
+      border-radius: 50%;
+      color: #65f4de;
+      background: rgba(80, 239, 216, .08);
+      box-shadow: 0 0 28px rgba(80, 239, 216, .1);
+      font-size: 26px;
+    }
+    .modal-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 21px 0;
+    }
+    .result-item {
+      padding: 13px 8px;
+      border: 1px solid rgba(145, 176, 255, .12);
+      border-radius: 15px;
+      background: rgba(255, 255, 255, .025);
+    }
+    .result-item span { display: block; color: rgba(218, 228, 252, .45); font-size: 10px; letter-spacing: 1px; }
+    .result-item strong { display: block; margin-top: 4px; font-size: 26px; font-variant-numeric: tabular-nums; }
+    #newRecord {
+      display: inline-block;
+      margin-bottom: 12px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      color: #ffe99a;
+      background: rgba(255, 211, 99, .1);
+      font-size: 10px;
+      letter-spacing: 1px;
+    }
+
+    button:focus-visible { outline: 2px solid #62f6dc; outline-offset: 3px; }
+    @keyframes card-in {
+      from { opacity: 0; transform: translateY(16px) scale(.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes score-bump {
+      0% { transform: scale(1); }
+      45% { transform: scale(1.28); color: #63f7df; }
+      100% { transform: scale(1); }
+    }
+    @media (min-width: 600px) {
+      body { padding: 18px; }
+      .game-shell {
+        width: min(440px, 100%);
+        height: min(860px, calc(100vh - 36px));
+        height: min(860px, calc(100dvh - 36px));
+        border: 1px solid rgba(151, 180, 255, .18);
+        border-radius: 30px;
+        box-shadow: 0 30px 100px rgba(0, 0, 0, .55), 0 0 50px rgba(77, 90, 255, .1);
+      }
+    }
+    @media (max-height: 600px) {
+      .card { padding: 20px 22px 18px; border-radius: 22px; }
+      .bird-mark { width: 54px; height: 54px; margin-bottom: 10px; transform: scale(.8) rotate(-7deg); }
+      h1 { font-size: 31px; }
+      h2 { font-size: 26px; }
+      .subtitle { margin: 8px 0 13px; }
+      .how-to { margin-bottom: 14px; }
+      .modal-icon { width: 48px; height: 48px; margin-bottom: 10px; }
+      .modal-stats { margin: 12px 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="game-shell" id="gameShell" aria-label="笨鸟先飞游戏区域">
+    <canvas id="gameCanvas" role="img" aria-label="点击屏幕让小鸟穿过霓虹管道"></canvas>
+
+    <header class="hud">
+      <div class="brand"><span class="brand-dot"></span><span>NEON FLIGHT</span></div>
+      <div class="score-box">
+        <strong id="score">00</strong>
+        <span class="score-label">当前得分</span>
+      </div>
+      <button class="icon-button" id="pauseButton" type="button" aria-label="暂停游戏" disabled>
+        <span id="pauseIcon" aria-hidden="true">❚❚</span>
+      </button>
+    </header>
+
+    <div class="stats-row">
+      <span class="stat-pill">最高分 <strong id="bestScore">0</strong></span>
+      <span class="stat-pill target">胜利目标 <strong>20</strong></span>
+    </div>
+
+    <footer class="flight-footer">
+      <div class="progress-track"><div id="progressBar"></div></div>
+      <div class="tap-hint" id="tapHint">轻点屏幕 · 向上飞行</div>
+    </footer>
+
+    <section class="overlay" id="startScreen" aria-labelledby="gameTitle">
+      <div class="card">
+        <div class="bird-mark" aria-hidden="true">
+          <span class="body"></span><span class="wing"></span><span class="eye"></span><span class="beak"></span>
+        </div>
+        <p class="eyebrow">NEON FLIGHT</p>
+        <h1 class="gradient-text" id="gameTitle">笨鸟先飞</h1>
+        <p class="subtitle">穿过霓虹管道，向夜空出发<br>成功穿过 20 组管道即挑战成功</p>
+        <div class="how-to">
+          <div class="how-item"><b>轻点</b>触屏上跳</div>
+          <div class="how-item"><b>空格 ↑</b>键盘飞行</div>
+          <div class="how-item"><b>避开</b>管道与地面</div>
+        </div>
+        <button class="primary-button" id="startButton" type="button">开始飞行</button>
+        <p class="start-best">历史最高分 <strong id="startBest">0</strong></p>
+      </div>
+    </section>
+
+    <section class="overlay" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
+      <div class="card">
+        <div class="modal-icon" id="modalIcon" aria-hidden="true">Ⅱ</div>
+        <p class="eyebrow" id="modalEyebrow">TAKE A BREAK</p>
+        <h2 class="gradient-text" id="modalTitle">已暂停</h2>
+        <p class="subtitle" id="modalMessage">休息一下，准备好再继续。</p>
+        <div id="newRecord" hidden>✦ 新纪录诞生 ✦</div>
+        <div class="modal-stats" id="modalStats" hidden>
+          <div class="result-item"><span>本局得分</span><strong id="finalScore">0</strong></div>
+          <div class="result-item"><span>历史最高</span><strong id="finalBest">0</strong></div>
+        </div>
+        <button class="primary-button" id="modalPrimary" type="button">继续飞行</button>
+        <button class="secondary-button" id="modalSecondary" type="button">重新开始</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // DOM 与画布
+      const shell = document.getElementById('gameShell');
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      const scoreEl = document.getElementById('score');
+      const bestEl = document.getElementById('bestScore');
+      const startBestEl = document.getElementById('startBest');
+      const progressBar = document.getElementById('progressBar');
+      const tapHint = document.getElementById('tapHint');
+      const startScreen = document.getElementById('startScreen');
+      const startButton = document.getElementById('startButton');
+      const pauseButton = document.getElementById('pauseButton');
+      const pauseIcon = document.getElementById('pauseIcon');
+      const modal = document.getElementById('modal');
+      const modalIcon = document.getElementById('modalIcon');
+      const modalEyebrow = document.getElementById('modalEyebrow');
+      const modalTitle = document.getElementById('modalTitle');
+      const modalMessage = document.getElementById('modalMessage');
+      const modalStats = document.getElementById('modalStats');
+      const modalPrimary = document.getElementById('modalPrimary');
+      const modalSecondary = document.getElementById('modalSecondary');
+      const finalScore = document.getElementById('finalScore');
+      const finalBest = document.getElementById('finalBest');
+      const newRecord = document.getElementById('newRecord');
+
+      // 游戏常量与状态
+      const TARGET_SCORE = 20;
+      const STORAGE_KEY = 'flappy-neon-best-v1';
+      const STATE = { READY: 'ready', PLAYING: 'playing', PAUSED: 'paused', OVER: 'over', WON: 'won' };
+      let state = STATE.READY;
+      let width = 0;
+      let height = 0;
+      let groundHeight = 72;
+      let lastTime = performance.now();
+      let score = 0;
+      let best = loadBest();
+      let previousBest = best;
+      let isNewRecord = false;
+      let pipes = [];
+      let particles = [];
+      let bird = { x: 0, y: 0, vy: 0, r: 20 };
+      let shake = 0;
+      let flash = 0;
+      let flashColor = '255,255,255';
+      let modalPrimaryAction = null;
+      let modalSecondaryAction = null;
+
+      // 固定随机种子的背景数据，仅用于视觉装饰
+      const stars = Array.from({ length: 58 }, (_, i) => ({
+        x: ((i * 73) % 101) / 101,
+        y: ((i * 47 + 13) % 97) / 97,
+        size: .5 + (i % 4) * .38,
+        speed: .3 + (i % 5) * .16,
+        phase: i * .91
+      }));
+      const buildings = Array.from({ length: 24 }, (_, i) => ({
+        x: i / 23,
+        w: .035 + (i % 4) * .009,
+        h: .035 + ((i * 17) % 9) * .013
+      }));
+
+      // localStorage 在隐私模式下可能不可用，需安全降级
+      function loadBest() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10);
+          return Number.isFinite(value) && value > 0 ? value : 0;
+        } catch (_) {
+          return 0;
+        }
+      }
+
+      function saveBest() {
+        try { localStorage.setItem(STORAGE_KEY, String(best)); } catch (_) { /* 不影响本局游戏 */ }
+      }
+
+      function pipeWidth() {
+        return Math.max(58, Math.min(78, width * .17));
+      }
+
+      function birdRadius() {
+        return Math.max(16, Math.min(23, Math.min(width, height) * .052));
+      }
+
+      function pipeSpacing() {
+        return Math.max(220, width * .64);
+      }
+
+      // 按设备像素比设置画布，保证高分屏下依旧清晰
+      function resizeCanvas() {
+        const rect = shell.getBoundingClientRect();
+        const oldWidth = width || rect.width;
+        const oldHeight = height || rect.height;
+        width = Math.max(1, rect.width);
+        height = Math.max(1, rect.height);
+        groundHeight = Math.max(54, Math.min(82, height * .1));
+
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        // 屏幕旋转时等比调整现有物体，避免游戏状态突变
+        const sx = width / oldWidth;
+        const sy = height / oldHeight;
+        bird.x = width * .28;
+        bird.y *= sy;
+        bird.vy *= sy;
+        bird.r = birdRadius();
+        pipes.forEach(pipe => {
+          pipe.x *= sx;
+          pipe.width = pipeWidth();
+          pipe.gapY *= sy;
+          pipe.gapH *= sy;
+        });
+        if (state === STATE.READY) bird.y = height * .44;
+      }
+
+      function updateUI() {
+        scoreEl.textContent = String(score).padStart(2, '0');
+        bestEl.textContent = best;
+        startBestEl.textContent = best;
+        progressBar.style.width = `${Math.min(100, score / TARGET_SCORE * 100)}%`;
+        pauseButton.disabled = state !== STATE.PLAYING && state !== STATE.PAUSED;
+        pauseIcon.textContent = state === STATE.PAUSED ? '▶' : '❚❚';
+        pauseButton.setAttribute('aria-label', state === STATE.PAUSED ? '继续游戏' : '暂停游戏');
+        tapHint.textContent = state === STATE.PAUSED ? '飞行已暂停' : '轻点屏幕 · 向上飞行';
+      }
+
+      function resetWorld() {
+        score = 0;
+        pipes = [];
+        particles = [];
+        previousBest = best;
+        isNewRecord = false;
+        shake = 0;
+        flash = 0;
+        bird = { x: width * .28, y: height * .44, vy: 0, r: birdRadius() };
+        updateUI();
+      }
+
+      function showStart() {
+        state = STATE.READY;
+        resetWorld();
+        modal.hidden = true;
+        startScreen.hidden = false;
+        updateUI();
+      }
+
+      function startGame() {
+        resetWorld();
+        state = STATE.PLAYING;
+        startScreen.hidden = true;
+        modal.hidden = true;
+        spawnPipe(width + Math.max(75, width * .2));
+        updateUI();
+        flap();
+        lastTime = performance.now();
+      }
+
+      function flap() {
+        if (state !== STATE.PLAYING) return;
+        bird.vy = -Math.max(305, height * .55);
+        // 扇翅时留下少量霓虹微粒
+        for (let i = 0; i < 5; i++) {
+          addParticle(
+            bird.x - bird.r * .8,
+            bird.y + bird.r * .3,
+            -45 - Math.random() * 75,
+            25 + Math.random() * 65,
+            .3 + Math.random() * .2,
+            '77,236,255',
+            1.5 + Math.random() * 2
+          );
+        }
+      }
+
+      function togglePause() {
+        if (state === STATE.PLAYING) {
+          state = STATE.PAUSED;
+          showModal('pause');
+        } else if (state === STATE.PAUSED) {
+          resumeGame();
+        }
+        updateUI();
+      }
+
+      function resumeGame() {
+        if (state !== STATE.PAUSED) return;
+        state = STATE.PLAYING;
+        modal.hidden = true;
+        lastTime = performance.now();
+        updateUI();
+      }
+
+      function showModal(type) {
+        modal.hidden = false;
+        newRecord.hidden = true;
+        modalStats.hidden = type === 'pause';
+        modalSecondary.hidden = false;
+
+        if (type === 'pause') {
+          modalIcon.textContent = 'Ⅱ';
+          modalEyebrow.textContent = 'TAKE A BREAK';
+          modalTitle.textContent = '已暂停';
+          modalMessage.textContent = '休息一下，准备好再继续。';
+          modalPrimary.textContent = '继续飞行';
+          modalSecondary.textContent = '重新开始';
+          modalPrimaryAction = resumeGame;
+          modalSecondaryAction = startGame;
+        } else {
+          const won = type === 'won';
+          modalIcon.textContent = won ? '✓' : '↻';
+          modalIcon.style.color = won ? '#65f4de' : '#ff88ac';
+          modalEyebrow.textContent = won ? 'CHALLENGE COMPLETE' : 'FLIGHT OVER';
+          modalTitle.textContent = won ? '挑战成功！' : '飞行结束';
+          modalMessage.textContent = won
+            ? '漂亮！你穿过了所有霓虹管道。'
+            : '差一点点，再飞一次会走得更远。';
+          finalScore.textContent = score;
+          finalBest.textContent = best;
+          newRecord.hidden = !isNewRecord || score === 0;
+          modalPrimary.textContent = won ? '再挑战一次' : '再飞一次';
+          modalSecondary.textContent = '返回首页';
+          modalPrimaryAction = startGame;
+          modalSecondaryAction = showStart;
+        }
+      }
+
+      function endGame(won = false) {
+        if (state !== STATE.PLAYING) return;
+        state = won ? STATE.WON : STATE.OVER;
+        if (!won) {
+          shake = 12;
+          flash = .32;
+          flashColor = '255,76,125';
+          for (let i = 0; i < 22; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 50 + Math.random() * 150;
+            addParticle(bird.x, bird.y, Math.cos(angle) * speed, Math.sin(angle) * speed,
+              .45 + Math.random() * .45, i % 2 ? '255,91,145' : '255,210,100', 2 + Math.random() * 3);
+          }
+        } else {
+          flash = .28;
+          flashColor = '80,255,218';
+          for (let i = 0; i < 42; i++) {
+            addParticle(Math.random() * width, Math.random() * height * .45,
+              (Math.random() - .5) * 45, 25 + Math.random() * 65,
+              1 + Math.random(), i % 2 ? '82,245,218' : '159,136,255', 2 + Math.random() * 3);
+          }
+        }
+        updateUI();
+        showModal(won ? 'won' : 'over');
+      }
+
+      // 生成管道，并限制相邻间隙的垂直跳变，保证触屏操作公平
+      function spawnPipe(x) {
+        const baseGap = Math.max(150, Math.min(210, height * .27));
+        let gapH = Math.max(bird.r * 5.8, baseGap - Math.min(score * 2.2, 55));
+        const topMargin = height < 500 ? 62 : Math.max(102, height * .14);
+        const bottomMargin = height < 500 ? 34 : 70;
+        const available = height - groundHeight - topMargin - bottomMargin;
+        gapH = Math.min(gapH, Math.max(bird.r * 4.8, available - 14));
+
+        const minY = topMargin + gapH / 2;
+        const maxY = height - groundHeight - bottomMargin - gapH / 2;
+        let low = minY;
+        let high = Math.max(minY, maxY);
+        const previous = pipes[pipes.length - 1];
+        if (previous) {
+          const maxShift = height * .22;
+          low = Math.max(low, previous.gapY - maxShift);
+          high = Math.min(high, previous.gapY + maxShift);
+          if (low > high) low = high = Math.max(minY, Math.min(maxY, previous.gapY));
+        }
+        const gapY = low + Math.random() * Math.max(0, high - low);
+        pipes.push({ x, width: pipeWidth(), gapY, gapH, passed: false });
+      }
+
+      function addParticle(x, y, vx, vy, life, color, size) {
+        particles.push({ x, y, vx, vy, life, maxLife: life, color, size });
+      }
+
+      function scoreBurst() {
+        for (let i = 0; i < 12; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 25 + Math.random() * 80;
+          addParticle(bird.x + bird.r, bird.y, Math.cos(angle) * speed, Math.sin(angle) * speed,
+            .35 + Math.random() * .35, '83,255,215', 1.5 + Math.random() * 2.5);
+        }
+      }
+
+      // 圆与矩形碰撞检测，碰撞体略小于图案，减少“擦边死亡”
+      function circleHitsRect(cx, cy, radius, x, y, w, h) {
+        const nearestX = Math.max(x, Math.min(cx, x + w));
+        const nearestY = Math.max(y, Math.min(cy, y + h));
+        const dx = cx - nearestX;
+        const dy = cy - nearestY;
+        return dx * dx + dy * dy < radius * radius;
+      }
+
+      function update(dt) {
+        const speed = Math.max(130, width * .36) + Math.min(score * 3, 45);
+        const gravity = Math.max(920, height * 1.55);
+        bird.vy = Math.min(height * .9, bird.vy + gravity * dt);
+        bird.y += bird.vy * dt;
+
+        // 顶部只阻挡不判负，触屏连点时更宽容
+        if (bird.y < bird.r) {
+          bird.y = bird.r;
+          bird.vy = Math.max(0, bird.vy);
+        }
+
+        pipes.forEach(pipe => { pipe.x -= speed * dt; });
+        pipes = pipes.filter(pipe => pipe.x + pipe.width > -60);
+        const lastPipe = pipes[pipes.length - 1];
+        if (!lastPipe || lastPipe.x < width - pipeSpacing()) spawnPipe(width + 20);
+
+        const hitRadius = bird.r * .77;
+        if (bird.y + hitRadius >= height - groundHeight) {
+          bird.y = height - groundHeight - hitRadius;
+          endGame(false);
+          return;
+        }
+
+        for (const pipe of pipes) {
+          const gapTop = pipe.gapY - pipe.gapH / 2;
+          const gapBottom = pipe.gapY + pipe.gapH / 2;
+          const capOverhang = 6;
+          if (circleHitsRect(bird.x, bird.y, hitRadius, pipe.x - capOverhang, 0, pipe.width + capOverhang * 2, gapTop) ||
+              circleHitsRect(bird.x, bird.y, hitRadius, pipe.x - capOverhang, gapBottom,
+                pipe.width + capOverhang * 2, height - groundHeight - gapBottom)) {
+            endGame(false);
+            return;
+          }
+
+          if (!pipe.passed && pipe.x + pipe.width < bird.x) {
+            pipe.passed = true;
+            score += 1;
+            if (score > best) {
+              best = score;
+              isNewRecord = score > previousBest;
+              saveBest();
+            }
+            flash = .1;
+            flashColor = '85,255,220';
+            scoreBurst();
+            scoreEl.classList.remove('bump');
+            void scoreEl.offsetWidth; // 重新触发计分动画
+            scoreEl.classList.add('bump');
+            updateUI();
+            if (score >= TARGET_SCORE) {
+              endGame(true);
+              return;
+            }
+          }
+        }
+      }
+
+      function updateEffects(dt) {
+        particles.forEach(p => {
+          p.life -= dt;
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.vy += 55 * dt;
+          p.vx *= Math.pow(.96, dt * 60);
+        });
+        particles = particles.filter(p => p.life > 0);
+        shake = Math.max(0, shake - dt * 35);
+        flash = Math.max(0, flash - dt * 1.8);
+      }
+
+      // 圆角矩形路径，兼容不支持 ctx.roundRect 的浏览器
+      function roundedRect(x, y, w, h, radius) {
+        const r = Math.max(0, Math.min(radius, Math.abs(w) / 2, Math.abs(h) / 2));
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+      }
+
+      function drawBackground(now) {
+        const gradient = ctx.createLinearGradient(0, 0, 0, height);
+        gradient.addColorStop(0, '#08091c');
+        gradient.addColorStop(.55, '#111333');
+        gradient.addColorStop(1, '#071a28');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+
+        // 远处星云
+        const glow = ctx.createRadialGradient(width * .78, height * .23, 0, width * .78, height * .23, width * .65);
+        glow.addColorStop(0, 'rgba(104,66,190,.18)');
+        glow.addColorStop(1, 'rgba(35,20,85,0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, width, height * .65);
+
+        // 星点以不同速度漂移
+        for (const star of stars) {
+          const travel = now * .003 * star.speed;
+          const x = ((star.x * width - travel) % width + width) % width;
+          const y = star.y * (height - groundHeight) * .78;
+          const alpha = .22 + (Math.sin(now * .002 + star.phase) + 1) * .19;
+          ctx.beginPath();
+          ctx.fillStyle = `rgba(181,214,255,${alpha})`;
+          ctx.arc(x, y, star.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // 远景城市剪影与微光窗口
+        const groundY = height - groundHeight;
+        for (let i = 0; i < buildings.length; i++) {
+          const b = buildings[i];
+          const bw = b.w * width;
+          const bh = b.h * height;
+          const x = b.x * width - bw / 2;
+          ctx.fillStyle = i % 2 ? 'rgba(11,20,45,.72)' : 'rgba(15,19,48,.78)';
+          ctx.fillRect(x, groundY - bh, bw, bh);
+          ctx.fillStyle = 'rgba(82,223,226,.16)';
+          for (let wy = groundY - bh + 10; wy < groundY - 7; wy += 13) {
+            if ((i + Math.floor(wy)) % 3 !== 0) ctx.fillRect(x + 6, wy, 2, 3);
+          }
+        }
+      }
+
+      function drawPipeBody(x, y, w, h, capAtBottom) {
+        if (h <= 0) return;
+        const bodyGradient = ctx.createLinearGradient(x, 0, x + w, 0);
+        bodyGradient.addColorStop(0, '#0b4a52');
+        bodyGradient.addColorStop(.2, '#128479');
+        bodyGradient.addColorStop(.52, '#22b896');
+        bodyGradient.addColorStop(.78, '#11756f');
+        bodyGradient.addColorStop(1, '#083b49');
+
+        ctx.save();
+        ctx.shadowColor = 'rgba(45,244,199,.28)';
+        ctx.shadowBlur = 15;
+        roundedRect(x, y - 2, w, h + 4, 8);
+        ctx.fillStyle = bodyGradient;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = 'rgba(93,255,220,.32)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // 管道表面的高光条纹
+        ctx.fillStyle = 'rgba(196,255,236,.13)';
+        ctx.fillRect(x + w * .24, y, 3, h);
+        ctx.fillStyle = 'rgba(0,20,36,.18)';
+        ctx.fillRect(x + w * .77, y, 5, h);
+
+        const capH = Math.min(25, Math.max(18, height * .032));
+        const capY = capAtBottom ? y + h - capH : y;
+        const capGradient = ctx.createLinearGradient(x - 6, 0, x + w + 6, 0);
+        capGradient.addColorStop(0, '#10656a');
+        capGradient.addColorStop(.45, '#35d7ac');
+        capGradient.addColorStop(1, '#0a4b59');
+        ctx.shadowColor = 'rgba(72,255,207,.65)';
+        ctx.shadowBlur = 13;
+        roundedRect(x - 6, capY, w + 12, capH, 7);
+        ctx.fillStyle = capGradient;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = 'rgba(139,255,224,.55)';
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(220,255,244,.23)';
+        ctx.fillRect(x + 3, capY + 4, w - 6, 2);
+        ctx.restore();
+      }
+
+      function drawPipes() {
+        for (const pipe of pipes) {
+          const topEnd = pipe.gapY - pipe.gapH / 2;
+          const bottomStart = pipe.gapY + pipe.gapH / 2;
+          drawPipeBody(pipe.x, 0, pipe.width, topEnd, true);
+          drawPipeBody(pipe.x, bottomStart, pipe.width, height - groundHeight - bottomStart, false);
+        }
+      }
+
+      function drawGround(now) {
+        const y = height - groundHeight;
+        const gradient = ctx.createLinearGradient(0, y, 0, height);
+        gradient.addColorStop(0, '#0b2635');
+        gradient.addColorStop(1, '#060b18');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, y, width, groundHeight);
+
+        ctx.save();
+        ctx.shadowColor = '#36efd1';
+        ctx.shadowBlur = 12;
+        ctx.fillStyle = 'rgba(78,245,216,.72)';
+        ctx.fillRect(0, y, width, 1.5);
+        ctx.restore();
+
+        // 地面网格持续移动，强化速度感
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, y, width, groundHeight);
+        ctx.clip();
+        ctx.strokeStyle = 'rgba(64,185,193,.12)';
+        ctx.lineWidth = 1;
+        const offset = (now * .045) % 38;
+        for (let x = -groundHeight - offset; x < width + groundHeight; x += 38) {
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + groundHeight * .7, height);
+          ctx.stroke();
+        }
+        for (let gy = y + 17; gy < height; gy += 17) {
+          ctx.beginPath();
+          ctx.moveTo(0, gy);
+          ctx.lineTo(width, gy);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawBird(now) {
+        const idleBob = state === STATE.READY ? Math.sin(now * .004) * 8 : 0;
+        const rotation = state === STATE.READY ? Math.sin(now * .003) * .08 : Math.max(-.42, Math.min(1.05, bird.vy / 620));
+        const r = bird.r;
+        const wing = Math.sin(now * (state === STATE.PLAYING ? .022 : .009)) * .45;
+
+        ctx.save();
+        ctx.translate(bird.x, bird.y + idleBob);
+        ctx.rotate(rotation);
+
+        // 小鸟尾迹
+        if (state === STATE.PLAYING) {
+          const trail = ctx.createLinearGradient(-r * 3.2, 0, -r, 0);
+          trail.addColorStop(0, 'rgba(73,236,255,0)');
+          trail.addColorStop(1, 'rgba(73,236,255,.35)');
+          ctx.fillStyle = trail;
+          ctx.beginPath();
+          ctx.moveTo(-r * 3.2, -2);
+          ctx.lineTo(-r * .7, -r * .28);
+          ctx.lineTo(-r * .7, r * .28);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // 身体
+        ctx.shadowColor = 'rgba(255,201,89,.62)';
+        ctx.shadowBlur = 20;
+        const bodyGradient = ctx.createLinearGradient(-r, -r, r, r);
+        bodyGradient.addColorStop(0, '#fff68b');
+        bodyGradient.addColorStop(.55, '#ffd267');
+        bodyGradient.addColorStop(1, '#ff9359');
+        ctx.fillStyle = bodyGradient;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, r * 1.14, r * .88, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // 尾巴与翅膀
+        ctx.fillStyle = '#ff8a72';
+        ctx.beginPath();
+        ctx.moveTo(-r * .9, -r * .3);
+        ctx.lineTo(-r * 1.6, -r * .7);
+        ctx.lineTo(-r * 1.35, r * .25);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.save();
+        ctx.translate(-r * .28, r * .13);
+        ctx.rotate(wing);
+        const wingGradient = ctx.createLinearGradient(-r, 0, r, 0);
+        wingGradient.addColorStop(0, '#ff5f9e');
+        wingGradient.addColorStop(1, '#ff9b9f');
+        ctx.fillStyle = wingGradient;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, r * .67, r * .4, -.18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,.3)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+
+        // 眼睛与喙
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(r * .43, -r * .33, r * .3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#12182c';
+        ctx.beginPath();
+        ctx.arc(r * .51, -r * .32, r * .135, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(r * .56, -r * .38, r * .045, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ff7459';
+        ctx.beginPath();
+        ctx.moveTo(r * .93, -r * .12);
+        ctx.lineTo(r * 1.65, r * .08);
+        ctx.lineTo(r * .91, r * .34);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawParticles() {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (const p of particles) {
+          const alpha = Math.max(0, p.life / p.maxLife);
+          ctx.fillStyle = `rgba(${p.color},${alpha})`;
+          ctx.shadowColor = `rgba(${p.color},.8)`;
+          ctx.shadowBlur = 7;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function draw(now) {
+        ctx.save();
+        if (shake > 0) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
+        drawBackground(now);
+        drawPipes();
+        drawParticles();
+        drawBird(now);
+        drawGround(now);
+        ctx.restore();
+
+        if (flash > 0) {
+          ctx.fillStyle = `rgba(${flashColor},${flash})`;
+          ctx.fillRect(0, 0, width, height);
+        }
+      }
+
+      function loop(now) {
+        const dt = Math.min(.033, Math.max(0, (now - lastTime) / 1000));
+        lastTime = now;
+        if (state === STATE.PLAYING) update(dt);
+        if (state !== STATE.PAUSED) updateEffects(dt);
+        draw(now);
+        requestAnimationFrame(loop);
+      }
+
+      // 触屏与鼠标统一使用 Pointer Events，避免一次触摸触发两次
+      canvas.addEventListener('pointerdown', event => {
+        event.preventDefault();
+        if (state === STATE.PLAYING) flap();
+        else if (state === STATE.READY) startGame();
+      }, { passive: false });
+
+      startButton.addEventListener('click', startGame);
+      pauseButton.addEventListener('click', togglePause);
+      modalPrimary.addEventListener('click', () => { if (modalPrimaryAction) modalPrimaryAction(); });
+      modalSecondary.addEventListener('click', () => { if (modalSecondaryAction) modalSecondaryAction(); });
+
+      // 键盘兼容：空格/方向上键飞行，P 或 Esc 暂停，回车开始/重开
+      document.addEventListener('keydown', event => {
+        if (['Space', 'ArrowUp'].includes(event.code)) {
+          event.preventDefault();
+          if (event.repeat) return;
+          if (state === STATE.PLAYING) flap();
+          else if (state === STATE.READY || state === STATE.OVER || state === STATE.WON) startGame();
+        } else if (event.code === 'KeyP' || event.code === 'Escape') {
+          event.preventDefault();
+          togglePause();
+        } else if (event.code === 'Enter' && !event.repeat) {
+          if (state === STATE.READY || state === STATE.OVER || state === STATE.WON) startGame();
+          else if (state === STATE.PAUSED) resumeGame();
+        }
+      });
+
+      // 阻止双击缩放、手势缩放及页面橡皮筋滚动
+      document.addEventListener('dblclick', event => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', event => event.preventDefault(), { passive: false });
+      document.addEventListener('touchmove', event => event.preventDefault(), { passive: false });
+
+      // 切到后台时自动暂停，返回后不会瞬间坠落
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state === STATE.PLAYING) togglePause();
+        lastTime = performance.now();
+      });
+      window.addEventListener('resize', resizeCanvas);
+      window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 100));
+
+      resizeCanvas();
+      resetWorld();
+      updateUI();
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>

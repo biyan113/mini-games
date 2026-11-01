@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#08091a">
+  <title>霓虹打地鼠</title>
+  <style>
+    /* ---------- 基础与移动端约束 ---------- */
+    :root {
+      color-scheme: dark;
+      --bg: #08091a;
+      --panel: rgba(18, 20, 46, .78);
+      --line: rgba(151, 162, 255, .16);
+      --text: #f5f6ff;
+      --muted: #969bbd;
+      --cyan: #55f6e8;
+      --purple: #a987ff;
+      --pink: #ff69b4;
+      --danger: #ff6f8f;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(103, 70, 190, .25), transparent 36%),
+        radial-gradient(circle at 88% 88%, rgba(0, 224, 205, .12), transparent 34%),
+        var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .22;
+      background-image:
+        linear-gradient(rgba(128, 137, 220, .09) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(128, 137, 220, .09) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: linear-gradient(to bottom, black, transparent 80%);
+    }
+
+    button { font: inherit; }
+    button, .hole { touch-action: none; }
+    [hidden] { display: none !important; }
+
+    .app {
+      position: relative;
+      width: min(100%, 520px);
+      height: 100%;
+      max-height: 900px;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: clamp(9px, 1.6vh, 15px);
+    }
+
+    /* ---------- 顶栏与数据面板 ---------- */
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(85, 246, 232, .32);
+      border-radius: 14px;
+      color: var(--cyan);
+      background: linear-gradient(145deg, rgba(85, 246, 232, .14), rgba(169, 135, 255, .1));
+      box-shadow: inset 0 0 18px rgba(85, 246, 232, .07), 0 0 24px rgba(85, 246, 232, .08);
+    }
+    .brand-mark svg { width: 24px; height: 24px; }
+    h1 { margin: 0; font-size: clamp(20px, 5.8vw, 28px); line-height: 1.1; letter-spacing: .06em; }
+    .subtitle { margin: 5px 0 0; color: var(--muted); font-size: 10px; letter-spacing: .22em; }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 0 0 auto;
+      padding: 7px 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: #b9bedb;
+      background: rgba(14, 16, 36, .65);
+      font-size: 11px;
+    }
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 9px var(--cyan);
+    }
+    .status.is-paused .status-dot { background: #ffd166; box-shadow: 0 0 9px #ffd166; }
+    .status.is-over .status-dot { background: var(--pink); box-shadow: 0 0 9px var(--pink); }
+
+    .hud { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .stat-card {
+      position: relative;
+      min-width: 0;
+      padding: 11px 10px 10px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: linear-gradient(145deg, rgba(28, 31, 65, .86), rgba(14, 16, 37, .86));
+      box-shadow: inset 0 1px rgba(255, 255, 255, .035);
+    }
+    .stat-label { display: block; color: var(--muted); font-size: 10px; letter-spacing: .12em; }
+    .stat-value { display: block; margin-top: 4px; font-size: clamp(20px, 6vw, 27px); font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+    .score-card .stat-value { color: var(--cyan); text-shadow: 0 0 18px rgba(85, 246, 232, .25); }
+    .best-card .stat-value { color: var(--purple); }
+    .time-card .stat-value { color: #fff; }
+    .time-card.is-urgent .stat-value { color: var(--danger); animation: pulse 1s infinite; }
+    .score-card.bump .stat-value { animation: scoreBump .18s ease-out; }
+    .time-track { position: absolute; right: 9px; bottom: 5px; left: 9px; height: 2px; overflow: hidden; border-radius: 2px; background: rgba(255,255,255,.07); }
+    .time-fill { width: 100%; height: 100%; transform-origin: left; background: linear-gradient(90deg, var(--pink), var(--cyan)); box-shadow: 0 0 8px var(--cyan); }
+
+    .combo-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 28px; padding: 0 3px; }
+    .combo-copy { color: var(--muted); font-size: 12px; }
+    .combo-copy strong { color: var(--text); font-size: 14px; }
+    .multiplier {
+      padding: 4px 10px;
+      border: 1px solid rgba(169, 135, 255, .25);
+      border-radius: 999px;
+      color: var(--purple);
+      background: rgba(169, 135, 255, .08);
+      font-size: 12px;
+      font-weight: 800;
+      transition: .2s ease;
+    }
+    .multiplier.is-hot {
+      color: #171027;
+      border-color: var(--cyan);
+      background: var(--cyan);
+      box-shadow: 0 0 18px rgba(85, 246, 232, .3);
+    }
+
+    /* ---------- 游戏区域与 CSS 地鼠 ---------- */
+    .board-wrap { flex: 1; min-height: 0; display: grid; place-items: center; }
+    .board {
+      width: min(100%, 480px);
+      max-height: 100%;
+      aspect-ratio: 1;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: clamp(8px, 2.5vw, 15px);
+      padding: clamp(10px, 3vw, 17px);
+      border: 1px solid rgba(141, 151, 255, .17);
+      border-radius: clamp(22px, 6vw, 32px);
+      background:
+        radial-gradient(circle at 50% 0, rgba(133, 100, 224, .1), transparent 56%),
+        rgba(12, 14, 33, .72);
+      box-shadow: inset 0 1px rgba(255,255,255,.04), 0 20px 60px rgba(0,0,0,.2);
+    }
+
+    .hole {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 24px;
+      outline: none;
+      color: inherit;
+      background: transparent;
+      cursor: pointer;
+      -webkit-appearance: none;
+    }
+    .hole:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    .hole-window {
+      position: absolute;
+      inset: 4% 2% 8%;
+      overflow: hidden;
+      border: 1px solid rgba(129, 140, 227, .14);
+      border-radius: 50%;
+      background: radial-gradient(ellipse at 50% 75%, #070815 12%, #11132b 58%, #202345 100%);
+      box-shadow: inset 0 10px 22px rgba(0,0,0,.68), 0 1px rgba(255,255,255,.03);
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .hole.is-active .hole-window {
+      border-color: rgba(85, 246, 232, .48);
+      box-shadow: inset 0 10px 22px rgba(0,0,0,.62), 0 0 20px rgba(85, 246, 232, .12);
+    }
+    .hole-lip {
+      position: absolute;
+      right: 8%;
+      bottom: 5%;
+      left: 8%;
+      height: 25%;
+      border: 1px solid rgba(146, 154, 235, .16);
+      border-radius: 50%;
+      background: linear-gradient(to bottom, #242747, #101225 70%);
+      box-shadow: 0 6px 12px rgba(0,0,0,.25), inset 0 1px rgba(255,255,255,.07);
+      pointer-events: none;
+    }
+    .key-hint {
+      position: absolute;
+      right: 8px;
+      bottom: 5px;
+      z-index: 4;
+      color: rgba(183, 189, 224, .45);
+      font-size: 9px;
+      font-weight: 700;
+      pointer-events: none;
+    }
+
+    .mole {
+      position: absolute;
+      z-index: 2;
+      left: 50%;
+      bottom: 8%;
+      width: 69%;
+      height: 82%;
+      transform: translate(-50%, 92%) scale(.86);
+      transform-origin: bottom;
+      transition: transform .16s cubic-bezier(.2,.9,.3,1.25);
+      pointer-events: none;
+    }
+    .hole.is-active .mole { transform: translate(-50%, 5%) scale(1); }
+    .hole.is-hit .mole { transform: translate(-50%, 24%) scale(.82, .65) rotate(-8deg); transition-duration: .08s; }
+    .mole-body {
+      position: absolute;
+      inset: 10% 4% 0;
+      border: 1px solid rgba(229, 211, 255, .28);
+      border-radius: 48% 48% 42% 42%;
+      background: linear-gradient(145deg, #bd94f2 4%, #8a5cc8 52%, #583995 100%);
+      box-shadow: inset 7px 6px 12px rgba(255,255,255,.12), inset -7px -8px 12px rgba(32,12,68,.22), 0 0 18px rgba(169,135,255,.25);
+    }
+    .ear { position: absolute; z-index: -1; top: 5%; width: 30%; aspect-ratio: 1; border: 3px solid #8d62c8; border-radius: 50%; background: #e692c4; }
+    .ear.left { left: 2%; }
+    .ear.right { right: 2%; }
+    .tuft { position: absolute; top: 0; left: 50%; width: 27%; height: 20%; transform: translateX(-50%) rotate(-8deg); border-radius: 80% 10% 70% 20%; background: #68449e; }
+    .eye { position: absolute; top: 36%; width: 10%; aspect-ratio: 1; border-radius: 50%; background: #151125; box-shadow: inset 1px 1px rgba(255,255,255,.65); }
+    .eye.left { left: 27%; }
+    .eye.right { right: 27%; }
+    .nose { position: absolute; top: 49%; left: 50%; width: 22%; aspect-ratio: 1.25; transform: translateX(-50%); border-radius: 50%; background: #ff9fc9; box-shadow: 0 2px 0 rgba(73,34,93,.25); }
+    .tooth { position: absolute; top: 62%; left: 50%; width: 15%; height: 17%; transform: translateX(-50%); border-radius: 1px 1px 4px 4px; background: #fff8e9; }
+    .cheek { position: absolute; top: 53%; width: 18%; height: 9%; border-radius: 50%; background: rgba(255,135,190,.28); }
+    .cheek.left { left: 12%; }
+    .cheek.right { right: 12%; }
+
+    .hole.is-hit::after {
+      content: "";
+      position: absolute;
+      z-index: 5;
+      inset: 15%;
+      border: 3px solid var(--cyan);
+      border-radius: 50%;
+      pointer-events: none;
+      animation: impact .25s ease-out forwards;
+    }
+    .hole.is-miss .hole-window { animation: miss .22s ease-out; }
+
+    /* ---------- 底部操作 ---------- */
+    .tip { margin: 0; color: var(--muted); font-size: 11px; text-align: center; letter-spacing: .03em; }
+    .tip strong { color: #d8dcf5; font-weight: 600; }
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .control-btn, .modal-btn {
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      color: #e9ebff;
+      background: rgba(25, 28, 57, .88);
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform .12s, border-color .15s, background .15s;
+    }
+    .control-btn:active, .modal-btn:active { transform: scale(.97); }
+    .control-btn:focus-visible, .modal-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    .control-btn:disabled { opacity: .4; cursor: default; }
+    .control-btn:not(:disabled):hover { border-color: rgba(85,246,232,.45); background: rgba(33,38,72,.95); }
+
+    /* ---------- 开始、暂停与结算弹窗 ---------- */
+    .modal {
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: max(20px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+      background: rgba(4, 5, 16, .76);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .modal-card {
+      width: min(100%, 390px);
+      padding: clamp(22px, 6vw, 32px);
+      border: 1px solid rgba(153, 162, 255, .25);
+      border-radius: 28px;
+      text-align: center;
+      background: linear-gradient(145deg, rgba(31,32,69,.98), rgba(13,15,34,.98));
+      box-shadow: 0 28px 90px rgba(0,0,0,.55), inset 0 1px rgba(255,255,255,.06), 0 0 50px rgba(116,86,203,.09);
+      animation: modalIn .25s ease-out;
+    }
+    .modal-icon {
+      width: 58px;
+      height: 58px;
+      margin: 0 auto 16px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(85,246,232,.35);
+      border-radius: 19px;
+      color: var(--cyan);
+      background: rgba(85,246,232,.08);
+      box-shadow: 0 0 28px rgba(85,246,232,.1);
+    }
+    .modal-icon svg { width: 30px; height: 30px; }
+    .modal-eyebrow { margin: 0 0 7px; color: var(--cyan); font-size: 10px; font-weight: 800; letter-spacing: .25em; }
+    .modal-title { margin: 0; font-size: clamp(26px, 8vw, 34px); letter-spacing: .04em; }
+    .modal-desc { margin: 12px auto 0; max-width: 290px; color: var(--muted); font-size: 13px; line-height: 1.75; }
+    .rules { display: flex; justify-content: center; flex-wrap: wrap; gap: 7px; margin: 18px 0 22px; }
+    .rule-chip { padding: 6px 9px; border: 1px solid var(--line); border-radius: 9px; color: #c5c9e5; background: rgba(255,255,255,.025); font-size: 11px; }
+    .modal-actions { display: grid; gap: 9px; margin-top: 22px; }
+    .modal-btn { min-height: 49px; }
+    .modal-btn.primary {
+      border-color: transparent;
+      color: #0b1830;
+      background: linear-gradient(100deg, var(--cyan), #8ef4c8);
+      box-shadow: 0 8px 26px rgba(85,246,232,.17);
+    }
+    .modal-btn.secondary { background: transparent; }
+    .record-badge { display: inline-block; margin-bottom: 10px; padding: 5px 11px; border-radius: 999px; color: #25132d; background: linear-gradient(90deg, #ffd166, #ff91c8); font-size: 11px; font-weight: 900; letter-spacing: .08em; }
+    .final-score { margin: 17px 0 4px; color: var(--cyan); font-size: clamp(44px, 14vw, 62px); font-weight: 900; line-height: 1; text-shadow: 0 0 28px rgba(85,246,232,.2); font-variant-numeric: tabular-nums; }
+    .final-label { color: var(--muted); font-size: 11px; }
+    .result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 20px; }
+    .result-item { padding: 10px 4px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.025); }
+    .result-item strong { display: block; font-size: 17px; }
+    .result-item span { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; }
+
+    .float-layer { position: fixed; z-index: 15; inset: 0; overflow: hidden; pointer-events: none; }
+    .float-score { position: absolute; transform: translate(-50%, -50%); color: var(--cyan); font-size: 20px; font-weight: 900; text-shadow: 0 0 14px rgba(85,246,232,.65); animation: floatUp .65s ease-out forwards; white-space: nowrap; }
+    .float-score small { display: block; margin-top: 2px; color: #e0d5ff; font-size: 10px; text-align: center; }
+    .float-score.miss { color: #a4a8bf; font-size: 13px; text-shadow: none; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+    @keyframes impact { to { inset: -5%; opacity: 0; border-width: 1px; } }
+    @keyframes miss { 50% { border-color: var(--danger); box-shadow: inset 0 0 20px rgba(255,111,143,.18); } }
+    @keyframes floatUp { to { opacity: 0; transform: translate(-50%, -130%); } }
+    @keyframes scoreBump { 50% { transform: scale(1.13); } }
+    @keyframes modalIn { from { opacity: 0; transform: translateY(12px) scale(.97); } }
+    @keyframes pulse { 50% { opacity: .55; } }
+
+    /* 小屏手机压缩留白，确保完整游戏始终在一屏内。 */
+    @media (max-height: 680px) and (orientation: portrait) {
+      body { padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+      .app { gap: 7px; }
+      .brand-mark { width: 36px; height: 36px; border-radius: 12px; }
+      .subtitle { display: none; }
+      .stat-card { padding: 8px 9px; }
+      .stat-value { font-size: 21px; }
+      .combo-row { min-height: 22px; }
+      .tip { font-size: 10px; }
+      .control-btn { min-height: 40px; }
+      .modal-card { padding: 20px; }
+      .modal-icon { width: 48px; height: 48px; margin-bottom: 11px; }
+      .rules { margin: 12px 0 16px; }
+    }
+
+    /* 横屏时把信息放在左侧，给棋盘留出完整高度。 */
+    @media (orientation: landscape) and (max-height: 600px) {
+      body { padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+      .app { width: min(100%, 900px); max-height: none; display: grid; grid-template-columns: minmax(220px, .8fr) minmax(280px, 1.2fr); grid-template-rows: auto 1fr auto auto; column-gap: 20px; row-gap: 8px; }
+      .topbar { grid-column: 1; grid-row: 1; }
+      .brand-mark { width: 34px; height: 34px; border-radius: 11px; }
+      h1 { font-size: 20px; }
+      .subtitle, .status { display: none; }
+      .hud { grid-column: 1; grid-row: 2; align-self: center; grid-template-columns: 1fr 1fr; }
+      .time-card { grid-column: 1 / -1; }
+      .stat-card { padding: 8px 10px; }
+      .stat-value { font-size: 21px; }
+      .combo-row { display: none; }
+      .board-wrap { grid-column: 2; grid-row: 1 / 5; }
+      .board { width: auto; height: 100%; max-width: 100%; }
+      .tip { grid-column: 1; grid-row: 3; }
+      .controls { grid-column: 1; grid-row: 4; }
+      .control-btn { min-height: 39px; }
+      .modal-card { padding: 18px 24px; }
+      .modal-icon { display: none; }
+      .modal-desc { margin-top: 7px; line-height: 1.5; }
+      .rules { margin: 10px 0; }
+      .modal-actions { margin-top: 12px; grid-template-columns: 1fr 1fr; }
+      .modal-actions:has(.secondary[hidden]) { grid-template-columns: 1fr; }
+      .final-score { margin-top: 10px; font-size: 42px; }
+      .result-grid { margin-top: 10px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="霓虹打地鼠游戏">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m14.5 4.5 5 5M12 7l5 5M4 20l9.5-9.5"/>
+            <path d="m13 3 8 8-3 3-8-8z"/>
+          </svg>
+        </span>
+        <div>
+          <h1>霓虹打地鼠</h1>
+          <p class="subtitle">NEON WHACK · 60 秒挑战</p>
+        </div>
+      </div>
+      <div class="status" id="status"><span class="status-dot"></span><span id="statusText">准备出发</span></div>
+    </header>
+
+    <section class="hud" aria-label="游戏数据">
+      <div class="stat-card score-card" id="scoreCard">
+        <span class="stat-label">当前得分</span>
+        <strong class="stat-value" id="score">0</strong>
+      </div>
+      <div class="stat-card best-card">
+        <span class="stat-label">最高分</span>
+        <strong class="stat-value" id="bestScore">0</strong>
+      </div>
+      <div class="stat-card time-card" id="timeCard">
+        <span class="stat-label">剩余时间</span>
+        <strong class="stat-value"><span id="time" role="timer">60</span><small style="font-size:.45em"> 秒</small></strong>
+        <div class="time-track" aria-hidden="true"><div class="time-fill" id="timeFill"></div></div>
+      </div>
+    </section>
+
+    <div class="combo-row">
+      <span class="combo-copy"><strong id="combo">0</strong> 连击 <span aria-hidden="true">·</span> 连续命中提升倍率</span>
+      <span class="multiplier" id="multiplier">×1</span>
+    </div>
+
+    <section class="board-wrap" aria-label="游戏棋盘">
+      <div class="board" id="board" aria-label="九个洞穴，轻点冒头的地鼠"></div>
+    </section>
+
+    <p class="tip"><strong>轻点地鼠</strong>敲打 · 点空会中断连击 · 键盘 1–9 兼容</p>
+    <div class="controls">
+      <button class="control-btn" id="pauseBtn" type="button" disabled>暂停游戏</button>
+      <button class="control-btn" id="restartBtn" type="button">重新开始</button>
+    </div>
+  </main>
+
+  <div class="float-layer" id="floatLayer" aria-hidden="true"></div>
+  <div class="sr-only" id="announcer" aria-live="polite"></div>
+
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDesc">
+    <div class="modal-card">
+      <div class="modal-icon" id="modalIcon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m14.5 4.5 5 5M12 7l5 5M4 20l9.5-9.5"/><path d="m13 3 8 8-3 3-8-8z"/>
+        </svg>
+      </div>
+      <span class="record-badge" id="recordBadge" hidden>新纪录</span>
+      <p class="modal-eyebrow" id="modalEyebrow">60 秒反应挑战</p>
+      <h2 class="modal-title" id="modalTitle">准备开敲！</h2>
+      <p class="modal-desc" id="modalDesc">地鼠冒头时轻点它。每 5 连击提升 0.5 倍得分，最高 3 倍；点空或让它逃走会中断连击。</p>
+      <div id="welcomeRules" class="rules">
+        <span class="rule-chip">命中 +100</span><span class="rule-chip">连击加成</span><span class="rule-chip">限时 60 秒</span>
+      </div>
+      <div id="resultPanel" hidden>
+        <div class="final-score" id="finalScore">0</div>
+        <div class="final-label">本局得分 · 最高 <span id="finalBest">0</span></div>
+        <div class="result-grid">
+          <div class="result-item"><strong id="finalHits">0</strong><span>成功命中</span></div>
+          <div class="result-item"><strong id="finalCombo">0</strong><span>最高连击</span></div>
+          <div class="result-item"><strong id="finalAccuracy">0%</strong><span>点击准确率</span></div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn primary" id="primaryBtn" type="button">开始游戏</button>
+        <button class="modal-btn secondary" id="secondaryBtn" type="button" hidden>重新开始</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // ---------- 常量与 DOM ----------
+      const GAME_DURATION = 60_000;
+      const STORAGE_KEY = 'neon-whack-best-v1';
+      const $ = (id) => document.getElementById(id);
+      const board = $('board');
+      const scoreEl = $('score');
+      const bestScoreEl = $('bestScore');
+      const comboEl = $('combo');
+      const multiplierEl = $('multiplier');
+      const timeEl = $('time');
+      const timeCard = $('timeCard');
+      const timeFill = $('timeFill');
+      const scoreCard = $('scoreCard');
+      const pauseBtn = $('pauseBtn');
+      const restartBtn = $('restartBtn');
+      const statusEl = $('status');
+      const statusText = $('statusText');
+      const modal = $('modal');
+      const modalIcon = $('modalIcon');
+      const modalEyebrow = $('modalEyebrow');
+      const modalTitle = $('modalTitle');
+      const modalDesc = $('modalDesc');
+      const welcomeRules = $('welcomeRules');
+      const resultPanel = $('resultPanel');
+      const recordBadge = $('recordBadge');
+      const primaryBtn = $('primaryBtn');
+      const secondaryBtn = $('secondaryBtn');
+      const floatLayer = $('floatLayer');
+      const announcer = $('announcer');
+
+      // ---------- 游戏状态 ----------
+      let state = 'idle'; // idle / playing / paused / over
+      let score = 0;
+      let best = readBest();
+      let startingBest = 0;
+      let combo = 0;
+      let maxCombo = 0;
+      let hits = 0;
+      let misses = 0;
+      let remainingMs = GAME_DURATION;
+      let endAt = 0;
+      let frameId = 0;
+      let spawnTimer = 0;
+      let primaryAction = null;
+      const activeMoles = Array(9).fill(false);
+      const moleTimers = Array(9).fill(0);
+      const holes = [];
+
+      // 本地存储在隐私模式下可能不可用，读写都安全降级。
+      function readBest() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10);
+          return Number.isFinite(value) && value > 0 ? value : 0;
+        } catch (_) {
+          return 0;
+        }
+      }
+
+      function saveBest() {
+        try { localStorage.setItem(STORAGE_KEY, String(best)); } catch (_) { /* 无存储权限时仅保留本局数据 */ }
+      }
+
+      // ---------- 创建九个可访问的洞穴 ----------
+      const moleMarkup = `
+        <span class="hole-window" aria-hidden="true">
+          <span class="mole">
+            <span class="mole-body">
+              <span class="ear left"></span><span class="ear right"></span><span class="tuft"></span>
+              <span class="eye left"></span><span class="eye right"></span><span class="nose"></span>
+              <span class="cheek left"></span><span class="cheek right"></span><span class="tooth"></span>
+            </span>
+          </span>
+        </span>
+        <span class="hole-lip" aria-hidden="true"></span>`;
+
+      for (let i = 0; i < 9; i += 1) {
+        const hole = document.createElement('button');
+        hole.type = 'button';
+        hole.className = 'hole';
+        hole.dataset.index = String(i);
+        hole.setAttribute('aria-label', `洞穴 ${i + 1}，没有地鼠`);
+        hole.innerHTML = `${moleMarkup}<span class="key-hint" aria-hidden="true">${i + 1}</span>`;
+        board.appendChild(hole);
+        holes.push(hole);
+
+        // pointerdown 让触屏敲击零延迟；键盘仍由下面的 click 处理。
+        hole.addEventListener('pointerdown', (event) => {
+          if (event.pointerType === 'mouse' && event.button !== 0) return;
+          event.preventDefault();
+          hitHole(i, event.clientX, event.clientY);
+        });
+        hole.addEventListener('click', (event) => {
+          if (event.detail === 0) {
+            const rect = hole.getBoundingClientRect();
+            hitHole(i, rect.left + rect.width / 2, rect.top + rect.height / 2);
+          }
+        });
+      }
+
+      // ---------- 界面更新 ----------
+      function setStatus(text, mode = '') {
+        statusText.textContent = text;
+        statusEl.className = `status${mode ? ` is-${mode}` : ''}`;
+      }
+
+      function updateScore() {
+        scoreEl.textContent = score.toLocaleString('zh-CN');
+        bestScoreEl.textContent = best.toLocaleString('zh-CN');
+      }
+
+      function getMultiplier() {
+        return Math.min(3, 1 + Math.floor(combo / 5) * 0.5);
+      }
+
+      function updateCombo() {
+        const multiplier = getMultiplier();
+        comboEl.textContent = String(combo);
+        multiplierEl.textContent = `×${Number.isInteger(multiplier) ? multiplier : multiplier.toFixed(1)}`;
+        multiplierEl.classList.toggle('is-hot', multiplier > 1);
+      }
+
+      function updateTimer() {
+        const seconds = Math.max(0, Math.ceil(remainingMs / 1000));
+        timeEl.textContent = String(seconds).padStart(2, '0');
+        timeFill.style.transform = `scaleX(${Math.max(0, remainingMs / GAME_DURATION)})`;
+        timeCard.classList.toggle('is-urgent', state === 'playing' && seconds <= 10);
+      }
+
+      function resetCombo() {
+        combo = 0;
+        updateCombo();
+      }
+
+      function showFloat(text, x, y, isMiss = false, subtext = '') {
+        const item = document.createElement('div');
+        item.className = `float-score${isMiss ? ' miss' : ''}`;
+        item.style.left = `${Math.max(28, Math.min(window.innerWidth - 28, x))}px`;
+        item.style.top = `${Math.max(24, y - 12)}px`;
+        item.textContent = text;
+        if (subtext) {
+          const small = document.createElement('small');
+          small.textContent = subtext;
+          item.appendChild(small);
+        }
+        floatLayer.appendChild(item);
+        window.setTimeout(() => item.remove(), 700);
+      }
+
+      // ---------- 地鼠出现与命中 ----------
+      function deactivateMole(index) {
+        window.clearTimeout(moleTimers[index]);
+        moleTimers[index] = 0;
+        activeMoles[index] = false;
+        holes[index].classList.remove('is-active');
+        holes[index].setAttribute('aria-label', `洞穴 ${index + 1}，没有地鼠`);
+      }
+
+      function clearMoles() {
+        for (let i = 0; i < holes.length; i += 1) {
+          deactivateMole(i);
+          holes[i].classList.remove('is-hit', 'is-miss');
+        }
+      }
+
+      function activateMole(index) {
+        if (state !== 'playing' || activeMoles[index]) return;
+        activeMoles[index] = true;
+        holes[index].classList.remove('is-hit', 'is-miss');
+        holes[index].classList.add('is-active');
+        holes[index].setAttribute('aria-label', `洞穴 ${index + 1}，地鼠冒头了`);
+
+        // 随时间逐渐缩短露头时长，后半程更有挑战性。
+        const progress = 1 - remainingMs / GAME_DURATION;
+        const lifetime = Math.max(520, 1080 - progress * 430) + Math.random() * 170;
+        moleTimers[index] = window.setTimeout(() => {
+          if (!activeMoles[index]) return;
+          deactivateMole(index);
+          if (state === 'playing') resetCombo(); // 逃走一只即中断连击
+        }, lifetime);
+      }
+
+      function spawnMole() {
+        if (state !== 'playing') return;
+        const progress = 1 - remainingMs / GAME_DURATION;
+        const maxActive = progress > .68 ? 4 : progress > .25 ? 3 : 2;
+        if (activeMoles.filter(Boolean).length >= maxActive) return;
+        const available = [];
+        for (let i = 0; i < activeMoles.length; i += 1) {
+          if (!activeMoles[i]) available.push(i);
+        }
+        if (available.length) activateMole(available[Math.floor(Math.random() * available.length)]);
+      }
+
+      function scheduleSpawn(extraDelay = 0) {
+        window.clearTimeout(spawnTimer);
+        if (state !== 'playing') return;
+        const progress = 1 - remainingMs / GAME_DURATION;
+        const delay = extraDelay || Math.max(300, 760 - progress * 390) + Math.random() * 170;
+        spawnTimer = window.setTimeout(() => {
+          spawnMole();
+          scheduleSpawn();
+        }, delay);
+      }
+
+      function hitHole(index, x, y) {
+        if (state !== 'playing') return;
+        const hole = holes[index];
+
+        if (!activeMoles[index]) {
+          misses += 1;
+          const hadCombo = combo > 0;
+          resetCombo();
+          hole.classList.remove('is-miss');
+          void hole.offsetWidth; // 重新触发落空动画
+          hole.classList.add('is-miss');
+          window.setTimeout(() => hole.classList.remove('is-miss'), 240);
+          showFloat(hadCombo ? '连击中断' : '落空', x, y, true);
+          return;
+        }
+
+        deactivateMole(index);
+        hole.classList.add('is-hit');
+        window.setTimeout(() => hole.classList.remove('is-hit'), 240);
+        hits += 1;
+        combo += 1;
+        maxCombo = Math.max(maxCombo, combo);
+        const points = Math.round(100 * getMultiplier());
+        score += points;
+
+        if (score > best) {
+          best = score;
+          saveBest();
+        }
+        updateScore();
+        updateCombo();
+        scoreCard.classList.remove('bump');
+        void scoreCard.offsetWidth;
+        scoreCard.classList.add('bump');
+        showFloat(`+${points}`, x, y, false, combo >= 5 ? `${combo} 连击 · ${getMultiplier()} 倍` : '');
+        if (navigator.vibrate) navigator.vibrate(10);
+      }
+
+      // ---------- 计时与状态切换 ----------
+      function clearGameTimers() {
+        window.clearTimeout(spawnTimer);
+        spawnTimer = 0;
+        cancelAnimationFrame(frameId);
+        frameId = 0;
+        clearMoles();
+      }
+
+      function tick(now) {
+        if (state !== 'playing') return;
+        remainingMs = Math.max(0, endAt - now);
+        updateTimer();
+        if (remainingMs <= 0) {
+          endGame();
+          return;
+        }
+        frameId = requestAnimationFrame(tick);
+      }
+
+      function startGame() {
+        clearGameTimers();
+        state = 'playing';
+        score = 0;
+        combo = 0;
+        maxCombo = 0;
+        hits = 0;
+        misses = 0;
+        remainingMs = GAME_DURATION;
+        startingBest = best;
+        endAt = performance.now() + GAME_DURATION;
+        modal.hidden = true;
+        pauseBtn.disabled = false;
+        pauseBtn.textContent = '暂停游戏';
+        setStatus('游戏进行中');
+        announcer.textContent = '游戏开始，限时六十秒';
+        updateScore();
+        updateCombo();
+        updateTimer();
+        spawnMole();
+        spawnMole();
+        scheduleSpawn(420);
+        frameId = requestAnimationFrame(tick);
+      }
+
+      function pauseGame() {
+        if (state !== 'playing') return;
+        remainingMs = Math.max(0, endAt - performance.now());
+        state = 'paused';
+        clearGameTimers();
+        updateTimer();
+        pauseBtn.textContent = '继续游戏';
+        setStatus('已暂停', 'paused');
+        showPauseModal();
+      }
+
+      function resumeGame() {
+        if (state !== 'paused') return;
+        if (remainingMs <= 0) { endGame(); return; }
+        state = 'playing';
+        endAt = performance.now() + remainingMs;
+        modal.hidden = true;
+        pauseBtn.textContent = '暂停游戏';
+        setStatus('游戏进行中');
+        announcer.textContent = '继续游戏';
+        updateTimer();
+        scheduleSpawn(260);
+        frameId = requestAnimationFrame(tick);
+      }
+
+      function endGame() {
+        state = 'over';
+        remainingMs = 0;
+        clearGameTimers();
+        updateTimer();
+        pauseBtn.disabled = true;
+        pauseBtn.textContent = '暂停游戏';
+        setStatus('时间到', 'over');
+        saveBest();
+        showEndModal();
+      }
+
+      // ---------- 弹窗内容 ----------
+      function openModal() {
+        modal.hidden = false;
+        requestAnimationFrame(() => primaryBtn.focus({ preventScroll: true }));
+      }
+
+      function showWelcome() {
+        state = 'idle';
+        clearGameTimers();
+        score = 0;
+        combo = 0;
+        remainingMs = GAME_DURATION;
+        pauseBtn.disabled = true;
+        setStatus('准备出发');
+        updateScore();
+        updateCombo();
+        updateTimer();
+        modalIcon.hidden = false;
+        recordBadge.hidden = true;
+        resultPanel.hidden = true;
+        welcomeRules.hidden = false;
+        secondaryBtn.hidden = true;
+        modalEyebrow.textContent = '60 秒反应挑战';
+        modalTitle.textContent = '准备开敲！';
+        modalDesc.textContent = '地鼠冒头时轻点它。每 5 连击提升 0.5 倍得分，最高 3 倍；点空或让它逃走会中断连击。';
+        primaryBtn.textContent = '开始游戏';
+        primaryAction = startGame;
+        openModal();
+      }
+
+      function showPauseModal() {
+        modalIcon.hidden = false;
+        recordBadge.hidden = true;
+        resultPanel.hidden = true;
+        welcomeRules.hidden = true;
+        secondaryBtn.hidden = false;
+        modalEyebrow.textContent = '计时已冻结';
+        modalTitle.textContent = '游戏暂停';
+        modalDesc.textContent = '休息一下，准备好后继续。当前分数和连击都会保留。';
+        primaryBtn.textContent = '继续游戏';
+        secondaryBtn.textContent = '重新开始';
+        primaryAction = resumeGame;
+        announcer.textContent = '游戏已暂停';
+        openModal();
+      }
+
+      function showEndModal() {
+        const isNewRecord = score > startingBest && score > 0;
+        const attempts = hits + misses;
+        modalIcon.hidden = true;
+        recordBadge.hidden = !isNewRecord;
+        resultPanel.hidden = false;
+        welcomeRules.hidden = true;
+        secondaryBtn.hidden = true;
+        modalEyebrow.textContent = isNewRecord ? '刷新个人最佳' : '挑战完成';
+        modalTitle.textContent = isNewRecord ? '漂亮的新纪录！' : '时间到！';
+        modalDesc.textContent = isNewRecord ? '手感火热，你超越了之前的自己。' : '保持连击能获得更高倍率，再挑战一次吧。';
+        $('finalScore').textContent = score.toLocaleString('zh-CN');
+        $('finalBest').textContent = best.toLocaleString('zh-CN');
+        $('finalHits').textContent = String(hits);
+        $('finalCombo').textContent = String(maxCombo);
+        $('finalAccuracy').textContent = `${attempts ? Math.round(hits / attempts * 100) : 0}%`;
+        primaryBtn.textContent = '再玩一局';
+        primaryAction = startGame;
+        announcer.textContent = `游戏结束，本局得分 ${score}`;
+        openModal();
+      }
+
+      // ---------- 按钮、键盘与页面行为 ----------
+      primaryBtn.addEventListener('click', () => { if (primaryAction) primaryAction(); });
+      secondaryBtn.addEventListener('click', startGame);
+      restartBtn.addEventListener('click', startGame);
+      pauseBtn.addEventListener('click', () => {
+        if (state === 'playing') pauseGame();
+        else if (state === 'paused') resumeGame();
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (/^[1-9]$/.test(event.key)) {
+          event.preventDefault();
+          const index = Number(event.key) - 1;
+          const rect = holes[index].getBoundingClientRect();
+          hitHole(index, rect.left + rect.width / 2, rect.top + rect.height / 2);
+          return;
+        }
+        if (event.key.toLowerCase() === 'p' || event.key === 'Escape') {
+          if (state === 'playing') pauseGame();
+          else if (state === 'paused') resumeGame();
+          return;
+        }
+        // 空格仅在焦点不在按钮上时控制暂停，避免与按钮原生操作重复。
+        if (event.code === 'Space' && event.target.tagName !== 'BUTTON') {
+          event.preventDefault();
+          if (state === 'playing') pauseGame();
+          else if (state === 'paused') resumeGame();
+        }
+      });
+
+      // 禁止页面滚动、双击缩放和双指缩放手势。
+      document.addEventListener('touchmove', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('dblclick', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('contextmenu', (event) => event.preventDefault());
+
+      // 切到后台自动暂停，避免倒计时在看不见时流逝。
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state === 'playing') pauseGame();
+      });
+
+      bestScoreEl.textContent = best.toLocaleString('zh-CN');
+      showWelcome();
+    })();
+  </script>
+</body>
+</html>

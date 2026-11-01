@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>手机小游戏合集</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: #0a0a14; color: #fff;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 32px 20px; touch-action: manipulation;
+  }
+  h1 { font-size: 26px; margin-bottom: 6px; background: linear-gradient(90deg,#00f5ff,#ff00aa); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  p.sub { color: #888; font-size: 14px; margin-bottom: 28px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; width: 100%; max-width: 480px; }
+  .card {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #141424; border: 1px solid #2a2a4a; border-radius: 14px;
+    padding: 18px 8px; text-decoration: none; color: #fff;
+    transition: transform .12s, border-color .12s;
+  }
+  a.card:active { transform: scale(.96); border-color: #00f5ff; }
+  .card .icon { font-size: 34px; margin-bottom: 8px; }
+  .card .name { font-size: 14px; font-weight: 600; }
+  .card .desc { font-size: 11px; color: #888; margin-top: 4px; }
+  .card.soon { opacity: .45; }
+  footer { margin-top: 32px; color: #555; font-size: 12px; }
+</style>
+</head>
+<body>
+  <h1>手机小游戏合集</h1>
+  <p class="sub">已上线 22 / 100 · 单文件 · 触屏优化</p>
+  <div class="grid">
+    <a class="card" href="tetris/">
+      <div class="icon">🟪</div>
+      <div class="name">俄罗斯方块</div>
+    </a>
+    <a class="card" href="snake/">
+      <div class="icon">🐍</div>
+      <div class="name">贪吃蛇</div>
+    </a>
+    <a class="card" href="game2048/">
+      <div class="icon">🔢</div>
+      <div class="name">2048</div>
+    </a>
+    <a class="card" href="breakout/">
+      <div class="icon">🧱</div>
+      <div class="name">打砖块</div>
+    </a>
+    <a class="card" href="minesweeper/">
+      <div class="icon">💣</div>
+      <div class="name">扫雷</div>
+    </a>
+    <a class="card" href="sudoku/">
+      <div class="icon">9️⃣</div>
+      <div class="name">数独</div>
+    </a>
+    <a class="card" href="sokoban/">
+      <div class="icon">📦</div>
+      <div class="name">推箱子</div>
+    </a>
+    <a class="card" href="sliding-puzzle/">
+      <div class="icon">🧩</div>
+      <div class="name">数字华容道</div>
+    </a>
+    <a class="card" href="memory-match/">
+      <div class="icon">🃏</div>
+      <div class="name">记忆翻牌</div>
+    </a>
+    <a class="card" href="match3/">
+      <div class="icon">💎</div>
+      <div class="name">消消乐</div>
+    </a>
+    <a class="card" href="tictactoe/">
+      <div class="icon">⭕</div>
+      <div class="name">井字棋</div>
+    </a>
+    <a class="card" href="gomoku/">
+      <div class="icon">⚫</div>
+      <div class="name">五子棋</div>
+    </a>
+    <a class="card" href="reversi/">
+      <div class="icon">⚪</div>
+      <div class="name">黑白棋</div>
+    </a>
+    <a class="card" href="pong/">
+      <div class="icon">🏓</div>
+      <div class="name">乒乓对战</div>
+    </a>
+    <a class="card" href="space-invaders/">
+      <div class="icon">👾</div>
+      <div class="name">太空侵略者</div>
+    </a>
+    <a class="card" href="flappy/">
+      <div class="icon">🐤</div>
+      <div class="name">笨鸟先飞</div>
+    </a>
+    <a class="card" href="helicopter/">
+      <div class="icon">🚁</div>
+      <div class="name">直升机</div>
+    </a>
+    <a class="card" href="frogger/">
+      <div class="icon">🐸</div>
+      <div class="name">青蛙过河</div>
+    </a>
+    <a class="card" href="pacman-lite/">
+      <div class="icon">🟡</div>
+      <div class="name">吃豆迷宫</div>
+    </a>
+    <a class="card" href="whack-a-mole/">
+      <div class="icon">🔨</div>
+      <div class="name">打地鼠</div>
+    </a>
+    <a class="card" href="stack/">
+      <div class="icon">🏗️</div>
+      <div class="name">堆塔</div>
+    </a>
+    <div class="card soon">
+      <div class="icon">🐸</div>
+      <div class="name">跳一跳</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🎹</div>
+      <div class="name">钢琴块</div>
+      <div class="desc">制作中</div>
+    </div>
+    <a class="card" href="simon/">
+      <div class="icon">🔴</div>
+      <div class="name">记忆灯</div>
+    </a>
+    <div class="card soon">
+      <div class="icon">🍉</div>
+      <div class="name">切水果</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🎈</div>
+      <div class="name">打气球</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">⚡</div>
+      <div class="name">躲避方块</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🍎</div>
+      <div class="name">接水果</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🔪</div>
+      <div class="name">飞刀插靶</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🏹</div>
+      <div class="name">射箭</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🎯</div>
+      <div class="name">弹弓</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🟢</div>
+      <div class="name">反应测试</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🎯</div>
+      <div class="name">打靶训练</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">👆</div>
+      <div class="name">手速测试</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🎨</div>
+      <div class="name">色彩陷阱</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🔢</div>
+      <div class="name">舒尔特方格</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🔍</div>
+      <div class="name">找不同</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">➗</div>
+      <div class="name">口算快答</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🚀</div>
+      <div class="name">小行星射击</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">⛷️</div>
+      <div class="name">滑雪躲避</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">✏️</div>
+      <div class="name">一笔画</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🔧</div>
+      <div class="name">水管工</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🌊</div>
+      <div class="name">连线成河</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🚗</div>
+      <div class="name">挪车让路</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🔦</div>
+      <div class="name">激光反射</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">💡</div>
+      <div class="name">熄灯游戏</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🎨</div>
+      <div class="name"> flood 填色</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🗼</div>
+      <div class="name">汉诺塔</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">⚪</div>
+      <div class="name">单人跳棋</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🌀</div>
+      <div class="name">迷宫逃脱</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🧱</div>
+      <div class="name">方块拼图</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🛖</div>
+      <div class="name">六边形拼</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🔷</div>
+      <div class="name">七巧板</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🎰</div>
+      <div class="name">数织</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🟧</div>
+      <div class="name">幻方</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🍬</div>
+      <div class="name">割绳子</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🫧</div>
+      <div class="name">泡泡龙</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🐸</div>
+      <div class="name">祖玛</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">⭐</div>
+      <div class="name">消灭星星</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🗼</div>
+      <div class="name">塔防</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">👆</div>
+      <div class="name">疯狂点击</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🎲</div>
+      <div class="name">掷骰子</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🎰</div>
+      <div class="name">老虎机</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">✊</div>
+      <div class="name">猜拳</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🪙</div>
+      <div class="name">抛硬币</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🃏</div>
+      <div class="name">猜大小</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🎱</div>
+      <div class="name">宾果</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🎯</div>
+      <div class="name">飞镖</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🎳</div>
+      <div class="name">保龄球</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">⛳</div>
+      <div class="name">高尔夫推杆</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🤜</div>
+      <div class="name">对战点点</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">⚽</div>
+      <div class="name">点球大战</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🔴</div>
+      <div class="name">四子棋</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🔲</div>
+      <div class="name">点格棋</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🚢</div>
+      <div class="name">海战棋</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🟤</div>
+      <div class="name">落沙</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🎹</div>
+      <div class="name">自由钢琴</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🥁</div>
+      <div class="name">打击垫</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">✏️</div>
+      <div class="name">涂鸦板</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🔮</div>
+      <div class="name">神奇8球</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🎲</div>
+      <div class="name">选择骰子</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🌬️</div>
+      <div class="name">呼吸冥想</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🎆</div>
+      <div class="name">烟花</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🎵</div>
+      <div class="name">木琴</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🌀</div>
+      <div class="name">滚珠迷宫</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">📜</div>
+      <div class="name">成语接龙</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🔤</div>
+      <div class="name">单词记忆</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🔡</div>
+      <div class="name">字母重组</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🤠</div>
+      <div class="name">猜词游戏</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🧩</div>
+      <div class="name">脑筋急转弯</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🌀</div>
+      <div class="name">螺旋跳</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🌈</div>
+      <div class="name">色彩跳跃</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">↯</div>
+      <div class="name">之字形</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🔮</div>
+      <div class="name">坡道滚球</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🛸</div>
+      <div class="name">隧道飞行</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🪐</div>
+      <div class="name">环绕跳跃</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🔄</div>
+      <div class="name">重力反转</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🏃</div>
+      <div class="name">无尽跑酷</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">🛣️</div>
+      <div class="name">三线躲避</div>
+      <div class="desc">制作中</div>
+    </div>
+    <div class="card soon">
+      <div class="icon">⚪</div>
+      <div class="name">合成大西瓜</div>
+      <div class="desc">制作中</div>
+    </div>
+  </div>
+  <footer>buding's arcade · 2026</footer>
+</body>
+</html>

@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070817">
+  <title>霓虹堆塔</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --cyan: #55f6ff;
+      --purple: #a978ff;
+      --pink: #ff5fc8;
+      --text: #f3f5ff;
+      --muted: #979bb8;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      background: #03040b;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: var(--text);
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button { font: inherit; }
+
+    #app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      max-width: 520px;
+      overflow: hidden;
+      isolation: isolate;
+      background:
+        radial-gradient(ellipse at 15% 15%, rgba(83, 57, 180, .18), transparent 42%),
+        radial-gradient(ellipse at 90% 55%, rgba(0, 219, 255, .09), transparent 42%),
+        linear-gradient(180deg, #090a1d 0%, #070817 52%, #04050e 100%);
+      box-shadow: 0 0 80px rgba(45, 36, 110, .28);
+    }
+
+    #app::before {
+      content: "";
+      position: absolute;
+      z-index: 0;
+      width: 70%;
+      aspect-ratio: 1;
+      left: -35%;
+      top: 25%;
+      border-radius: 50%;
+      background: rgba(123, 74, 255, .1);
+      filter: blur(70px);
+      pointer-events: none;
+    }
+
+    canvas {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      cursor: pointer;
+    }
+
+    .hud {
+      position: absolute;
+      z-index: 2;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: max(16px, env(safe-area-inset-top)) 18px 0;
+      pointer-events: none;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #dfe3ff;
+    }
+
+    .brand-mark {
+      width: 9px;
+      height: 9px;
+      border-radius: 2px;
+      background: var(--cyan);
+      box-shadow: 0 0 12px var(--cyan), 8px -5px 0 -2px var(--purple);
+      transform: rotate(45deg);
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    .icon-button {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border: 1px solid rgba(164, 173, 255, .16);
+      border-radius: 14px;
+      color: #dce0ff;
+      background: rgba(18, 20, 44, .64);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      cursor: pointer;
+      transition: transform .15s, border-color .15s, background .15s;
+    }
+
+    .icon-button:active { transform: scale(.92); }
+    .icon-button:hover { border-color: rgba(85, 246, 255, .5); background: rgba(30, 33, 66, .8); }
+    .icon-button:focus-visible, .menu-button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+    .icon-button svg { width: 20px; height: 20px; fill: currentColor; }
+    .icon-button.muted { color: #6f7390; }
+
+    .score-row {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-top: 18px;
+    }
+
+    .score-block { display: flex; flex-direction: column; }
+    .label { font-size: 11px; letter-spacing: 2px; color: var(--muted); }
+
+    #score {
+      margin-top: -2px;
+      font-size: clamp(38px, 11vw, 54px);
+      line-height: 1.08;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -2px;
+      text-shadow: 0 0 24px rgba(85, 246, 255, .24);
+    }
+
+    #score.bump { animation: score-bump .22s ease-out; }
+    @keyframes score-bump { 50% { transform: scale(1.16); color: var(--cyan); } }
+
+    .best {
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+      padding-bottom: 5px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .best strong {
+      color: #e6e9ff;
+      font-size: 20px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .progress-wrap { margin-top: 15px; }
+    .progress-copy {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 7px;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: .5px;
+    }
+
+    .progress-copy span:last-child { color: #cfd3ee; font-variant-numeric: tabular-nums; }
+    .progress-track { height: 3px; overflow: hidden; border-radius: 9px; background: rgba(255, 255, 255, .08); }
+    #progressBar {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--purple), var(--cyan));
+      box-shadow: 0 0 10px var(--cyan);
+      transition: width .25s ease-out;
+    }
+
+    .hint {
+      position: absolute;
+      z-index: 2;
+      left: 50%;
+      bottom: max(20px, calc(env(safe-area-inset-bottom) + 12px));
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      width: max-content;
+      max-width: 90%;
+      transform: translateX(-50%);
+      pointer-events: none;
+      transition: opacity .25s;
+    }
+
+    .hint-main {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border: 1px solid rgba(133, 146, 220, .14);
+      border-radius: 99px;
+      background: rgba(12, 14, 32, .62);
+      backdrop-filter: blur(10px);
+      color: #d5d9f1;
+      font-size: 13px;
+      letter-spacing: 1px;
+    }
+
+    .tap-icon {
+      width: 14px;
+      height: 14px;
+      border: 1.5px solid var(--cyan);
+      border-radius: 50%;
+      box-shadow: 0 0 8px rgba(85, 246, 255, .5);
+      animation: tap-pulse 1.8s infinite;
+    }
+
+    @keyframes tap-pulse { 50% { transform: scale(.7); opacity: .55; } }
+    .hint-sub { color: #696e8b; font-size: 10px; letter-spacing: .5px; }
+
+    .overlay {
+      position: absolute;
+      z-index: 5;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(3, 4, 13, .68);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      opacity: 1;
+      transition: opacity .2s;
+    }
+
+    .overlay[hidden] { display: none; }
+
+    .modal {
+      width: min(100%, 350px);
+      padding: 30px 25px 24px;
+      border: 1px solid rgba(142, 153, 255, .2);
+      border-radius: 26px;
+      text-align: center;
+      background: linear-gradient(145deg, rgba(27, 29, 59, .97), rgba(11, 13, 31, .98));
+      box-shadow: 0 24px 70px rgba(0, 0, 0, .48), inset 0 1px rgba(255, 255, 255, .05);
+      animation: modal-in .32s cubic-bezier(.2, .9, .25, 1.15);
+    }
+
+    @keyframes modal-in { from { opacity: 0; transform: translateY(18px) scale(.94); } }
+
+    .modal-symbol {
+      display: grid;
+      place-items: center;
+      width: 62px;
+      height: 62px;
+      margin: 0 auto 18px;
+      border: 1px solid rgba(85, 246, 255, .3);
+      border-radius: 20px;
+      color: var(--cyan);
+      background: rgba(85, 246, 255, .07);
+      box-shadow: 0 0 30px rgba(85, 246, 255, .1);
+      font-size: 28px;
+      font-weight: 300;
+    }
+
+    .modal.lose .modal-symbol { color: var(--pink); border-color: rgba(255, 95, 200, .3); background: rgba(255, 95, 200, .07); }
+    .modal.win .modal-symbol { color: #ffe788; border-color: rgba(255, 231, 136, .35); background: rgba(255, 231, 136, .07); }
+    .eyebrow { margin: 0 0 7px; color: var(--cyan); font-size: 10px; letter-spacing: 3px; }
+    .modal h1 { margin: 0; font-size: 28px; letter-spacing: 2px; }
+    #modalDesc { margin: 12px auto 20px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+
+    .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .result-item { padding: 12px 8px; border-radius: 14px; background: rgba(255, 255, 255, .035); }
+    .result-item span { display: block; margin-bottom: 3px; color: var(--muted); font-size: 10px; letter-spacing: 1px; }
+    .result-item strong { font-size: 24px; font-variant-numeric: tabular-nums; }
+
+    .menu-button {
+      width: 100%;
+      min-height: 48px;
+      border: 0;
+      border-radius: 14px;
+      cursor: pointer;
+      font-weight: 700;
+      letter-spacing: 1px;
+      transition: transform .15s, filter .15s;
+    }
+
+    .menu-button:active { transform: scale(.97); }
+    .menu-button:hover { filter: brightness(1.12); }
+    .primary { color: #071017; background: linear-gradient(100deg, #75f8ff, #9e9bff); box-shadow: 0 8px 25px rgba(85, 246, 255, .16); }
+    .secondary { margin-top: 9px; color: #b9beda; background: transparent; border: 1px solid rgba(157, 166, 223, .15); }
+    .secondary[hidden], .result-grid[hidden] { display: none; }
+
+    @media (max-height: 620px) {
+      .hud { padding-top: max(10px, env(safe-area-inset-top)); }
+      .score-row { margin-top: 8px; }
+      #score { font-size: 36px; }
+      .progress-wrap { margin-top: 8px; }
+      .hint-sub { display: none; }
+      .modal { padding-top: 22px; }
+      .modal-symbol { width: 50px; height: 50px; margin-bottom: 12px; }
+    }
+
+    @media (min-width: 521px) {
+      #app { border-left: 1px solid rgba(140, 150, 255, .08); border-right: 1px solid rgba(140, 150, 255, .08); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .tap-icon, #score.bump, .modal { animation: none; }
+      * { transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main id="app" aria-label="霓虹堆塔小游戏">
+    <canvas id="gameCanvas" aria-label="游戏区域：轻点或点击放下移动中的方块"></canvas>
+
+    <section class="hud" aria-label="游戏状态">
+      <div class="topbar">
+        <div class="brand"><i class="brand-mark"></i>霓虹堆塔</div>
+        <div class="actions">
+          <button id="soundButton" class="icon-button" type="button" aria-label="关闭音效" title="音效">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zm12.5 3a3.5 3.5 0 0 0-1.5-2.87v5.74A3.5 3.5 0 0 0 16.5 12zm-1.5-7.47v2.06a6 6 0 0 1 0 10.82v2.06a8 8 0 0 0 0-14.94z"/></svg>
+          </button>
+          <button id="pauseButton" class="icon-button" type="button" aria-label="暂停游戏" title="暂停（P）">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="score-row">
+        <div class="score-block"><span class="label">当前得分</span><strong id="score">0</strong></div>
+        <div class="best"><span>最高分</span><strong id="best">0</strong></div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-copy"><span>登顶进度</span><span id="floorText">0 / 30 层</span></div>
+        <div class="progress-track"><div id="progressBar"></div></div>
+      </div>
+    </section>
+
+    <div id="hint" class="hint">
+      <div class="hint-main"><i class="tap-icon"></i><span id="hintText">轻点屏幕，放下方块</span></div>
+      <div class="hint-sub">空格 / 点击放下 · P 暂停 · R 重开</div>
+    </div>
+
+    <div id="overlay" class="overlay" hidden>
+      <section id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDesc">
+        <div id="modalSymbol" class="modal-symbol">Ⅱ</div>
+        <p id="modalEyebrow" class="eyebrow">稍作休息</p>
+        <h1 id="modalTitle">游戏暂停</h1>
+        <p id="modalDesc">方块已停止移动，准备好后继续。</p>
+        <div id="resultGrid" class="result-grid">
+          <div class="result-item"><span>本局得分</span><strong id="finalScore">0</strong></div>
+          <div class="result-item"><span>历史最高</span><strong id="finalBest">0</strong></div>
+        </div>
+        <button id="primaryButton" class="menu-button primary" type="button">继续游戏</button>
+        <button id="secondaryButton" class="menu-button secondary" type="button">重新开始</button>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // ---------- 常量与页面元素 ----------
+      const GOAL = 30;
+      const BEST_KEY = "neon-stack-best-v1";
+      const app = document.getElementById("app");
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const scoreEl = document.getElementById("score");
+      const bestEl = document.getElementById("best");
+      const floorText = document.getElementById("floorText");
+      const progressBar = document.getElementById("progressBar");
+      const pauseButton = document.getElementById("pauseButton");
+      const soundButton = document.getElementById("soundButton");
+      const overlay = document.getElementById("overlay");
+      const modal = document.getElementById("modal");
+      const modalSymbol = document.getElementById("modalSymbol");
+      const modalEyebrow = document.getElementById("modalEyebrow");
+      const modalTitle = document.getElementById("modalTitle");
+      const modalDesc = document.getElementById("modalDesc");
+      const resultGrid = document.getElementById("resultGrid");
+      const finalScore = document.getElementById("finalScore");
+      const finalBest = document.getElementById("finalBest");
+      const primaryButton = document.getElementById("primaryButton");
+      const secondaryButton = document.getElementById("secondaryButton");
+      const hintText = document.getElementById("hintText");
+      const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      let width = 0;
+      let height = 0;
+      let blockHeight = 25;
+      let initialWidth = 200;
+      let state = "playing"; // playing、paused、over、won
+      let score = 0;
+      let best = loadBest();
+      let combo = 0;
+      let blocks = [];
+      let current = null;
+      let debris = [];
+      let particles = [];
+      let floaters = [];
+      let stars = [];
+      let camera = 0;
+      let cameraTarget = 0;
+      let shake = 0;
+      let lastTime = 0;
+      let elapsed = 0;
+      let runId = 0;
+      let audioEnabled = true;
+      let audioContext = null;
+
+      function loadBest() {
+        try { return Math.max(0, Number(localStorage.getItem(BEST_KEY)) || 0); }
+        catch (_) { return 0; }
+      }
+
+      function saveBest() {
+        if (score <= best) return;
+        best = score;
+        bestEl.textContent = best;
+        try { localStorage.setItem(BEST_KEY, String(best)); }
+        catch (_) { /* 隐私模式下仍可进行游戏，只是不保存最高分 */ }
+      }
+
+      // ---------- 尺寸与画布 ----------
+      function resize() {
+        const oldWidth = width;
+        const rect = app.getBoundingClientRect();
+        width = rect.width;
+        height = rect.height;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        blockHeight = Math.max(21, Math.min(29, width * 0.068));
+        initialWidth = Math.max(155, Math.min(250, width * 0.58));
+
+        // 横竖屏切换时按比例缩放已有方块，避免塔身跑出屏幕。
+        if (oldWidth > 0 && oldWidth !== width) {
+          const ratio = width / oldWidth;
+          [...blocks, ...debris].forEach(block => {
+            block.x *= ratio;
+            if (block.width) block.width *= ratio;
+          });
+          if (current) {
+            current.x *= ratio;
+            current.width *= ratio;
+          }
+          particles.forEach(p => { p.x *= ratio; });
+          floaters.forEach(f => { f.x *= ratio; });
+        }
+
+        stars = Array.from({ length: Math.round(width * height / 16000) }, () => ({
+          x: Math.random() * width,
+          y: Math.random() * height * 0.72,
+          radius: Math.random() * 1.1 + 0.25,
+          phase: Math.random() * Math.PI * 2
+        }));
+        updateCameraTarget();
+      }
+
+      function baseY() { return height * 0.79; }
+      function blockY(level) { return baseY() - level * blockHeight + camera; }
+
+      function updateCameraTarget() {
+        const level = current ? current.level : Math.max(0, blocks.length - 1);
+        cameraTarget = Math.max(0, level * blockHeight - height * 0.35);
+      }
+
+      // ---------- 游戏流程 ----------
+      function resetGame() {
+        runId++;
+        score = 0;
+        combo = 0;
+        blocks = [{ x: (width - initialWidth) / 2, width: initialWidth, level: 0, hue: 190 }];
+        current = null;
+        debris = [];
+        particles = [];
+        floaters = [];
+        camera = 0;
+        cameraTarget = 0;
+        shake = 0;
+        state = "playing";
+        overlay.hidden = true;
+        pauseButton.disabled = false;
+        pauseButton.style.opacity = "1";
+        hintText.textContent = "轻点屏幕，放下方块";
+        spawnBlock();
+        updateHud();
+        lastTime = performance.now();
+      }
+
+      function spawnBlock() {
+        const previous = blocks[blocks.length - 1];
+        const level = previous.level + 1;
+        const direction = level % 2 ? 1 : -1;
+        const margin = 18;
+        current = {
+          x: direction > 0 ? margin : width - previous.width - margin,
+          width: previous.width,
+          level,
+          hue: (190 + level * 11) % 360,
+          direction,
+          speed: Math.min(310, 125 + level * 5.2)
+        };
+        updateCameraTarget();
+      }
+
+      function dropBlock() {
+        if (state !== "playing" || !current) return;
+        ensureAudio();
+        const moving = current;
+        const previous = blocks[blocks.length - 1];
+        const left = Math.max(moving.x, previous.x);
+        const right = Math.min(moving.x + moving.width, previous.x + previous.width);
+        const overlap = right - left;
+        const y = blockY(moving.level);
+
+        if (overlap <= 0) {
+          // 完全没有重叠：整块坠落，本局结束。
+          debris.push(makeDebris(moving.x, y, moving.width, moving.hue, moving.direction * 45));
+          current = null;
+          state = "over";
+          shake = reducedMotion ? 0 : 13;
+          playFailSound();
+          pauseButton.style.opacity = ".4";
+          hintText.textContent = "方块落空了";
+          const id = runId;
+          setTimeout(() => { if (id === runId && state === "over") showModal("over"); }, 650);
+          return;
+        }
+
+        const offset = moving.x - previous.x;
+        const perfect = Math.abs(offset) <= Math.max(3.5, Math.min(7, previous.width * 0.045));
+        let placed;
+
+        if (perfect) {
+          combo++;
+          score += 2;
+          placed = { x: previous.x, width: previous.width, level: moving.level, hue: moving.hue };
+
+          // 连续三次完美可略微修复塔身，给玩家留出翻盘空间。
+          if (combo % 3 === 0 && placed.width < initialWidth) {
+            const center = placed.x + placed.width / 2;
+            placed.width = Math.min(initialWidth, placed.width + Math.max(6, initialWidth * 0.045));
+            placed.x = center - placed.width / 2;
+          }
+          const text = combo >= 3 && combo % 3 === 0 ? `完美 ×${combo} · 塔身加宽` : (combo > 1 ? `完美 ×${combo}  +2` : "完美  +2");
+          floaters.push({ x: placed.x + placed.width / 2, y: y - 22, text, color: "#78fbff", life: 1 });
+          burst(placed.x + placed.width / 2, y, placed.hue, 18, 120);
+          playPerfectSound(combo);
+        } else {
+          combo = 0;
+          score += 1;
+          placed = { x: left, width: overlap, level: moving.level, hue: moving.hue };
+          const cutX = offset > 0 ? right : moving.x;
+          debris.push(makeDebris(cutX, y, moving.width - overlap, moving.hue, offset > 0 ? 55 : -55));
+          burst(offset > 0 ? right : left, y + blockHeight / 2, moving.hue, 8, 75);
+          floaters.push({ x: left + overlap / 2, y: y - 18, text: "+1", color: "#d7dcff", life: .75 });
+          shake = reducedMotion ? 0 : Math.min(4, 1 + moving.level * .08);
+          playDropSound(moving.level);
+        }
+
+        blocks.push(placed);
+        current = null;
+        saveBest();
+        updateHud(true);
+
+        if (placed.level >= GOAL) {
+          state = "won";
+          current = null;
+          hintText.textContent = "成功登顶！";
+          pauseButton.style.opacity = ".4";
+          confetti();
+          playWinSound();
+          const id = runId;
+          setTimeout(() => { if (id === runId && state === "won") showModal("won"); }, 700);
+        } else {
+          spawnBlock();
+        }
+      }
+
+      function makeDebris(x, y, pieceWidth, hue, vx) {
+        return { x, y, width: Math.max(1, pieceWidth), hue, vx, vy: -35, rotation: 0, vr: vx * .004 };
+      }
+
+      function togglePause() {
+        if (state === "playing") {
+          state = "paused";
+          showModal("paused");
+        } else if (state === "paused") {
+          state = "playing";
+          overlay.hidden = true;
+          lastTime = performance.now();
+          canvas.focus?.();
+        }
+      }
+
+      function showModal(type) {
+        modal.className = "modal";
+        resultGrid.hidden = false;
+        secondaryButton.hidden = false;
+        finalScore.textContent = score;
+        finalBest.textContent = best;
+
+        if (type === "paused") {
+          modalSymbol.textContent = "Ⅱ";
+          modalEyebrow.textContent = "稍作休息";
+          modalTitle.textContent = "游戏暂停";
+          modalDesc.textContent = "方块已停止移动，准备好后继续。";
+          primaryButton.textContent = "继续游戏";
+          secondaryButton.textContent = "重新开始";
+          primaryButton.onclick = togglePause;
+        } else if (type === "won") {
+          modal.classList.add("win");
+          modalSymbol.textContent = "◇";
+          modalEyebrow.textContent = "NEON SUMMIT";
+          modalTitle.textContent = "登顶成功！";
+          modalDesc.textContent = `你建成了 ${GOAL} 层霓虹高塔，城市因你而闪耀。`;
+          primaryButton.textContent = "再建一座";
+          secondaryButton.hidden = true;
+          primaryButton.onclick = resetGame;
+        } else {
+          modal.classList.add("lose");
+          modalSymbol.textContent = "×";
+          modalEyebrow.textContent = "GAME OVER";
+          modalTitle.textContent = "高塔倾倒";
+          const floors = blocks.length - 1;
+          modalDesc.textContent = floors === 0 ? "别灰心，看准重叠位置再轻点屏幕。" : `你堆到了 ${floors} 层，再来一次，向更高处出发！`;
+          primaryButton.textContent = "再来一局";
+          secondaryButton.hidden = true;
+          primaryButton.onclick = resetGame;
+        }
+        overlay.hidden = false;
+        primaryButton.focus({ preventScroll: true });
+      }
+
+      function updateHud(animate = false) {
+        scoreEl.textContent = score;
+        bestEl.textContent = best;
+        const floors = Math.max(0, blocks.length - 1);
+        floorText.textContent = `${floors} / ${GOAL} 层`;
+        progressBar.style.width = `${Math.min(100, floors / GOAL * 100)}%`;
+        if (animate && !reducedMotion) {
+          scoreEl.classList.remove("bump");
+          void scoreEl.offsetWidth;
+          scoreEl.classList.add("bump");
+        }
+      }
+
+      // ---------- 动画与物理 ----------
+      function update(dt) {
+        if (state === "paused") return;
+        elapsed += dt;
+        camera += (cameraTarget - camera) * Math.min(1, dt * 8);
+        shake *= Math.pow(.04, dt);
+
+        if (state === "playing" && current) {
+          const margin = 18;
+          current.x += current.direction * current.speed * dt;
+          const rightEdge = width - margin - current.width;
+          if (current.x <= margin) {
+            current.x = margin;
+            current.direction = 1;
+          } else if (current.x >= rightEdge) {
+            current.x = rightEdge;
+            current.direction = -1;
+          }
+        }
+
+        debris.forEach(piece => {
+          piece.vy += 900 * dt;
+          piece.x += piece.vx * dt;
+          piece.y += piece.vy * dt;
+          piece.rotation += piece.vr * dt;
+        });
+        debris = debris.filter(piece => piece.y < height + 100);
+
+        particles.forEach(p => {
+          p.life -= dt;
+          p.vy += (p.gravity || 160) * dt;
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.vx *= Math.pow(.25, dt);
+        });
+        particles = particles.filter(p => p.life > 0);
+
+        floaters.forEach(f => { f.life -= dt; f.y -= 30 * dt; });
+        floaters = floaters.filter(f => f.life > 0);
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, width, height);
+        drawBackground();
+        ctx.save();
+        if (shake > .1) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
+
+        // 只绘制屏幕附近的层，避免高塔层数增加后产生无效绘制。
+        for (const block of blocks) {
+          const y = blockY(block.level);
+          if (y > -blockHeight * 2 && y < height + blockHeight) drawBlock(block.x, y, block.width, block.hue);
+        }
+
+        if (current) {
+          const y = blockY(current.level);
+          // 移动方向的淡光拖尾，让操作更有速度感。
+          const trail = ctx.createLinearGradient(current.x, 0, current.x + current.width, 0);
+          trail.addColorStop(current.direction > 0 ? 0 : 1, "transparent");
+          trail.addColorStop(current.direction > 0 ? 1 : 0, `hsla(${current.hue}, 100%, 70%, .08)`);
+          ctx.fillStyle = trail;
+          ctx.fillRect(current.x - current.direction * 28, y + 4, current.width + 28, blockHeight - 8);
+          drawBlock(current.x, y, current.width, current.hue);
+        }
+
+        debris.forEach(piece => drawBlock(piece.x, piece.y, piece.width, piece.hue, piece.rotation));
+        drawParticles();
+        drawFloaters();
+        ctx.restore();
+      }
+
+      function drawBackground() {
+        for (const star of stars) {
+          const alpha = .18 + (Math.sin(elapsed * 1.4 + star.phase) + 1) * .14;
+          ctx.fillStyle = `rgba(190, 208, 255, ${alpha})`;
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // 远景霓虹城市剪影。
+        const horizon = height * .87;
+        ctx.fillStyle = "rgba(13, 16, 38, .56)";
+        for (let x = 0, i = 0; x < width; i++) {
+          const w = 24 + (i * 17 % 31);
+          const h = 25 + (i * 37 % 90);
+          ctx.fillRect(x, horizon - h, w - 3, height - horizon + h);
+          if (i % 2 === 0) {
+            ctx.fillStyle = "rgba(81, 222, 255, .08)";
+            ctx.fillRect(x + 7, horizon - h + 12, 2, 4);
+            ctx.fillStyle = "rgba(13, 16, 38, .56)";
+          }
+          x += w;
+        }
+        const glow = ctx.createLinearGradient(0, horizon - 30, 0, height);
+        glow.addColorStop(0, "rgba(88, 60, 190, 0)");
+        glow.addColorStop(1, "rgba(64, 39, 140, .09)");
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, horizon - 30, width, height - horizon + 30);
+      }
+
+      function roundedRect(x, y, w, h, r) {
+        const radius = Math.min(r, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, radius);
+      }
+
+      function drawBlock(x, y, w, hue, rotation = 0) {
+        if (w <= 0) return;
+        const h = Math.max(8, blockHeight - 2);
+        const depth = Math.min(8, w * .065);
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, 1 - Math.max(0, y - height) / 100));
+        if (rotation) {
+          ctx.translate(x + w / 2, y + h / 2);
+          ctx.rotate(rotation);
+          ctx.translate(-x - w / 2, -y - h / 2);
+        }
+
+        ctx.shadowColor = `hsla(${hue}, 100%, 65%, .36)`;
+        ctx.shadowBlur = 12;
+        const front = ctx.createLinearGradient(x, y, x, y + h);
+        front.addColorStop(0, `hsl(${hue}, 88%, 59%)`);
+        front.addColorStop(1, `hsl(${(hue + 20) % 360}, 74%, 35%)`);
+        ctx.fillStyle = front;
+        roundedRect(x, y, w, h, 3);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // 顶面和右侧面构成轻量的伪 3D 效果。
+        ctx.fillStyle = `hsl(${hue}, 95%, 73%)`;
+        ctx.beginPath();
+        ctx.moveTo(x + 2, y);
+        ctx.lineTo(x + depth, y - depth * .65);
+        ctx.lineTo(x + w + depth, y - depth * .65);
+        ctx.lineTo(x + w, y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = `hsla(${(hue + 25) % 360}, 75%, 25%, .85)`;
+        ctx.beginPath();
+        ctx.moveTo(x + w, y);
+        ctx.lineTo(x + w + depth, y - depth * .65);
+        ctx.lineTo(x + w + depth, y + h - depth * .65);
+        ctx.lineTo(x + w, y + h);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(255,255,255,.3)";
+        ctx.fillRect(x + 5, y + 3, Math.max(0, w - 10), 1);
+        ctx.restore();
+      }
+
+      function burst(x, y, hue, count, power) {
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * power;
+          particles.push({
+            x, y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 30,
+            size: Math.random() * 2.4 + 1,
+            color: `hsl(${hue + Math.random() * 25}, 100%, 72%)`,
+            life: Math.random() * .35 + .4,
+            maxLife: .75,
+            gravity: 180
+          });
+        }
+      }
+
+      function confetti() {
+        for (let i = 0; i < 80; i++) {
+          particles.push({
+            x: Math.random() * width,
+            y: height * .18 + Math.random() * 60,
+            vx: (Math.random() - .5) * 150,
+            vy: -Math.random() * 150,
+            size: Math.random() * 3 + 2,
+            color: `hsl(${Math.random() * 360}, 95%, 70%)`,
+            life: 1.8 + Math.random(),
+            maxLife: 2.8,
+            gravity: 210
+          });
+        }
+      }
+
+      function drawParticles() {
+        for (const p of particles) {
+          ctx.globalAlpha = Math.max(0, Math.min(1, p.life / Math.min(.4, p.maxLife)));
+          ctx.fillStyle = p.color;
+          ctx.shadowColor = p.color;
+          ctx.shadowBlur = 6;
+          ctx.fillRect(p.x, p.y, p.size, p.size);
+        }
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+      }
+
+      function drawFloaters() {
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "700 14px system-ui, sans-serif";
+        for (const f of floaters) {
+          ctx.globalAlpha = Math.min(1, f.life * 2);
+          ctx.fillStyle = f.color;
+          ctx.shadowColor = f.color;
+          ctx.shadowBlur = 10;
+          ctx.fillText(f.text, f.x, f.y);
+        }
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+      }
+
+      function frame(time) {
+        const dt = Math.min(.034, Math.max(0, (time - lastTime) / 1000 || 0));
+        lastTime = time;
+        update(dt);
+        draw();
+        requestAnimationFrame(frame);
+      }
+
+      // ---------- 轻量合成音效，不加载任何外部资源 ----------
+      function ensureAudio() {
+        if (!audioEnabled) return null;
+        if (!audioContext) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) audioContext = new AudioCtx();
+        }
+        if (audioContext?.state === "suspended") audioContext.resume().catch(() => {});
+        return audioContext;
+      }
+
+      function tone(frequency, duration, volume = .035, type = "sine", delay = 0) {
+        const audio = ensureAudio();
+        if (!audio) return;
+        const start = audio.currentTime + delay;
+        const oscillator = audio.createOscillator();
+        const gain = audio.createGain();
+        oscillator.type = type;
+        oscillator.frequency.setValueAtTime(frequency, start);
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(volume, start + .012);
+        gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
+        oscillator.connect(gain).connect(audio.destination);
+        oscillator.start(start);
+        oscillator.stop(start + duration + .02);
+      }
+
+      function playDropSound(level) { tone(180 + level * 4, .12, .04, "triangle"); }
+      function playPerfectSound(streak) {
+        tone(520 + Math.min(streak, 6) * 45, .18, .035, "sine");
+        tone(780 + Math.min(streak, 6) * 55, .2, .025, "sine", .055);
+      }
+      function playFailSound() {
+        tone(180, .35, .05, "sawtooth");
+        tone(105, .45, .035, "triangle", .12);
+      }
+      function playWinSound() {
+        [523, 659, 784, 1047].forEach((note, i) => tone(note, .35, .035, "sine", i * .11));
+      }
+
+      // ---------- 触屏、鼠标与键盘操作 ----------
+      canvas.addEventListener("pointerdown", event => {
+        event.preventDefault();
+        dropBlock();
+      });
+      pauseButton.addEventListener("click", togglePause);
+      secondaryButton.addEventListener("click", resetGame);
+      soundButton.addEventListener("click", () => {
+        audioEnabled = !audioEnabled;
+        soundButton.classList.toggle("muted", !audioEnabled);
+        soundButton.setAttribute("aria-label", audioEnabled ? "关闭音效" : "开启音效");
+        soundButton.style.opacity = audioEnabled ? "1" : ".6";
+        if (audioEnabled) { ensureAudio(); tone(660, .1); }
+      });
+
+      document.addEventListener("keydown", event => {
+        if (event.repeat) return;
+        if (event.code === "Space" || event.code === "Enter") {
+          if (state === "playing") { event.preventDefault(); dropBlock(); }
+        } else if (event.code === "KeyP" || event.code === "Escape") {
+          event.preventDefault();
+          togglePause();
+        } else if (event.code === "KeyR") {
+          event.preventDefault();
+          resetGame();
+        }
+      });
+
+      // 禁止移动端双击缩放、双指缩放和橡皮筋滚动。
+      document.addEventListener("dblclick", event => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", event => event.preventDefault(), { passive: false });
+      document.addEventListener("touchmove", event => event.preventDefault(), { passive: false });
+      canvas.addEventListener("contextmenu", event => event.preventDefault());
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && state === "playing") togglePause();
+      });
+      window.addEventListener("resize", resize);
+      if (window.ResizeObserver) new ResizeObserver(resize).observe(app);
+
+      bestEl.textContent = best;
+      resize();
+      resetGame();
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>
