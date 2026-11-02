@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070a16">
+  <title>点格棋 · 霓虹双人版</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070a16;
+      --panel: rgba(16, 22, 43, 0.78);
+      --line: rgba(151, 174, 235, 0.14);
+      --text: #edf3ff;
+      --muted: #8492b5;
+      --p1: #52f7e8;
+      --p2: #ff62d4;
+      --turn: var(--p1);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(45, 109, 154, 0.2), transparent 34%),
+        radial-gradient(circle at 90% 88%, rgba(142, 45, 135, 0.17), transparent 38%),
+        var(--bg);
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.22;
+      background-image:
+        linear-gradient(rgba(115, 142, 204, 0.09) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(115, 142, 204, 0.09) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: linear-gradient(to bottom, black, transparent 72%);
+      -webkit-mask-image: linear-gradient(to bottom, black, transparent 72%);
+    }
+
+    button {
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    button:focus-visible,
+    canvas:focus-visible {
+      outline: 2px solid var(--turn);
+      outline-offset: 3px;
+    }
+
+    button:disabled {
+      cursor: default;
+      opacity: 0.4;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+      max-width: 540px;
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: calc(12px + env(safe-area-inset-top)) 14px calc(12px + env(safe-area-inset-bottom));
+    }
+
+    /* 顶部标题与操作 */
+    .topbar {
+      display: flex;
+      flex: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      gap: 10px;
+    }
+
+    .brand-mark {
+      display: grid;
+      flex: none;
+      grid-template-columns: repeat(2, 6px);
+      gap: 5px;
+      padding: 10px;
+      border: 1px solid rgba(82, 247, 232, 0.25);
+      border-radius: 12px;
+      background: rgba(82, 247, 232, 0.06);
+      box-shadow: inset 0 0 14px rgba(82, 247, 232, 0.06);
+      transform: rotate(45deg);
+    }
+
+    .brand-mark i {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--p1);
+      box-shadow: 0 0 8px var(--p1);
+    }
+
+    .brand-mark i:nth-child(2),
+    .brand-mark i:nth-child(3) {
+      background: var(--p2);
+      box-shadow: 0 0 8px var(--p2);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(22px, 6vw, 29px);
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: 0.08em;
+    }
+
+    .brand p {
+      margin: 5px 0 0;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.2;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .brand p strong {
+      color: #b8c8eb;
+      font-weight: 700;
+    }
+
+    .actions {
+      display: flex;
+      flex: none;
+      gap: 7px;
+    }
+
+    .icon-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 48px;
+      height: 40px;
+      padding: 0 10px;
+      gap: 5px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(19, 26, 48, 0.72);
+      color: #aebbd8;
+      font-size: 12px;
+      transition: border-color 160ms ease, color 160ms ease, transform 160ms ease;
+    }
+
+    .icon-button:active {
+      transform: scale(0.95);
+    }
+
+    .btn-icon {
+      color: var(--turn);
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    /* 双方计分板 */
+    .scoreboard {
+      display: grid;
+      flex: none;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .player-card {
+      --player: var(--p1);
+      position: relative;
+      min-width: 0;
+      padding: 10px 13px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(20, 28, 52, 0.92), rgba(12, 17, 35, 0.82));
+      transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+    }
+
+    .player-card.p2 {
+      --player: var(--p2);
+    }
+
+    .player-card::after {
+      content: "";
+      position: absolute;
+      right: -20px;
+      bottom: -35px;
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: var(--player);
+      opacity: 0;
+      filter: blur(35px);
+      transition: opacity 200ms ease;
+    }
+
+    .player-card.active {
+      border-color: color-mix(in srgb, var(--player) 48%, transparent);
+      box-shadow: 0 0 22px color-mix(in srgb, var(--player) 10%, transparent), inset 0 0 20px rgba(255, 255, 255, 0.015);
+      transform: translateY(-1px);
+    }
+
+    .player-card.active::after {
+      opacity: 0.12;
+    }
+
+    .player-head {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #b0bdd9;
+      font-size: 12px;
+    }
+
+    .player-dot {
+      flex: none;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--player);
+      box-shadow: 0 0 9px var(--player);
+    }
+
+    .turn-tag {
+      margin-left: auto;
+      color: var(--player);
+      font-size: 10px;
+      opacity: 0;
+      transition: opacity 180ms ease;
+    }
+
+    .player-card.active .turn-tag {
+      opacity: 1;
+    }
+
+    .score-line {
+      display: flex;
+      align-items: baseline;
+      margin-top: 2px;
+      gap: 5px;
+    }
+
+    .score-line strong {
+      display: inline-block;
+      color: var(--player);
+      font-size: 29px;
+      font-weight: 800;
+      line-height: 1.1;
+      text-shadow: 0 0 15px color-mix(in srgb, var(--player) 35%, transparent);
+    }
+
+    .score-line span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .score-line strong.bump {
+      animation: score-bump 300ms ease;
+    }
+
+    @keyframes score-bump {
+      45% { transform: scale(1.35); }
+    }
+
+    /* 棋盘区域：由 JS 计算正方形画布尺寸 */
+    .board-stage {
+      display: flex;
+      flex: 1 1 0;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    #board {
+      display: block;
+      flex: none;
+      border: 1px solid rgba(133, 164, 227, 0.14);
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at 50% 45%, rgba(29, 44, 79, 0.54), transparent 68%),
+        linear-gradient(145deg, rgba(13, 20, 40, 0.97), rgba(7, 12, 27, 0.98));
+      box-shadow: 0 20px 55px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .game-info {
+      display: flex;
+      flex: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      text-align: center;
+    }
+
+    .status-line {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 20px;
+      gap: 7px;
+      color: #c3cfeb;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--turn);
+      box-shadow: 0 0 9px var(--turn);
+    }
+
+    .tip {
+      margin: 0;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.45;
+    }
+
+    .tip .rule {
+      color: #a3b0cd;
+    }
+
+    /* 暂停与结算弹窗 */
+    .modal {
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(3, 6, 15, 0.76);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      animation: fade-in 180ms ease;
+    }
+
+    .modal-card {
+      --winner: var(--p1);
+      width: min(100%, 360px);
+      padding: 27px 24px 23px;
+      border: 1px solid rgba(154, 179, 235, 0.2);
+      border-radius: 25px;
+      background: linear-gradient(155deg, rgba(23, 31, 57, 0.98), rgba(10, 15, 31, 0.99));
+      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.55), 0 0 45px color-mix(in srgb, var(--winner) 8%, transparent);
+      text-align: center;
+      animation: modal-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .result-mark {
+      display: grid;
+      place-items: center;
+      width: 58px;
+      height: 58px;
+      margin: 0 auto 15px;
+      border: 1px solid color-mix(in srgb, var(--winner) 45%, transparent);
+      border-radius: 18px;
+      background: color-mix(in srgb, var(--winner) 9%, transparent);
+      color: var(--winner);
+      font-size: 27px;
+      box-shadow: 0 0 25px color-mix(in srgb, var(--winner) 15%, transparent);
+      transform: rotate(45deg);
+    }
+
+    .result-mark span {
+      transform: rotate(-45deg);
+    }
+
+    .modal-kicker {
+      margin: 0 0 5px;
+      color: var(--winner);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+    }
+
+    .modal h2 {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.3;
+    }
+
+    .modal-desc {
+      margin: 9px 0 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .final-scores {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      margin-bottom: 14px;
+      gap: 9px;
+    }
+
+    .final-player {
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.025);
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .final-player strong {
+      display: block;
+      margin-top: 2px;
+      color: var(--text);
+      font-size: 24px;
+    }
+
+    .final-player:first-child strong { color: var(--p1); }
+    .final-player:last-child strong { color: var(--p2); }
+
+    .record-notice {
+      min-height: 18px;
+      margin-bottom: 15px;
+      color: #b9c6e3;
+      font-size: 12px;
+    }
+
+    .record-notice.new-record {
+      color: #ffe38a;
+      text-shadow: 0 0 14px rgba(255, 218, 112, 0.25);
+    }
+
+    .modal-actions {
+      display: grid;
+      gap: 9px;
+    }
+
+    .primary-button,
+    .secondary-button {
+      width: 100%;
+      min-height: 48px;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 700;
+      transition: transform 150ms ease, filter 150ms ease;
+    }
+
+    .primary-button {
+      background: linear-gradient(110deg, var(--winner), color-mix(in srgb, var(--winner) 65%, #8b7cff));
+      color: #07101a;
+      box-shadow: 0 8px 25px color-mix(in srgb, var(--winner) 18%, transparent);
+    }
+
+    .secondary-button {
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.035);
+      color: #b4c1dd;
+    }
+
+    .primary-button:active,
+    .secondary-button:active {
+      transform: scale(0.97);
+      filter: brightness(0.9);
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; }
+    }
+
+    @keyframes modal-in {
+      from { opacity: 0; transform: translateY(14px) scale(0.96); }
+    }
+
+    @media (hover: hover) {
+      .icon-button:hover,
+      .secondary-button:hover {
+        border-color: rgba(151, 174, 235, 0.3);
+        color: var(--text);
+      }
+
+      .primary-button:hover { filter: brightness(1.08); }
+    }
+
+    @media (max-height: 650px) {
+      .app { gap: 7px; padding-top: calc(8px + env(safe-area-inset-top)); }
+      .brand-mark { padding: 8px; }
+      .brand p { margin-top: 3px; }
+      .player-card { padding: 7px 12px; }
+      .score-line strong { font-size: 25px; }
+      .game-info { gap: 2px; }
+      .tip { font-size: 9px; }
+      .keyboard-hint { display: none; }
+    }
+
+    @media (max-height: 480px) {
+      .brand p, .tip { display: none; }
+      .player-head { font-size: 10px; }
+      .score-line strong { font-size: 22px; }
+      .icon-button { height: 34px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 1ms !important;
+        transition-duration: 1ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" id="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <div>
+          <h1>点格棋</h1>
+          <p>双人同屏 · 历史最高 <strong id="highScore">0</strong> 格</p>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="icon-button" id="pauseButton" type="button" aria-label="暂停游戏" aria-pressed="false">
+          <span class="btn-icon" id="pauseIcon" aria-hidden="true">Ⅱ</span><span id="pauseText">暂停</span>
+        </button>
+        <button class="icon-button" id="restartButton" type="button" aria-label="重新开始">
+          <span class="btn-icon" aria-hidden="true">↻</span><span>重开</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="scoreboard" aria-label="双方得分">
+      <article class="player-card p1 active" id="playerCard0">
+        <div class="player-head"><span class="player-dot"></span><span>玩家 1</span><span class="turn-tag">当前回合</span></div>
+        <div class="score-line"><strong id="score0">0</strong><span>格</span></div>
+      </article>
+      <article class="player-card p2" id="playerCard1">
+        <div class="player-head"><span class="player-dot"></span><span>玩家 2</span><span class="turn-tag">当前回合</span></div>
+        <div class="score-line"><strong id="score1">0</strong><span>格</span></div>
+      </article>
+    </section>
+
+    <section class="board-stage" id="boardStage" aria-label="游戏区域">
+      <canvas id="board" tabindex="0" role="application" aria-label="点格棋棋盘。轻点两个相邻点或滑动连线；也可使用方向键移动，回车选点。">
+        你的浏览器不支持画布，请使用新版浏览器。
+      </canvas>
+    </section>
+
+    <footer class="game-info">
+      <div class="status-line"><span class="status-dot"></span><span id="statusText" aria-live="polite">玩家 1 先手，请连接相邻点</span></div>
+      <p class="tip"><span class="rule">轻点两个相邻点，或从一点滑向另一点 · 围成一格得 1 分并继续连线</span><span class="keyboard-hint"> · 键盘：方向键 + 回车，P 暂停</span></p>
+    </footer>
+  </main>
+
+  <div class="modal" id="pauseModal" hidden role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+    <div class="modal-card">
+      <div class="result-mark"><span>Ⅱ</span></div>
+      <p class="modal-kicker">稍作休息</p>
+      <h2 id="pauseTitle">游戏暂停</h2>
+      <p class="modal-desc">棋盘已为你保留，准备好后继续这场霓虹对决。</p>
+      <div class="modal-actions">
+        <button class="primary-button" id="resumeButton" type="button">继续游戏</button>
+        <button class="secondary-button" id="pauseRestartButton" type="button">重新开始</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="endModal" hidden role="dialog" aria-modal="true" aria-labelledby="endTitle">
+    <div class="modal-card" id="endCard">
+      <div class="result-mark"><span id="resultMark">★</span></div>
+      <p class="modal-kicker">本局结束</p>
+      <h2 id="endTitle">玩家 1 获胜！</h2>
+      <p class="modal-desc" id="endDescription"></p>
+      <div class="final-scores">
+        <div class="final-player">玩家 1<strong id="finalScore0">0 格</strong></div>
+        <div class="final-player">玩家 2<strong id="finalScore1">0 格</strong></div>
+      </div>
+      <div class="record-notice" id="recordNotice"></div>
+      <button class="primary-button" id="playAgainButton" type="button">再来一局 ↻</button>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // 5 × 5 个点，共 16 个可占领方格。
+      const DOTS = 5;
+      const BOXES = DOTS - 1;
+      const TOTAL_EDGES = 2 * DOTS * (DOTS - 1);
+      const STORAGE_KEY = "neon-dots-boxes-high-score-v1";
+      const COLORS = [
+        { hex: "#52f7e8", rgb: "82,247,232" },
+        { hex: "#ff62d4", rgb: "255,98,212" }
+      ];
+
+      const canvas = document.getElementById("board");
+      const ctx = canvas.getContext("2d");
+      const stage = document.getElementById("boardStage");
+      const statusText = document.getElementById("statusText");
+      const pauseButton = document.getElementById("pauseButton");
+      const pauseModal = document.getElementById("pauseModal");
+      const endModal = document.getElementById("endModal");
+      const scoreElements = [document.getElementById("score0"), document.getElementById("score1")];
+      const playerCards = [document.getElementById("playerCard0"), document.getElementById("playerCard1")];
+
+      const view = { size: 0, pad: 0, gap: 0, dotRadius: 6, hitRadius: 24, dpr: 1 };
+      const state = {
+        edges: new Map(),
+        boxes: Array(BOXES * BOXES).fill(null),
+        scores: [0, 0],
+        current: 0,
+        selected: null,
+        hovered: null,
+        focused: { r: 0, c: 0 },
+        keyboardActive: false,
+        pointer: null,
+        particles: [],
+        paused: false,
+        over: false,
+        recordBaseline: 0
+      };
+
+      let highScore = loadHighScore();
+      let endTimer = null;
+      state.recordBaseline = highScore;
+
+      // localStorage 在隐私模式下可能不可用，读写均需兜底。
+      function loadHighScore() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(STORAGE_KEY), 10);
+          return Number.isFinite(value) && value >= 0 ? value : 0;
+        } catch (_) {
+          return 0;
+        }
+      }
+
+      function saveHighScore() {
+        const best = Math.max(state.scores[0], state.scores[1]);
+        if (best <= highScore) return;
+        highScore = best;
+        try {
+          localStorage.setItem(STORAGE_KEY, String(highScore));
+        } catch (_) {
+          // 无法持久化时仍保留本次页面中的纪录。
+        }
+      }
+
+      function setStatus(text) {
+        statusText.textContent = text;
+      }
+
+      function defaultStatus() {
+        setStatus(`玩家 ${state.current + 1} 回合，请连接相邻点`);
+      }
+
+      function updateUI() {
+        scoreElements.forEach((element, index) => {
+          element.textContent = state.scores[index];
+          playerCards[index].classList.toggle("active", state.current === index && !state.over);
+          playerCards[index].setAttribute("aria-label", `玩家 ${index + 1}，${state.scores[index]} 格`);
+        });
+        document.getElementById("highScore").textContent = highScore;
+        document.documentElement.style.setProperty("--turn", COLORS[state.current].hex);
+        pauseButton.disabled = state.over;
+      }
+
+      function bumpScore(player) {
+        const element = scoreElements[player];
+        element.classList.remove("bump");
+        void element.offsetWidth;
+        element.classList.add("bump");
+      }
+
+      // 边采用规范键，确保从不同方向连接仍指向同一条边。
+      function edgeKey(a, b) {
+        if (a.r === b.r) return `h:${a.r}:${Math.min(a.c, b.c)}`;
+        return `v:${Math.min(a.r, b.r)}:${a.c}`;
+      }
+
+      function isAdjacent(a, b) {
+        return Math.abs(a.r - b.r) + Math.abs(a.c - b.c) === 1;
+      }
+
+      function sameDot(a, b) {
+        return Boolean(a && b && a.r === b.r && a.c === b.c);
+      }
+
+      function hasFreeEdge(dot) {
+        const candidates = [
+          { r: dot.r - 1, c: dot.c }, { r: dot.r + 1, c: dot.c },
+          { r: dot.r, c: dot.c - 1 }, { r: dot.r, c: dot.c + 1 }
+        ];
+        return candidates.some(next =>
+          next.r >= 0 && next.r < DOTS && next.c >= 0 && next.c < DOTS &&
+          !state.edges.has(edgeKey(dot, next))
+        );
+      }
+
+      function pointFor(dot) {
+        return { x: view.pad + dot.c * view.gap, y: view.pad + dot.r * view.gap };
+      }
+
+      function boxEdges(row, col) {
+        return [
+          `h:${row}:${col}`, `h:${row + 1}:${col}`,
+          `v:${row}:${col}`, `v:${row}:${col + 1}`
+        ];
+      }
+
+      // 点击选点：再次点击已选点可取消，点击非相邻点则切换起点。
+      function chooseDot(dot) {
+        if (state.paused || state.over) return;
+        state.focused = { ...dot };
+
+        if (!state.selected) {
+          if (!hasFreeEdge(dot)) {
+            setStatus("这个点已连满，请选择其他点");
+            return;
+          }
+          state.selected = { ...dot };
+          setStatus(`已选起点 · 玩家 ${state.current + 1} 请选择相邻点`);
+          return;
+        }
+
+        if (sameDot(state.selected, dot)) {
+          state.selected = null;
+          defaultStatus();
+          return;
+        }
+
+        if (isAdjacent(state.selected, dot)) {
+          if (!makeMove(state.selected, dot)) {
+            setStatus("这条线已经存在，换一条试试");
+          }
+          return;
+        }
+
+        state.selected = hasFreeEdge(dot) ? { ...dot } : null;
+        setStatus(state.selected ? "已切换起点 · 只能连接相邻点" : "这个点已连满，请选择其他点");
+      }
+
+      function makeMove(a, b) {
+        if (state.paused || state.over || !isAdjacent(a, b)) return false;
+        const key = edgeKey(a, b);
+        if (state.edges.has(key)) return false;
+
+        const player = state.current;
+        state.edges.set(key, { player, a: { ...a }, b: { ...b }, time: performance.now() });
+        state.selected = null;
+
+        // 新边最多同时闭合两个方格；圈地成功后本玩家继续行动。
+        const completed = [];
+        for (let row = 0; row < BOXES; row++) {
+          for (let col = 0; col < BOXES; col++) {
+            const index = row * BOXES + col;
+            if (state.boxes[index] === null && boxEdges(row, col).every(edge => state.edges.has(edge))) {
+              state.boxes[index] = { owner: player, time: performance.now() };
+              completed.push({ row, col });
+            }
+          }
+        }
+
+        if (completed.length) {
+          state.scores[player] += completed.length;
+          completed.forEach(spawnBoxParticles);
+          bumpScore(player);
+          saveHighScore();
+          if (navigator.vibrate) navigator.vibrate(completed.length > 1 ? [25, 35, 25] : 25);
+        }
+
+        const finished = state.edges.size === TOTAL_EDGES;
+        if (!completed.length && !finished) state.current = 1 - state.current;
+        updateUI();
+
+        if (finished) {
+          finishGame();
+        } else if (completed.length) {
+          setStatus(`漂亮！玩家 ${player + 1} 占领 ${completed.length} 格，继续连线`);
+        } else {
+          defaultStatus();
+        }
+        return true;
+      }
+
+      function spawnBoxParticles(box) {
+        const center = {
+          x: view.pad + (box.col + 0.5) * view.gap,
+          y: view.pad + (box.row + 0.5) * view.gap
+        };
+        for (let i = 0; i < 13; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          state.particles.push({
+            x: center.x, y: center.y,
+            angle, speed: 35 + Math.random() * 75,
+            born: performance.now(), life: 520 + Math.random() * 260,
+            color: COLORS[state.current].hex,
+            size: 1.2 + Math.random() * 2
+          });
+        }
+      }
+
+      function finishGame() {
+        state.over = true;
+        state.selected = null;
+        state.pointer = null;
+        saveHighScore();
+        updateUI();
+        setStatus("本局结束 · 棋盘已全部填满");
+
+        const [first, second] = state.scores;
+        const draw = first === second;
+        const winner = first > second ? 0 : 1;
+        const isNewRecord = Math.max(first, second) > state.recordBaseline;
+        const endCard = document.getElementById("endCard");
+        endCard.style.setProperty("--winner", draw ? "#a88bff" : COLORS[winner].hex);
+        document.getElementById("resultMark").textContent = draw ? "＝" : "★";
+        document.getElementById("endTitle").textContent = draw ? "势均力敌，平局！" : `玩家 ${winner + 1} 获胜！`;
+        document.getElementById("endDescription").textContent = draw
+          ? "双方圈地相同，再来一局分出胜负吧。"
+          : `玩家 ${winner + 1} 占领 ${state.scores[winner]} 格，赢得这片霓虹阵地。`;
+        document.getElementById("finalScore0").textContent = `${first} 格`;
+        document.getElementById("finalScore1").textContent = `${second} 格`;
+        const recordNotice = document.getElementById("recordNotice");
+        recordNotice.textContent = isNewRecord ? `✦ 新纪录！单玩家最高 ${highScore} 格` : `历史最高 · ${highScore} 格`;
+        recordNotice.classList.toggle("new-record", isNewRecord);
+
+        clearTimeout(endTimer);
+        endTimer = setTimeout(() => {
+          endModal.hidden = false;
+          document.getElementById("playAgainButton").focus({ preventScroll: true });
+        }, 650);
+      }
+
+      function restartGame() {
+        clearTimeout(endTimer);
+        state.edges.clear();
+        state.boxes.fill(null);
+        state.scores = [0, 0];
+        state.current = 0;
+        state.selected = null;
+        state.hovered = null;
+        state.focused = { r: 0, c: 0 };
+        state.pointer = null;
+        state.particles = [];
+        state.paused = false;
+        state.over = false;
+        state.recordBaseline = highScore;
+        pauseModal.hidden = true;
+        endModal.hidden = true;
+        pauseButton.setAttribute("aria-pressed", "false");
+        pauseButton.setAttribute("aria-label", "暂停游戏");
+        document.getElementById("pauseIcon").textContent = "Ⅱ";
+        document.getElementById("pauseText").textContent = "暂停";
+        updateUI();
+        setStatus("玩家 1 先手，请连接相邻点");
+      }
+
+      function togglePause(force) {
+        if (state.over) return;
+        const next = typeof force === "boolean" ? force : !state.paused;
+        if (next === state.paused) return;
+        state.paused = next;
+        pauseModal.hidden = !next;
+        pauseButton.setAttribute("aria-pressed", String(next));
+        pauseButton.setAttribute("aria-label", next ? "继续游戏" : "暂停游戏");
+        document.getElementById("pauseIcon").textContent = next ? "▶" : "Ⅱ";
+        document.getElementById("pauseText").textContent = next ? "继续" : "暂停";
+        if (next) {
+          setStatus("游戏已暂停");
+          document.getElementById("resumeButton").focus({ preventScroll: true });
+        } else {
+          defaultStatus();
+          pauseButton.focus({ preventScroll: true });
+        }
+      }
+
+      // 根据剩余空间调整画布，避免手机横竖屏出现滚动条。
+      function resizeCanvas() {
+        const rect = stage.getBoundingClientRect();
+        const size = Math.floor(Math.min(rect.width, rect.height));
+        if (size <= 0) return;
+        view.size = size;
+        view.dpr = Math.min(window.devicePixelRatio || 1, 2);
+        view.pad = Math.max(29, size * 0.115);
+        view.gap = (size - view.pad * 2) / (DOTS - 1);
+        view.dotRadius = Math.max(4, Math.min(8, view.gap * 0.105));
+        view.hitRadius = Math.min(Math.max(21, view.gap * 0.4), view.gap * 0.48);
+        canvas.style.width = `${size}px`;
+        canvas.style.height = `${size}px`;
+        canvas.width = Math.round(size * view.dpr);
+        canvas.height = Math.round(size * view.dpr);
+        ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+      }
+
+      function nearestDot(position, radius = view.hitRadius) {
+        let nearest = null;
+        let best = radius * radius;
+        for (let r = 0; r < DOTS; r++) {
+          for (let c = 0; c < DOTS; c++) {
+            const point = pointFor({ r, c });
+            const distance = (point.x - position.x) ** 2 + (point.y - position.y) ** 2;
+            if (distance <= best) {
+              best = distance;
+              nearest = { r, c };
+            }
+          }
+        }
+        return nearest;
+      }
+
+      function pointerPosition(event) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: (event.clientX - rect.left) * view.size / rect.width,
+          y: (event.clientY - rect.top) * view.size / rect.height
+        };
+      }
+
+      function drawLine(a, b, color, width, alpha = 1, progress = 1) {
+        const start = pointFor(a);
+        const end = pointFor(b);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.lineCap = "round";
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 11;
+        ctx.beginPath();
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(start.x + (end.x - start.x) * progress, start.y + (end.y - start.y) * progress);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawBoard(time) {
+        if (!view.size) return;
+        ctx.clearRect(0, 0, view.size, view.size);
+
+        // 已占领方格使用双方各自的霓虹色，并显示归属编号。
+        for (let row = 0; row < BOXES; row++) {
+          for (let col = 0; col < BOXES; col++) {
+            const box = state.boxes[row * BOXES + col];
+            if (!box) continue;
+            const color = COLORS[box.owner];
+            const progress = Math.min(1, (time - box.time) / 260);
+            const scale = 0.75 + 0.25 * (1 - Math.pow(1 - progress, 3));
+            const centerX = view.pad + (col + 0.5) * view.gap;
+            const centerY = view.pad + (row + 0.5) * view.gap;
+            const side = (view.gap - 8) * scale;
+            ctx.save();
+            ctx.fillStyle = `rgba(${color.rgb},0.13)`;
+            ctx.strokeStyle = `rgba(${color.rgb},0.28)`;
+            ctx.lineWidth = 1;
+            ctx.fillRect(centerX - side / 2, centerY - side / 2, side, side);
+            ctx.strokeRect(centerX - side / 2, centerY - side / 2, side, side);
+            ctx.fillStyle = `rgba(${color.rgb},0.48)`;
+            ctx.font = `700 ${Math.max(10, view.gap * 0.2)}px system-ui`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(String(box.owner + 1), centerX, centerY + 1);
+            ctx.restore();
+          }
+        }
+
+        // 先画暗色参考线，让尚未连接的边也清晰可辨。
+        ctx.save();
+        ctx.strokeStyle = "rgba(126,151,211,0.16)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 6]);
+        for (let r = 0; r < DOTS; r++) {
+          for (let c = 0; c < DOTS; c++) {
+            if (c < DOTS - 1 && !state.edges.has(`h:${r}:${c}`)) {
+              const a = pointFor({ r, c });
+              const b = pointFor({ r, c: c + 1 });
+              ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+            }
+            if (r < DOTS - 1 && !state.edges.has(`v:${r}:${c}`)) {
+              const a = pointFor({ r, c });
+              const b = pointFor({ r: r + 1, c });
+              ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+            }
+          }
+        }
+        ctx.restore();
+
+        state.edges.forEach(edge => {
+          const progress = Math.min(1, (time - edge.time) / 210);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          drawLine(edge.a, edge.b, COLORS[edge.player].hex, Math.max(3.5, view.gap * 0.072), 0.95, eased);
+        });
+
+        // 拖动时显示实时预览；靠近合法相邻点后自动吸附。
+        const pointer = state.pointer;
+        if (pointer && pointer.startDot && pointer.moved && !state.paused && !state.over) {
+          const target = nearestDot(pointer.current);
+          const valid = target && isAdjacent(pointer.startDot, target) && !state.edges.has(edgeKey(pointer.startDot, target));
+          const end = valid ? pointFor(target) : pointer.current;
+          const start = pointFor(pointer.startDot);
+          ctx.save();
+          ctx.strokeStyle = COLORS[state.current].hex;
+          ctx.globalAlpha = valid ? 0.75 : 0.28;
+          ctx.lineWidth = 2;
+          ctx.lineCap = "round";
+          ctx.setLineDash([5, 6]);
+          ctx.beginPath(); ctx.moveTo(start.x, start.y); ctx.lineTo(end.x, end.y); ctx.stroke();
+          ctx.restore();
+        }
+
+        // 圈地粒子仅作短时反馈，不参与游戏逻辑。
+        state.particles = state.particles.filter(particle => time - particle.born < particle.life);
+        state.particles.forEach(particle => {
+          const elapsed = time - particle.born;
+          const seconds = elapsed / 1000;
+          const alpha = 1 - elapsed / particle.life;
+          const x = particle.x + Math.cos(particle.angle) * particle.speed * seconds;
+          const y = particle.y + Math.sin(particle.angle) * particle.speed * seconds + 55 * seconds * seconds;
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = particle.color;
+          ctx.shadowColor = particle.color;
+          ctx.shadowBlur = 6;
+          ctx.beginPath(); ctx.arc(x, y, particle.size, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+        });
+
+        // 最后绘制圆点、合法目标提示与键盘焦点。
+        for (let r = 0; r < DOTS; r++) {
+          for (let c = 0; c < DOTS; c++) {
+            const dot = { r, c };
+            const point = pointFor(dot);
+            const selected = sameDot(state.selected, dot);
+            const legal = state.selected && isAdjacent(state.selected, dot) && !state.edges.has(edgeKey(state.selected, dot));
+            const hovered = sameDot(state.hovered, dot);
+            const focused = state.keyboardActive && sameDot(state.focused, dot);
+            const color = COLORS[state.current];
+
+            if (legal || selected || hovered) {
+              const pulse = 1.5 + Math.sin(time / 170) * 1.5;
+              ctx.save();
+              ctx.strokeStyle = `rgba(${color.rgb},${selected ? 0.8 : 0.42})`;
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.arc(point.x, point.y, view.dotRadius + 5 + (selected ? pulse : 0), 0, Math.PI * 2);
+              ctx.stroke();
+              ctx.restore();
+            }
+
+            ctx.save();
+            ctx.fillStyle = selected || legal ? color.hex : hovered ? "#eef4ff" : "#b7c7ea";
+            ctx.shadowColor = selected || legal ? color.hex : "#7997dd";
+            ctx.shadowBlur = selected || legal || hovered ? 14 : 7;
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, selected ? view.dotRadius * 1.18 : view.dotRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "rgba(255,255,255,0.72)";
+            ctx.shadowBlur = 0;
+            ctx.beginPath();
+            ctx.arc(point.x - view.dotRadius * 0.25, point.y - view.dotRadius * 0.28, view.dotRadius * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            if (focused) {
+              ctx.save();
+              ctx.strokeStyle = "rgba(238,244,255,0.85)";
+              ctx.lineWidth = 1.5;
+              ctx.setLineDash([3, 3]);
+              ctx.beginPath(); ctx.arc(point.x, point.y, view.dotRadius + 10, 0, Math.PI * 2); ctx.stroke();
+              ctx.restore();
+            }
+          }
+        }
+      }
+
+      function animationLoop(time) {
+        drawBoard(time);
+        requestAnimationFrame(animationLoop);
+      }
+
+      // Pointer Events 同时覆盖触屏、鼠标与触控笔。
+      canvas.addEventListener("pointerdown", event => {
+        if (state.paused || state.over || state.pointer) return;
+        event.preventDefault();
+        state.keyboardActive = false;
+        canvas.focus({ preventScroll: true });
+        const position = pointerPosition(event);
+        const startDot = nearestDot(position);
+        state.pointer = { id: event.pointerId, start: position, current: position, startDot, moved: false };
+        try { canvas.setPointerCapture(event.pointerId); } catch (_) { /* 旧浏览器无需捕获 */ }
+      });
+
+      canvas.addEventListener("pointermove", event => {
+        const position = pointerPosition(event);
+        if (!state.pointer) {
+          if (event.pointerType === "mouse") state.hovered = nearestDot(position);
+          return;
+        }
+        if (state.pointer.id !== event.pointerId) return;
+        event.preventDefault();
+        state.pointer.current = position;
+        const distance = Math.hypot(position.x - state.pointer.start.x, position.y - state.pointer.start.y);
+        if (distance > 9) state.pointer.moved = true;
+      });
+
+      function finishPointer(event, cancelled = false) {
+        const pointer = state.pointer;
+        if (!pointer || pointer.id !== event.pointerId) return;
+        event.preventDefault();
+        if (!cancelled && !state.paused && !state.over) {
+          const position = pointerPosition(event);
+          const endDot = nearestDot(position);
+          if (pointer.startDot && pointer.moved) {
+            if (endDot && isAdjacent(pointer.startDot, endDot)) {
+              if (!makeMove(pointer.startDot, endDot)) setStatus("这条线已经存在，换一条试试");
+            } else if (!sameDot(pointer.startDot, endDot)) {
+              state.selected = null;
+              setStatus("只能连接上下左右相邻的点");
+            }
+          } else if (pointer.startDot) {
+            chooseDot(pointer.startDot);
+          } else {
+            state.selected = null;
+            defaultStatus();
+          }
+        }
+        state.pointer = null;
+        try { canvas.releasePointerCapture(event.pointerId); } catch (_) { /* 已自动释放 */ }
+      }
+
+      canvas.addEventListener("pointerup", event => finishPointer(event));
+      canvas.addEventListener("pointercancel", event => finishPointer(event, true));
+      canvas.addEventListener("pointerleave", () => { if (!state.pointer) state.hovered = null; });
+      canvas.addEventListener("contextmenu", event => event.preventDefault());
+
+      // 键盘：方向键移动焦点，回车或空格选点。
+      canvas.addEventListener("keydown", event => {
+        if (state.paused || state.over) return;
+        const directions = {
+          ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1]
+        };
+        if (directions[event.key]) {
+          event.preventDefault();
+          state.keyboardActive = true;
+          const [dr, dc] = directions[event.key];
+          state.focused = {
+            r: Math.max(0, Math.min(DOTS - 1, state.focused.r + dr)),
+            c: Math.max(0, Math.min(DOTS - 1, state.focused.c + dc))
+          };
+        } else if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          state.keyboardActive = true;
+          chooseDot(state.focused);
+        }
+      });
+
+      document.getElementById("restartButton").addEventListener("click", restartGame);
+      document.getElementById("pauseRestartButton").addEventListener("click", restartGame);
+      document.getElementById("playAgainButton").addEventListener("click", restartGame);
+      document.getElementById("resumeButton").addEventListener("click", () => togglePause(false));
+      pauseButton.addEventListener("click", () => togglePause());
+
+      document.addEventListener("keydown", event => {
+        if (event.repeat) return;
+        if (event.key.toLowerCase() === "p") {
+          event.preventDefault();
+          togglePause();
+        } else if (event.key.toLowerCase() === "r") {
+          event.preventDefault();
+          restartGame();
+        } else if (event.key === "Escape") {
+          if (state.paused) togglePause(false);
+          else if (state.selected) { state.selected = null; defaultStatus(); }
+        }
+
+        // 简易焦点约束，避免弹窗打开时 Tab 落到背景控件。
+        if (event.key === "Tab") {
+          const modal = !endModal.hidden ? endModal : !pauseModal.hidden ? pauseModal : null;
+          if (!modal) return;
+          const buttons = [...modal.querySelectorAll("button:not(:disabled)")];
+          const first = buttons[0];
+          const last = buttons[buttons.length - 1];
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault(); last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault(); first.focus();
+          }
+        }
+      });
+
+      // 禁止双击缩放、双指缩放与页面拖动，按钮仍保留原生点击行为。
+      document.addEventListener("dblclick", event => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", event => event.preventDefault(), { passive: false });
+      document.addEventListener("touchmove", event => event.preventDefault(), { passive: false });
+      let lastTouchEnd = 0;
+      document.addEventListener("touchend", event => {
+        const now = Date.now();
+        if (now - lastTouchEnd < 300) event.preventDefault();
+        lastTouchEnd = now;
+      }, { passive: false });
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && !state.over && !state.paused) togglePause(true);
+      });
+
+      if ("ResizeObserver" in window) {
+        new ResizeObserver(resizeCanvas).observe(stage);
+      } else {
+        window.addEventListener("resize", resizeCanvas);
+      }
+      window.addEventListener("orientationchange", () => setTimeout(resizeCanvas, 100));
+
+      updateUI();
+      resizeCanvas();
+      requestAnimationFrame(animationLoop);
+    })();
+  </script>
+</body>
+</html>

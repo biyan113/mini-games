@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#07091d">
+  <meta name="format-detection" content="telephone=no">
+  <title>霓虹花火 · 烟花小游戏</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --cyan: #72f6ff;
+      --pink: #ff72d2;
+      --violet: #a78bfa;
+      --gold: #ffe29a;
+      --ink: #07091d;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      background: var(--ink);
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      color: #f6f7ff;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    button { font: inherit; }
+    button, canvas { touch-action: none; }
+    [hidden] { display: none !important; }
+
+    #game {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      isolation: isolate;
+      background: #07091d;
+    }
+
+    #sky {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      outline: none;
+      cursor: crosshair;
+    }
+
+    .vignette {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 50% 42%, transparent 35%, rgba(2, 3, 16, .18) 75%, rgba(2, 3, 16, .55) 100%),
+        linear-gradient(180deg, rgba(4, 5, 20, .16), transparent 28%, transparent 76%, rgba(2, 3, 14, .35));
+    }
+
+    .hud {
+      position: absolute;
+      z-index: 4;
+      top: calc(env(safe-area-inset-top, 0px) + 10px);
+      left: 10px;
+      right: 10px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .glass {
+      border: 1px solid rgba(174, 211, 255, .15);
+      background: linear-gradient(145deg, rgba(23, 28, 64, .74), rgba(8, 11, 34, .58));
+      box-shadow: 0 12px 36px rgba(0, 0, 0, .2), inset 0 1px 0 rgba(255, 255, 255, .05);
+      -webkit-backdrop-filter: blur(14px);
+      backdrop-filter: blur(14px);
+    }
+
+    .score-panel {
+      width: 158px;
+      padding: 10px 12px 11px;
+      border-radius: 18px;
+    }
+
+    .brand-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 5px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #dce8ff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      white-space: nowrap;
+    }
+
+    .brand-star {
+      color: var(--cyan);
+      font-size: 15px;
+      line-height: 1;
+      text-shadow: 0 0 12px var(--cyan);
+      animation: breathe 2.8s ease-in-out infinite;
+    }
+
+    .goal-mini {
+      color: #8f99ba;
+      font-size: 9px;
+      white-space: nowrap;
+    }
+
+    .score-line { display: flex; align-items: flex-end; gap: 12px; }
+    .score-block { display: flex; flex-direction: column; }
+    .label { color: #8994b7; font-size: 10px; letter-spacing: .1em; }
+
+    #score {
+      margin-top: -1px;
+      color: #fff;
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 18px rgba(114, 246, 255, .25);
+      transform-origin: left center;
+    }
+
+    .best-block {
+      min-width: 52px;
+      margin-bottom: 2px;
+      padding-left: 10px;
+      border-left: 1px solid rgba(255, 255, 255, .1);
+      color: #8994b7;
+      font-size: 9px;
+      line-height: 1.35;
+    }
+
+    .best-block strong {
+      display: block;
+      color: var(--gold);
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .progress-track {
+      height: 3px;
+      margin-top: 9px;
+      overflow: hidden;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, .08);
+    }
+
+    #progressBar {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cyan), var(--violet), var(--pink));
+      box-shadow: 0 0 10px var(--cyan);
+      transition: width .22s ease-out;
+    }
+
+    .right-controls { display: flex; gap: 7px; pointer-events: auto; }
+
+    .timer-panel {
+      min-width: 69px;
+      height: 64px;
+      padding: 8px 10px;
+      border-radius: 17px;
+      text-align: center;
+    }
+
+    .timer-panel .label { display: block; font-size: 9px; }
+    .timer-line { display: flex; align-items: baseline; justify-content: center; gap: 2px; }
+
+    #time {
+      font-size: 27px;
+      font-weight: 800;
+      line-height: 1.15;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .unit { color: #8994b7; font-size: 10px; }
+    .timer-panel.urgent { border-color: rgba(255, 103, 155, .45); }
+    .timer-panel.urgent #time { color: #ff87ae; text-shadow: 0 0 14px rgba(255, 82, 142, .55); }
+
+    .icon-button {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
+      width: 50px;
+      height: 64px;
+      padding: 0;
+      border-radius: 17px;
+      color: #e9f6ff;
+      cursor: pointer;
+    }
+
+    .icon-button span { font-size: 19px; font-weight: 800; line-height: 1; }
+    .icon-button small { color: #a9b4d2; font-size: 9px; }
+    .icon-button:disabled { opacity: .38; cursor: default; }
+    .icon-button:not(:disabled):active { transform: scale(.95); }
+
+    button:focus-visible, #sky:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    .combo {
+      position: absolute;
+      z-index: 4;
+      top: calc(env(safe-area-inset-top, 0px) + 118px);
+      left: 50%;
+      padding: 7px 14px;
+      border: 1px solid rgba(255, 218, 139, .28);
+      border-radius: 99px;
+      color: var(--gold);
+      background: rgba(24, 17, 48, .68);
+      box-shadow: 0 0 24px rgba(255, 183, 112, .12);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .05em;
+      pointer-events: none;
+      transform: translateX(-50%);
+      animation: combo-in .2s ease-out;
+      white-space: nowrap;
+    }
+
+    .play-tip {
+      position: absolute;
+      z-index: 3;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+      left: 50%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: max-content;
+      max-width: calc(100% - 32px);
+      padding: 9px 14px;
+      border: 1px solid rgba(255, 255, 255, .08);
+      border-radius: 99px;
+      color: #b4bfd9;
+      background: rgba(7, 9, 29, .48);
+      font-size: 11px;
+      letter-spacing: .04em;
+      pointer-events: none;
+      transform: translateX(-50%);
+      transition: opacity .5s ease;
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+    }
+
+    .play-tip::before {
+      content: "";
+      flex: 0 0 auto;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 10px var(--cyan);
+    }
+
+    .play-tip.quiet { opacity: .45; }
+
+    .keyboard-help {
+      position: absolute;
+      z-index: 3;
+      right: 16px;
+      bottom: 14px;
+      display: none;
+      color: rgba(179, 192, 222, .52);
+      font-size: 10px;
+      pointer-events: none;
+    }
+
+    .modal-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      display: grid;
+      place-items: center;
+      padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+      background: rgba(3, 4, 18, .58);
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+    }
+
+    .dialog {
+      position: relative;
+      width: min(100%, 390px);
+      max-height: calc(100dvh - 32px);
+      padding: 28px 24px 24px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      border: 1px solid rgba(172, 206, 255, .2);
+      border-radius: 28px;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(102, 84, 190, .2), transparent 44%),
+        linear-gradient(155deg, rgba(23, 28, 65, .96), rgba(8, 10, 31, .97));
+      box-shadow: 0 30px 90px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .07), 0 0 60px rgba(91, 75, 180, .09);
+      text-align: center;
+      scrollbar-width: none;
+      animation: dialog-in .32s cubic-bezier(.2, .8, .2, 1);
+    }
+
+    .dialog::-webkit-scrollbar { display: none; }
+
+    .emblem {
+      display: grid;
+      place-items: center;
+      width: 66px;
+      height: 66px;
+      margin: 0 auto 15px;
+      border: 1px solid rgba(132, 239, 255, .28);
+      border-radius: 22px;
+      color: #d9fbff;
+      background: linear-gradient(145deg, rgba(114, 246, 255, .13), rgba(167, 139, 250, .12));
+      box-shadow: inset 0 0 24px rgba(114, 246, 255, .05), 0 0 32px rgba(114, 246, 255, .08);
+      font-size: 34px;
+      text-shadow: 0 0 18px var(--cyan);
+      transform: rotate(4deg);
+    }
+
+    .eyebrow {
+      margin: 0 0 7px;
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .24em;
+      text-transform: uppercase;
+    }
+
+    h1, h2 { margin: 0; color: #f8f8ff; letter-spacing: .02em; }
+    h1 { font-size: clamp(26px, 7vw, 34px); }
+    h2 { font-size: 27px; }
+
+    .description {
+      margin: 12px auto 18px;
+      color: #aab5d2;
+      font-size: 13px;
+      line-height: 1.75;
+    }
+
+    .rules {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 0 0 18px;
+    }
+
+    .rule {
+      padding: 11px 5px 10px;
+      border: 1px solid rgba(255, 255, 255, .07);
+      border-radius: 15px;
+      background: rgba(255, 255, 255, .025);
+    }
+
+    .rule-icon { display: block; margin-bottom: 5px; color: var(--pink); font-size: 21px; line-height: 1; }
+    .rule:nth-child(2) .rule-icon { color: var(--gold); }
+    .rule:nth-child(3) .rule-icon { color: var(--cyan); }
+    .rule strong { display: block; margin-bottom: 3px; color: #e5eaff; font-size: 11px; }
+    .rule small { display: block; color: #7f8aaa; font-size: 9px; line-height: 1.4; }
+
+    .goal-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      padding: 11px 14px;
+      border: 1px solid rgba(255, 222, 151, .12);
+      border-radius: 14px;
+      color: #aeb8d2;
+      background: rgba(255, 221, 147, .035);
+      font-size: 12px;
+    }
+
+    .goal-banner strong { color: var(--gold); font-size: 18px; font-variant-numeric: tabular-nums; }
+
+    .primary-button, .secondary-button {
+      width: 100%;
+      min-height: 52px;
+      border-radius: 16px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      cursor: pointer;
+    }
+
+    .primary-button {
+      border: 0;
+      color: #071225;
+      background: linear-gradient(105deg, #82f8ff, #a6b4ff 54%, #f69bdd);
+      box-shadow: 0 10px 28px rgba(105, 211, 255, .17), inset 0 1px 0 rgba(255, 255, 255, .65);
+    }
+
+    .primary-button:active, .secondary-button:active { transform: scale(.98); }
+
+    .secondary-button {
+      margin-top: 10px;
+      border: 1px solid rgba(255, 255, 255, .12);
+      color: #bac5df;
+      background: rgba(255, 255, 255, .035);
+    }
+
+    .key-note { margin: 12px 0 0; color: #6f7998; font-size: 10px; }
+    .pause-symbol { margin-bottom: 12px; color: var(--cyan); font-size: 42px; text-shadow: 0 0 24px rgba(114, 246, 255, .4); }
+
+    .result-score {
+      margin: 18px 0 14px;
+      padding: 16px;
+      border: 1px solid rgba(255, 255, 255, .07);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, .025);
+    }
+
+    .result-score span { display: block; color: #8e99b9; font-size: 10px; letter-spacing: .14em; }
+    .result-score strong {
+      display: block;
+      margin-top: 2px;
+      color: #fff;
+      font-size: 44px;
+      line-height: 1.15;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 25px rgba(114, 246, 255, .25);
+    }
+
+    .result-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+    .result-stat { padding: 10px; border-radius: 14px; background: rgba(255, 255, 255, .03); }
+    .result-stat span { display: block; color: #8490b0; font-size: 10px; }
+    .result-stat strong { display: block; margin-top: 3px; color: var(--gold); font-size: 18px; }
+
+    .new-best {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 4px 9px;
+      border-radius: 99px;
+      color: #291636;
+      background: var(--gold);
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @keyframes breathe { 50% { opacity: .55; transform: scale(.82) rotate(30deg); } }
+    @keyframes combo-in { from { opacity: 0; transform: translate(-50%, -6px) scale(.9); } }
+    @keyframes dialog-in { from { opacity: 0; transform: translateY(12px) scale(.97); } }
+
+    @media (hover: hover) and (pointer: fine) {
+      .keyboard-help { display: block; }
+      .play-tip { bottom: 22px; left: 16px; transform: none; }
+      .icon-button:not(:disabled):hover, .secondary-button:hover { border-color: rgba(114, 246, 255, .38); }
+      .primary-button:hover { filter: brightness(1.08); }
+    }
+
+    @media (max-width: 340px) {
+      .score-panel { width: 145px; padding-inline: 10px; }
+      .timer-panel { min-width: 62px; padding-inline: 7px; }
+      .icon-button { width: 45px; }
+      .right-controls { gap: 5px; }
+      .goal-mini { display: none; }
+      .dialog { padding-inline: 19px; }
+    }
+
+    @media (max-height: 620px) {
+      .dialog { padding-top: 20px; padding-bottom: 18px; }
+      .emblem { width: 52px; height: 52px; margin-bottom: 10px; font-size: 27px; border-radius: 17px; }
+      .description { margin-block: 8px 12px; line-height: 1.55; }
+      .rules { margin-bottom: 12px; }
+      .rule { padding-block: 8px; }
+      .goal-banner { margin-bottom: 12px; padding-block: 8px; }
+      .result-score { margin-block: 12px 10px; padding: 11px; }
+      .result-score strong { font-size: 36px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main id="game" aria-label="霓虹花火烟花游戏">
+    <canvas id="sky" tabindex="0" role="application" aria-label="夜空游戏区。轻点或点击绽放烟花，也可使用方向键瞄准、空格键燃放。">你的浏览器需要支持 Canvas 才能运行游戏。</canvas>
+    <div class="vignette"></div>
+
+    <header class="hud" aria-label="游戏状态">
+      <section class="score-panel glass">
+        <div class="brand-line">
+          <div class="brand"><span class="brand-star" aria-hidden="true">✦</span>霓虹花火</div>
+          <span class="goal-mini">目标 2,500</span>
+        </div>
+        <div class="score-line">
+          <div class="score-block">
+            <span class="label">得分</span>
+            <strong id="score">0</strong>
+          </div>
+          <div class="best-block">最高分<strong id="best">0</strong></div>
+        </div>
+        <div class="progress-track" role="progressbar" aria-label="目标分数进度" aria-valuemin="0" aria-valuemax="2500" aria-valuenow="0" id="progressTrack">
+          <div id="progressBar"></div>
+        </div>
+      </section>
+
+      <div class="right-controls">
+        <section class="timer-panel glass" id="timerPanel" aria-label="剩余时间">
+          <span class="label">剩余时间</span>
+          <div class="timer-line"><strong id="time">60</strong><span class="unit">秒</span></div>
+        </section>
+        <button class="icon-button glass" id="pauseButton" type="button" aria-label="暂停游戏" disabled>
+          <span aria-hidden="true">Ⅱ</span><small>暂停</small>
+        </button>
+      </div>
+    </header>
+
+    <div class="combo" id="combo" hidden>2 连击 · 得分 ×1.15</div>
+    <div class="play-tip" id="playTip">轻点夜空绽放烟花 · 爆破范围命中星灯</div>
+    <div class="keyboard-help">方向键瞄准 · 空格燃放 · P 暂停</div>
+
+    <div class="modal-layer" id="introModal">
+      <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="introTitle">
+        <div class="emblem" aria-hidden="true">✦</div>
+        <p class="eyebrow">60 秒烟花挑战</p>
+        <h1 id="introTitle">点亮整座夜空</h1>
+        <p class="description">轻点夜空任意位置，让烟花在指尖绽放。<br>用爆破范围捕捉漂浮的星灯，连续命中得分更高！</p>
+        <div class="rules" aria-label="玩法说明">
+          <div class="rule"><span class="rule-icon" aria-hidden="true">◎</span><strong>轻点绽放</strong><small>烟花飞向触点</small></div>
+          <div class="rule"><span class="rule-icon" aria-hidden="true">✧</span><strong>命中星灯</strong><small>越接近中心越高分</small></div>
+          <div class="rule"><span class="rule-icon" aria-hidden="true">∞</span><strong>连续命中</strong><small>连击提升得分倍率</small></div>
+        </div>
+        <div class="goal-banner"><span>本场胜利目标</span><strong>2,500 分</strong></div>
+        <button class="primary-button" id="startButton" type="button">开始燃放</button>
+        <p class="key-note">触屏轻点 · 鼠标点击 · 键盘同样可玩</p>
+      </section>
+    </div>
+
+    <div class="modal-layer" id="pauseModal" hidden>
+      <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+        <div class="pause-symbol" aria-hidden="true">Ⅱ</div>
+        <p class="eyebrow">烟花暂歇</p>
+        <h2 id="pauseTitle">稍作停留</h2>
+        <p class="description" id="pauseDescription">倒计时已暂停，夜空会在这里等你。</p>
+        <button class="primary-button" id="resumeButton" type="button">继续燃放</button>
+        <button class="secondary-button" id="pauseRestartButton" type="button">重新开始</button>
+      </section>
+    </div>
+
+    <div class="modal-layer" id="resultModal" hidden>
+      <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+        <div class="emblem" id="resultIcon" aria-hidden="true">✦</div>
+        <p class="eyebrow" id="resultEyebrow">挑战完成</p>
+        <h2 id="resultTitle">烟花大师！</h2>
+        <p class="description" id="resultMessage">你让整片夜空都亮了起来。</p>
+        <div class="result-score">
+          <span>本场得分</span>
+          <strong id="finalScore">0</strong>
+          <span class="new-best" id="newBest" hidden>新纪录</span>
+        </div>
+        <div class="result-stats">
+          <div class="result-stat"><span>历史最高</span><strong id="finalBest">0</strong></div>
+          <div class="result-stat"><span>烟花命中率</span><strong id="accuracy">0%</strong></div>
+        </div>
+        <button class="primary-button" id="restartButton" type="button">再放一场</button>
+      </section>
+    </div>
+
+    <div class="sr-only" id="announcer" aria-live="polite"></div>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // ---------- 基础配置与页面元素 ----------
+      const GAME_DURATION = 60;
+      const GOAL_SCORE = 2500;
+      const BEST_KEY = 'neon-fireworks-best-v1';
+      const TAU = Math.PI * 2;
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      const canvas = document.getElementById('sky');
+      const ctx = canvas.getContext('2d', { alpha: false });
+      const scoreEl = document.getElementById('score');
+      const bestEl = document.getElementById('best');
+      const timeEl = document.getElementById('time');
+      const timerPanel = document.getElementById('timerPanel');
+      const progressBar = document.getElementById('progressBar');
+      const progressTrack = document.getElementById('progressTrack');
+      const comboEl = document.getElementById('combo');
+      const playTip = document.getElementById('playTip');
+      const pauseButton = document.getElementById('pauseButton');
+      const introModal = document.getElementById('introModal');
+      const pauseModal = document.getElementById('pauseModal');
+      const resultModal = document.getElementById('resultModal');
+      const announcer = document.getElementById('announcer');
+
+      const palettes = [
+        ['#72f6ff', '#77a7ff', '#e5fbff'],
+        ['#ff72d2', '#b98aff', '#ffe0f5'],
+        ['#ffe29a', '#ff9c72', '#fff4cf'],
+        ['#8dffbe', '#62e8e0', '#e2fff2'],
+        ['#b18cff', '#728dff', '#f0e9ff']
+      ];
+
+      let width = 0;
+      let height = 0;
+      let state = 'ready'; // ready / running / paused / won / over
+      let score = 0;
+      let best = loadBest();
+      let previousBest = best;
+      let timeLeft = GAME_DURATION;
+      let combo = 0;
+      let maxCombo = 0;
+      let shots = 0;
+      let successfulShots = 0;
+      let shownSecond = -1;
+      let lastShotAt = 0;
+      let spawnTimer = 0;
+      let visualTime = 0;
+      let lastFrame = performance.now();
+
+      let rockets = [];
+      let particles = [];
+      let bursts = [];
+      let targets = [];
+      let floaters = [];
+      let stars = [];
+      let buildings = [];
+      let skyGradient;
+      let aim = { x: 0, y: 0, visible: false };
+
+      const random = (min, max) => min + Math.random() * (max - min);
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const lerp = (from, to, amount) => from + (to - from) * amount;
+
+      // localStorage 在隐私模式下可能不可用，读写都需兜底。
+      function loadBest() {
+        try {
+          const saved = Number.parseInt(localStorage.getItem(BEST_KEY), 10);
+          return Number.isFinite(saved) && saved > 0 ? saved : 0;
+        } catch (_) {
+          return 0;
+        }
+      }
+
+      function saveBest() {
+        try { localStorage.setItem(BEST_KEY, String(best)); } catch (_) { /* 无存储权限时仅保留本场纪录 */ }
+      }
+
+      // ---------- 画布尺寸与静态夜景 ----------
+      function resizeCanvas() {
+        const oldWidth = width;
+        const oldHeight = height;
+        const rect = canvas.getBoundingClientRect();
+        width = Math.max(1, rect.width);
+        height = Math.max(1, rect.height);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        skyGradient = ctx.createLinearGradient(0, 0, 0, height);
+        skyGradient.addColorStop(0, '#050619');
+        skyGradient.addColorStop(.48, '#11153a');
+        skyGradient.addColorStop(1, '#090b22');
+
+        if (oldWidth && oldHeight) scaleWorld(width / oldWidth, height / oldHeight);
+        aim.x = aim.x ? clamp(aim.x, 20, width - 20) : width / 2;
+        aim.y = aim.y ? clamp(aim.y, 80, height - 60) : height * .42;
+        createScenery();
+      }
+
+      function scaleWorld(scaleX, scaleY) {
+        for (const item of [...particles, ...bursts, ...targets, ...floaters]) {
+          item.x *= scaleX;
+          item.y *= scaleY;
+          if ('px' in item) { item.px *= scaleX; item.py *= scaleY; }
+          if ('baseX' in item) { item.baseX *= scaleX; item.baseY *= scaleY; }
+        }
+        for (const rocket of rockets) {
+          for (const key of ['x', 'sx', 'tx', 'px']) rocket[key] *= scaleX;
+          for (const key of ['y', 'sy', 'ty', 'py']) rocket[key] *= scaleY;
+        }
+      }
+
+      function createScenery() {
+        const starCount = Math.min(190, Math.round(width * height / 6500));
+        stars = Array.from({ length: starCount }, () => ({
+          x: random(0, width),
+          y: random(0, height * .82),
+          radius: random(.35, 1.35),
+          phase: random(0, TAU),
+          speed: random(.45, 1.6),
+          cool: Math.random() > .72
+        }));
+
+        buildings = [];
+        let x = -8;
+        let index = 0;
+        while (x < width + 8) {
+          const buildingWidth = random(28, 62);
+          buildings.push({
+            x,
+            width: buildingWidth,
+            height: random(height * .055, height * .17),
+            index,
+            antenna: Math.random() > .76
+          });
+          x += buildingWidth + random(2, 7);
+          index += 1;
+        }
+      }
+
+      function drawBackground() {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = skyGradient;
+        ctx.fillRect(0, 0, width, height);
+
+        // 月光使用柔和径向渐变，避免遮挡主要游戏区域。
+        const moonX = width * .79;
+        const moonY = height * .25;
+        const glow = ctx.createRadialGradient(moonX, moonY, 0, moonX, moonY, Math.min(125, width * .3));
+        glow.addColorStop(0, 'rgba(157, 180, 255, .10)');
+        glow.addColorStop(.25, 'rgba(132, 151, 237, .045)');
+        glow.addColorStop(1, 'rgba(90, 100, 200, 0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(moonX - 140, moonY - 140, 280, 280);
+        ctx.beginPath();
+        ctx.arc(moonX, moonY, 17, 0, TAU);
+        ctx.fillStyle = 'rgba(214, 224, 255, .13)';
+        ctx.fill();
+
+        for (const star of stars) {
+          const twinkle = .3 + .6 * (.5 + .5 * Math.sin(visualTime * star.speed + star.phase));
+          ctx.globalAlpha = twinkle;
+          ctx.fillStyle = star.cool ? '#a9dfff' : '#e4e5ff';
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, star.radius, 0, TAU);
+          ctx.fill();
+        }
+
+        // 远处城市剪影与稀疏霓虹窗灯。
+        const baseY = height - 19;
+        ctx.globalAlpha = 1;
+        for (const building of buildings) {
+          const top = baseY - building.height;
+          ctx.fillStyle = building.index % 2 ? '#080b20' : '#0a0d26';
+          ctx.fillRect(building.x, top, building.width, building.height);
+          ctx.fillStyle = 'rgba(103, 125, 190, .12)';
+          ctx.fillRect(building.x, top, building.width, 1);
+
+          if (building.antenna) {
+            ctx.strokeStyle = 'rgba(79, 91, 143, .45)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(building.x + building.width * .55, top);
+            ctx.lineTo(building.x + building.width * .55, top - 13);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 102, 172, .65)';
+            ctx.fillRect(building.x + building.width * .55 - 1, top - 14, 2, 2);
+          }
+
+          const columns = Math.max(1, Math.floor(building.width / 13));
+          const rows = Math.max(1, Math.floor(building.height / 17));
+          for (let row = 0; row < rows; row += 1) {
+            for (let column = 0; column < columns; column += 1) {
+              if ((row * 3 + column + building.index) % 4 !== 0) continue;
+              ctx.fillStyle = (row + column) % 3 === 0 ? 'rgba(109, 215, 255, .20)' : 'rgba(255, 218, 145, .16)';
+              ctx.fillRect(building.x + 6 + column * 12, top + 8 + row * 16, 2, 3);
+            }
+          }
+        }
+        ctx.fillStyle = '#050718';
+        ctx.fillRect(0, baseY, width, height - baseY);
+        ctx.fillStyle = 'rgba(105, 122, 201, .10)';
+        ctx.fillRect(0, baseY, width, 1);
+      }
+
+      // ---------- 星灯目标 ----------
+      function createTarget() {
+        const top = Math.min(152, height * .25);
+        const bottom = Math.max(top + 50, height - Math.max(100, height * .15));
+        const margin = Math.min(42, width * .1);
+        const baseX = random(margin, width - margin);
+        const baseY = random(top, bottom);
+        const colors = ['#ffe29a', '#79edff', '#ff9bdb', '#b8a1ff'];
+        return {
+          x: baseX,
+          y: baseY,
+          baseX,
+          baseY,
+          speed: random(8, 18) * (Math.random() < .5 ? -1 : 1),
+          phase: random(0, TAU),
+          age: 0,
+          life: random(8, 12),
+          size: random(12, 16),
+          color: colors[Math.floor(Math.random() * colors.length)]
+        };
+      }
+
+      function updateTargets(dt) {
+        const maxTargets = width < 390 ? 5 : 6;
+        for (let i = 0; i < targets.length; i += 1) {
+          const target = targets[i];
+          target.age += dt;
+          target.baseX += target.speed * dt;
+          if (target.baseX < 24 || target.baseX > width - 24) {
+            target.speed *= -1;
+            target.baseX = clamp(target.baseX, 24, width - 24);
+          }
+          target.x = target.baseX + Math.sin(target.age * .75 + target.phase) * 6;
+          target.y = target.baseY + Math.sin(target.age * 1.25 + target.phase) * 11;
+          if (target.age >= target.life) targets[i] = createTarget();
+        }
+
+        spawnTimer -= dt;
+        if (targets.length < maxTargets && spawnTimer <= 0) {
+          targets.push(createTarget());
+          spawnTimer = .55;
+        }
+      }
+
+      function drawTargets() {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (const target of targets) {
+          const fadeIn = Math.min(1, target.age * 4);
+          const fadeOut = Math.min(1, Math.max(0, target.life - target.age) * 2);
+          const pulse = 1 + Math.sin(visualTime * 3 + target.phase) * .08;
+          const scale = fadeIn * fadeOut * pulse;
+
+          ctx.save();
+          ctx.translate(target.x, target.y);
+          ctx.scale(scale, scale);
+          ctx.globalAlpha = .8;
+          ctx.strokeStyle = target.color;
+          ctx.fillStyle = target.color;
+          ctx.shadowColor = target.color;
+          ctx.shadowBlur = 14;
+
+          ctx.lineWidth = 1;
+          ctx.setLineDash([3, 5]);
+          ctx.lineDashOffset = -visualTime * 8;
+          ctx.beginPath();
+          ctx.arc(0, 0, target.size + 8, 0, TAU);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // 四角星作为清晰、适合触屏辨认的命中目标。
+          ctx.rotate(visualTime * .35 + target.phase);
+          ctx.beginPath();
+          ctx.moveTo(0, -target.size);
+          ctx.quadraticCurveTo(2, -2, target.size, 0);
+          ctx.quadraticCurveTo(2, 2, 0, target.size);
+          ctx.quadraticCurveTo(-2, 2, -target.size, 0);
+          ctx.quadraticCurveTo(-2, -2, 0, -target.size);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(0, 0, 3.2, 0, TAU);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+          ctx.restore();
+        }
+        ctx.restore();
+      }
+
+      // ---------- 发射、爆炸与粒子 ----------
+      function fireAt(x, y) {
+        if (state !== 'running') return;
+        const now = performance.now();
+        if (now - lastShotAt < 85 || rockets.length >= 14) return;
+        lastShotAt = now;
+
+        const targetX = clamp(x, 12, width - 12);
+        const targetY = clamp(y, 16, height - 28);
+        const startX = width * .5 + random(-width * .22, width * .22);
+        const startY = height + 8;
+        const distance = Math.hypot(targetX - startX, targetY - startY);
+        rockets.push({
+          sx: startX,
+          sy: startY,
+          tx: targetX,
+          ty: targetY,
+          x: startX,
+          y: startY,
+          px: startX,
+          py: startY,
+          elapsed: 0,
+          duration: clamp(distance / 1000, .34, .72),
+          color: palettes[Math.floor(Math.random() * palettes.length)][0]
+        });
+        shots += 1;
+        playTip.classList.add('quiet');
+      }
+
+      function explode(x, y) {
+        const palette = palettes[Math.floor(Math.random() * palettes.length)];
+        const style = Math.floor(random(0, 3));
+        const count = reduceMotion ? 34 : (width < 500 ? 58 : 76);
+        const maxRadius = clamp(width * .24, 86, 120);
+
+        bursts.push({ x, y, age: 0, duration: .44, radius: 0, maxRadius, color: palette[0], hits: 0 });
+
+        for (let i = 0; i < count; i += 1) {
+          const angle = style === 1 ? (i / count) * TAU + random(-.025, .025) : random(0, TAU);
+          const speed = style === 1 ? random(145, 185) : random(45, 225) * (style === 2 ? .9 : 1);
+          const life = random(.8, style === 2 ? 1.8 : 1.45);
+          particles.push({
+            x, y, px: x, py: y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            gravity: style === 2 ? random(80, 125) : random(45, 90),
+            drag: random(.965, .986),
+            life,
+            maxLife: life,
+            size: random(.8, 2.1),
+            color: palette[i % palette.length]
+          });
+        }
+        if (particles.length > 1100) particles.splice(0, particles.length - 1100);
+      }
+
+      function spawnHitSparks(x, y, color) {
+        if (particles.length > 1000) return;
+        for (let i = 0; i < 15; i += 1) {
+          const angle = random(0, TAU);
+          const speed = random(35, 120);
+          const life = random(.35, .7);
+          particles.push({
+            x, y, px: x, py: y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            gravity: 45,
+            drag: .96,
+            life,
+            maxLife: life,
+            size: random(1, 2.3),
+            color
+          });
+        }
+      }
+
+      function updateRockets(dt) {
+        for (let i = rockets.length - 1; i >= 0; i -= 1) {
+          const rocket = rockets[i];
+          rocket.elapsed += dt;
+          const progress = Math.min(1, rocket.elapsed / rocket.duration);
+          const eased = 1 - Math.pow(1 - progress, 2);
+          rocket.px = rocket.x;
+          rocket.py = rocket.y;
+          rocket.x = lerp(rocket.sx, rocket.tx, eased);
+          rocket.y = lerp(rocket.sy, rocket.ty, eased);
+          if (progress >= 1) {
+            explode(rocket.tx, rocket.ty);
+            rockets.splice(i, 1);
+          }
+        }
+      }
+
+      function updateParticles(dt) {
+        for (let i = particles.length - 1; i >= 0; i -= 1) {
+          const particle = particles[i];
+          particle.life -= dt;
+          if (particle.life <= 0) {
+            particles.splice(i, 1);
+            continue;
+          }
+          const drag = Math.pow(particle.drag, dt * 60);
+          particle.px = particle.x;
+          particle.py = particle.y;
+          particle.vx *= drag;
+          particle.vy = particle.vy * drag + particle.gravity * dt;
+          particle.x += particle.vx * dt;
+          particle.y += particle.vy * dt;
+        }
+      }
+
+      function updateBursts(dt) {
+        for (let i = bursts.length - 1; i >= 0; i -= 1) {
+          const burst = bursts[i];
+          burst.age += dt;
+          const progress = Math.min(1, burst.age / burst.duration);
+          burst.radius = burst.maxRadius * (1 - Math.pow(1 - progress, 3));
+
+          // 扩散中的爆破圈碰到星灯即得分，每次爆炸只计入一次连击。
+          for (let j = targets.length - 1; j >= 0; j -= 1) {
+            const target = targets[j];
+            const distance = Math.hypot(target.x - burst.x, target.y - burst.y);
+            if (distance > burst.radius + target.size) continue;
+
+            if (burst.hits === 0) {
+              combo = Math.min(9, combo + 1);
+              maxCombo = Math.max(maxCombo, combo);
+              successfulShots += 1;
+            }
+            burst.hits += 1;
+
+            const precision = 1 - clamp(distance / burst.maxRadius, 0, 1);
+            const basePoints = 80 + Math.round(precision * 100);
+            const multiplier = 1 + Math.max(0, combo - 1) * .15;
+            const multiTargetBonus = Math.max(0, burst.hits - 1) * 30;
+            const earned = Math.round(basePoints * multiplier + multiTargetBonus);
+
+            addScore(earned);
+            addFloater(target.x, target.y, `+${earned}`, target.color);
+            spawnHitSparks(target.x, target.y, target.color);
+            targets.splice(j, 1);
+            spawnTimer = Math.min(spawnTimer, .25);
+            updateCombo();
+          }
+
+          if (progress >= 1) {
+            if (burst.hits === 0 && combo !== 0) {
+              combo = 0;
+              updateCombo();
+            }
+            bursts.splice(i, 1);
+          }
+        }
+      }
+
+      function drawEffects() {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.lineCap = 'round';
+
+        for (const burst of bursts) {
+          const alpha = Math.max(0, 1 - burst.age / burst.duration);
+          if (burst.age < .2) {
+            const flashRadius = burst.maxRadius * .5 * (1 - alpha * .25);
+            const flash = ctx.createRadialGradient(burst.x, burst.y, 0, burst.x, burst.y, flashRadius);
+            flash.addColorStop(0, `rgba(255,255,255,${alpha * .65})`);
+            flash.addColorStop(.18, `rgba(190,220,255,${alpha * .22})`);
+            flash.addColorStop(1, 'rgba(120,140,255,0)');
+            ctx.fillStyle = flash;
+            ctx.beginPath();
+            ctx.arc(burst.x, burst.y, flashRadius, 0, TAU);
+            ctx.fill();
+          }
+          ctx.globalAlpha = alpha * .7;
+          ctx.strokeStyle = burst.color;
+          ctx.lineWidth = 1.5 + alpha * 1.5;
+          ctx.beginPath();
+          ctx.arc(burst.x, burst.y, Math.max(0, burst.radius), 0, TAU);
+          ctx.stroke();
+        }
+
+        for (const particle of particles) {
+          const alpha = clamp(particle.life / particle.maxLife, 0, 1);
+          ctx.globalAlpha = Math.min(1, alpha * 1.45);
+          ctx.strokeStyle = particle.color;
+          ctx.lineWidth = .35 + particle.size * alpha;
+          ctx.beginPath();
+          ctx.moveTo(particle.px, particle.py);
+          ctx.lineTo(particle.x, particle.y);
+          ctx.stroke();
+        }
+
+        for (const rocket of rockets) {
+          ctx.globalAlpha = .95;
+          ctx.strokeStyle = rocket.color;
+          ctx.shadowColor = rocket.color;
+          ctx.shadowBlur = 10;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(rocket.px, rocket.py + 7);
+          ctx.lineTo(rocket.x, rocket.y);
+          ctx.stroke();
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(rocket.x, rocket.y, 2, 0, TAU);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // ---------- 得分反馈 ----------
+      function addScore(points) {
+        score += points;
+        if (score > best) {
+          best = score;
+          saveBest();
+        }
+        scoreEl.textContent = score.toLocaleString('zh-CN');
+        bestEl.textContent = best.toLocaleString('zh-CN');
+        const progress = Math.min(100, score / GOAL_SCORE * 100);
+        progressBar.style.width = `${progress}%`;
+        progressTrack.setAttribute('aria-valuenow', String(Math.min(score, GOAL_SCORE)));
+        if (!reduceMotion && scoreEl.animate) {
+          scoreEl.animate([
+            { transform: 'scale(1)', color: '#ffffff' },
+            { transform: 'scale(1.13)', color: '#82f8ff', offset: .45 },
+            { transform: 'scale(1)', color: '#ffffff' }
+          ], { duration: 220, easing: 'ease-out' });
+        }
+      }
+
+      function updateCombo() {
+        comboEl.hidden = combo < 2 || state !== 'running';
+        if (combo >= 2) {
+          const multiplier = 1 + (combo - 1) * .15;
+          comboEl.textContent = `${combo} 连击 · 得分 ×${multiplier.toFixed(2)}`;
+        }
+      }
+
+      function addFloater(x, y, text, color) {
+        floaters.push({ x: x + random(-8, 8), y: y - 8, text, color, life: .85, maxLife: .85 });
+      }
+
+      function updateFloaters(dt) {
+        for (let i = floaters.length - 1; i >= 0; i -= 1) {
+          const floater = floaters[i];
+          floater.life -= dt;
+          floater.y -= 34 * dt;
+          if (floater.life <= 0) floaters.splice(i, 1);
+        }
+      }
+
+      function drawFloaters() {
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = '800 16px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        for (const floater of floaters) {
+          ctx.globalAlpha = clamp(floater.life / floater.maxLife, 0, 1);
+          ctx.fillStyle = floater.color;
+          ctx.shadowColor = floater.color;
+          ctx.shadowBlur = 10;
+          ctx.fillText(floater.text, floater.x, floater.y);
+        }
+        ctx.restore();
+      }
+
+      function drawAim() {
+        if (!aim.visible || state !== 'running') return;
+        ctx.save();
+        ctx.translate(aim.x, aim.y);
+        ctx.globalAlpha = .55;
+        ctx.strokeStyle = '#b9f9ff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(0, 0, 10, 0, TAU);
+        ctx.moveTo(-16, 0); ctx.lineTo(-6, 0);
+        ctx.moveTo(16, 0); ctx.lineTo(6, 0);
+        ctx.moveTo(0, -16); ctx.lineTo(0, -6);
+        ctx.moveTo(0, 16); ctx.lineTo(0, 6);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // ---------- 游戏状态、计时与结算 ----------
+      function updateTimer() {
+        const second = Math.ceil(timeLeft);
+        if (second !== shownSecond) {
+          shownSecond = second;
+          timeEl.textContent = String(second);
+        }
+        timerPanel.classList.toggle('urgent', second <= 10 && state === 'running');
+      }
+
+      function resetHud() {
+        scoreEl.textContent = '0';
+        bestEl.textContent = best.toLocaleString('zh-CN');
+        progressBar.style.width = '0%';
+        progressTrack.setAttribute('aria-valuenow', '0');
+        shownSecond = -1;
+        updateTimer();
+        updateCombo();
+      }
+
+      function startGame() {
+        state = 'running';
+        score = 0;
+        timeLeft = GAME_DURATION;
+        combo = 0;
+        maxCombo = 0;
+        shots = 0;
+        successfulShots = 0;
+        previousBest = best;
+        rockets = [];
+        particles = [];
+        bursts = [];
+        floaters = [];
+        targets = Array.from({ length: width < 390 ? 5 : 6 }, createTarget);
+        spawnTimer = .6;
+        lastShotAt = 0;
+        aim = { x: width / 2, y: height * .42, visible: false };
+
+        introModal.hidden = true;
+        pauseModal.hidden = true;
+        resultModal.hidden = true;
+        pauseButton.disabled = false;
+        playTip.classList.remove('quiet');
+        lastFrame = performance.now();
+        resetHud();
+        announcer.textContent = '游戏开始，六十秒内获得两千五百分即可胜利。';
+        canvas.focus({ preventScroll: true });
+      }
+
+      function pauseGame(automatic = false) {
+        if (state !== 'running') return;
+        state = 'paused';
+        pauseModal.hidden = false;
+        document.getElementById('pauseDescription').textContent = automatic
+          ? '离开页面时已为你自动暂停，准备好再继续。'
+          : '倒计时已暂停，夜空会在这里等你。';
+        updateCombo();
+        updateTimer();
+        announcer.textContent = '游戏已暂停。';
+        document.getElementById('resumeButton').focus({ preventScroll: true });
+      }
+
+      function resumeGame() {
+        if (state !== 'paused') return;
+        state = 'running';
+        pauseModal.hidden = true;
+        lastFrame = performance.now();
+        updateCombo();
+        updateTimer();
+        announcer.textContent = '继续游戏。';
+        canvas.focus({ preventScroll: true });
+      }
+
+      function endGame(won) {
+        if (state !== 'running') return;
+        state = won ? 'won' : 'over';
+        rockets = [];
+        pauseButton.disabled = true;
+        updateCombo();
+        updateTimer();
+        if (score > best) {
+          best = score;
+          saveBest();
+        }
+
+        document.getElementById('resultIcon').textContent = won ? '✦' : '☾';
+        document.getElementById('resultEyebrow').textContent = won ? '目标达成' : '本场落幕';
+        document.getElementById('resultTitle').textContent = won ? '烟花大师！' : '夜幕落下了';
+        document.getElementById('resultMessage').textContent = won
+          ? `你用 ${GAME_DURATION - Math.ceil(timeLeft)} 秒点亮了夜空，最高达成 ${maxCombo} 连击。`
+          : `还差 ${Math.max(0, GOAL_SCORE - score).toLocaleString('zh-CN')} 分达成目标，再试一次一定会更耀眼。`;
+        document.getElementById('finalScore').textContent = score.toLocaleString('zh-CN');
+        document.getElementById('finalBest').textContent = best.toLocaleString('zh-CN');
+        document.getElementById('accuracy').textContent = `${shots ? Math.round(successfulShots / shots * 100) : 0}%`;
+        document.getElementById('newBest').hidden = !(score > previousBest && score > 0);
+        resultModal.hidden = false;
+        announcer.textContent = won ? `挑战胜利，本场得分 ${score}。` : `游戏结束，本场得分 ${score}。`;
+        document.getElementById('restartButton').focus({ preventScroll: true });
+      }
+
+      function updateGame(dt, realDt) {
+        timeLeft = Math.max(0, timeLeft - realDt);
+        updateTimer();
+        if (timeLeft <= 0) {
+          endGame(score >= GOAL_SCORE);
+          return;
+        }
+
+        updateRockets(dt);
+        updateBursts(dt);
+        updateTargets(dt);
+        updateParticles(dt);
+        updateFloaters(dt);
+        if (score >= GOAL_SCORE) endGame(true);
+      }
+
+      function updatePostgameEffects(dt) {
+        updateParticles(dt);
+        updateFloaters(dt);
+        for (let i = bursts.length - 1; i >= 0; i -= 1) {
+          const burst = bursts[i];
+          burst.age += dt;
+          const progress = Math.min(1, burst.age / burst.duration);
+          burst.radius = burst.maxRadius * (1 - Math.pow(1 - progress, 3));
+          if (progress >= 1) bursts.splice(i, 1);
+        }
+      }
+
+      function frame(now) {
+        // 计时使用真实帧间隔；物理步长设上限，避免卡顿后粒子瞬移。
+        const realDt = clamp((now - lastFrame) / 1000, 0, .5);
+        const dt = Math.min(realDt, .04);
+        lastFrame = now;
+        if (state !== 'paused') visualTime += dt;
+
+        if (state === 'running') updateGame(dt, realDt);
+        else if (state === 'won' || state === 'over') updatePostgameEffects(dt);
+
+        drawBackground();
+        drawTargets();
+        drawEffects();
+        drawFloaters();
+        drawAim();
+        requestAnimationFrame(frame);
+      }
+
+      // ---------- 触屏、鼠标与键盘控制 ----------
+      canvas.addEventListener('pointerdown', event => {
+        if (state !== 'running') return;
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        event.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        if (event.pointerType === 'mouse') {
+          aim.x = x;
+          aim.y = y;
+          aim.visible = true;
+        }
+        canvas.focus({ preventScroll: true });
+        fireAt(x, y);
+      });
+
+      canvas.addEventListener('pointermove', event => {
+        if (event.pointerType !== 'mouse' || state !== 'running') return;
+        const rect = canvas.getBoundingClientRect();
+        aim.x = event.clientX - rect.left;
+        aim.y = event.clientY - rect.top;
+        aim.visible = true;
+      });
+
+      canvas.addEventListener('pointerleave', event => {
+        if (event.pointerType === 'mouse') aim.visible = false;
+      });
+
+      window.addEventListener('keydown', event => {
+        const key = event.key.toLowerCase();
+        if (key === 'p' || event.key === 'Escape') {
+          if (state === 'running') pauseGame();
+          else if (state === 'paused') resumeGame();
+          else return;
+          event.preventDefault();
+          return;
+        }
+        if (key === 'r' && (state === 'paused' || state === 'won' || state === 'over')) {
+          event.preventDefault();
+          startGame();
+          return;
+        }
+        if (state !== 'running') return;
+
+        const arrows = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
+        if (arrows.includes(event.key)) {
+          event.preventDefault();
+          const step = event.shiftKey ? 46 : 24;
+          if (event.key === 'ArrowLeft') aim.x -= step;
+          if (event.key === 'ArrowRight') aim.x += step;
+          if (event.key === 'ArrowUp') aim.y -= step;
+          if (event.key === 'ArrowDown') aim.y += step;
+          aim.x = clamp(aim.x, 16, width - 16);
+          aim.y = clamp(aim.y, 20, height - 30);
+          aim.visible = true;
+          return;
+        }
+
+        // 焦点在按钮上时保留空格与回车的原生按钮行为。
+        if ((event.code === 'Space' || event.key === 'Enter') && !event.target.closest('button')) {
+          event.preventDefault();
+          aim.visible = true;
+          fireAt(aim.x, aim.y);
+        }
+      });
+
+      document.getElementById('startButton').addEventListener('click', startGame);
+      document.getElementById('resumeButton').addEventListener('click', resumeGame);
+      document.getElementById('restartButton').addEventListener('click', startGame);
+      document.getElementById('pauseRestartButton').addEventListener('click', startGame);
+      pauseButton.addEventListener('click', () => pauseGame());
+
+      // 切到后台时自动暂停，避免倒计时在看不见时结束。
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state === 'running') pauseGame(true);
+      });
+
+      // 禁止双击缩放、双指缩放与页面回弹；弹窗内部仍允许纵向滚动。
+      let lastTouchEnd = 0;
+      document.addEventListener('touchend', event => {
+        const now = performance.now();
+        if (now - lastTouchEnd < 300) event.preventDefault();
+        lastTouchEnd = now;
+      }, { passive: false });
+      document.addEventListener('touchmove', event => {
+        if (!event.target.closest('.dialog')) event.preventDefault();
+      }, { passive: false });
+      document.addEventListener('gesturestart', event => event.preventDefault(), { passive: false });
+      document.addEventListener('dblclick', event => event.preventDefault(), { passive: false });
+      canvas.addEventListener('contextmenu', event => event.preventDefault());
+
+      window.addEventListener('resize', resizeCanvas);
+      window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 120));
+
+      bestEl.textContent = best.toLocaleString('zh-CN');
+      resizeCanvas();
+      resetHud();
+      document.getElementById('startButton').focus({ preventScroll: true });
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070b18">
+  <title>霓虹水管 · Neon Plumber</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070b18;
+      --panel: rgba(14, 22, 42, .82);
+      --line: rgba(133, 167, 211, .15);
+      --text: #edf7ff;
+      --muted: #8294ae;
+      --cyan: #35e7ff;
+      --pink: #ee6dff;
+      --danger: #ff5f81;
+      --board-size: min(100%, 48dvh, 480px);
+      font-family: Inter, ui-rounded, "SF Pro Rounded", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      background: var(--bg);
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 12% 12%, rgba(29, 100, 150, .20), transparent 35%),
+        radial-gradient(circle at 90% 88%, rgba(145, 46, 160, .16), transparent 38%),
+        linear-gradient(rgba(65, 113, 153, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(65, 113, 153, .035) 1px, transparent 1px);
+      background-size: auto, auto, 28px 28px, 28px 28px;
+    }
+
+    button { font: inherit; }
+    button, .tile { touch-action: none; }
+    [hidden] { display: none !important; }
+
+    .game-shell {
+      position: relative;
+      z-index: 1;
+      width: min(100%, 580px);
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      gap: 10px;
+    }
+
+    /* 顶部品牌与暂停 */
+    .topbar, .brand, .pause-button, .board-heading, .game-message, .flow-legend {
+      display: flex;
+      align-items: center;
+    }
+
+    .topbar { justify-content: space-between; min-height: 46px; }
+    .brand { gap: 10px; }
+
+    .brand-mark {
+      width: 43px;
+      height: 43px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(53, 231, 255, .28);
+      border-radius: 14px;
+      color: var(--cyan);
+      background: linear-gradient(145deg, rgba(53, 231, 255, .12), rgba(53, 231, 255, .025));
+      box-shadow: inset 0 0 18px rgba(53, 231, 255, .06), 0 0 22px rgba(53, 231, 255, .07);
+    }
+
+    .brand-mark svg { width: 28px; height: 28px; }
+    h1 { margin: 0; font-size: clamp(20px, 5.5vw, 26px); line-height: 1.1; letter-spacing: .08em; }
+    .brand-subtitle { margin: 4px 0 0; color: #64809e; font-size: 9px; font-weight: 700; letter-spacing: .28em; }
+
+    .pause-button {
+      justify-content: center;
+      gap: 7px;
+      min-width: 78px;
+      min-height: 44px;
+      padding: 0 13px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      color: #b8cbe0;
+      background: rgba(16, 27, 48, .72);
+      cursor: pointer;
+    }
+    .pause-button svg { width: 16px; height: 16px; }
+    .pause-button:active { transform: scale(.96); }
+    .pause-button:disabled { opacity: .4; cursor: default; }
+
+    /* 四项实时数据 */
+    .hud {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 7px;
+    }
+
+    .stat {
+      min-width: 0;
+      padding: 9px 4px 8px;
+      text-align: center;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: linear-gradient(160deg, rgba(20, 33, 58, .82), rgba(10, 17, 33, .78));
+      box-shadow: inset 0 1px rgba(255, 255, 255, .025);
+    }
+
+    .stat-label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 10px; white-space: nowrap; }
+    .stat-value { display: block; overflow: hidden; font-size: clamp(16px, 4.7vw, 22px); font-variant-numeric: tabular-nums; line-height: 1.1; text-overflow: ellipsis; }
+    .stat:nth-child(1) .stat-value { color: var(--cyan); }
+    .stat:nth-child(4) .stat-value { color: #d6a0ff; }
+    .stat-value.is-danger { color: var(--danger) !important; animation: danger-pulse .8s ease-in-out infinite alternate; }
+
+    /* 棋盘区域 */
+    .play-area {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .board-heading { width: var(--board-size); justify-content: space-between; gap: 10px; min-height: 19px; }
+    .game-message { min-width: 0; gap: 7px; margin: 0; color: #a2b5ca; font-size: 11px; }
+    .game-message::before { content: ""; flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 9px var(--cyan); }
+    .flow-count { flex: 0 0 auto; color: #66809e; font-size: 10px; font-variant-numeric: tabular-nums; }
+
+    .board {
+      position: relative;
+      width: var(--board-size);
+      aspect-ratio: 1;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: clamp(4px, 1.4vw, 8px);
+      padding: clamp(6px, 1.8vw, 10px);
+      border: 1px solid rgba(105, 151, 193, .18);
+      border-radius: clamp(18px, 5vw, 28px);
+      background: linear-gradient(145deg, rgba(15, 26, 47, .94), rgba(7, 13, 27, .96));
+      box-shadow: 0 22px 60px rgba(0, 0, 0, .34), inset 0 1px rgba(255, 255, 255, .035), 0 0 50px rgba(31, 171, 218, .035);
+    }
+
+    .tile {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid rgba(111, 151, 187, .13);
+      border-radius: 18%;
+      outline: none;
+      color: inherit;
+      background: linear-gradient(145deg, rgba(28, 43, 67, .82), rgba(13, 22, 39, .9));
+      box-shadow: inset 0 1px rgba(255, 255, 255, .035), 0 3px 8px rgba(0, 0, 0, .16);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: border-color .18s, background .18s, box-shadow .18s, transform .1s;
+    }
+
+    .tile:active { transform: scale(.94); }
+    .tile:focus-visible { border-color: #fff; box-shadow: 0 0 0 2px #07101f, 0 0 0 4px var(--cyan); }
+    .tile.is-wet {
+      border-color: rgba(53, 231, 255, .34);
+      background: linear-gradient(145deg, rgba(20, 61, 78, .72), rgba(10, 29, 45, .94));
+      box-shadow: inset 0 0 18px rgba(53, 231, 255, .05), 0 0 13px rgba(53, 231, 255, .07);
+    }
+    .tile.is-source { border-color: rgba(53, 231, 255, .42); }
+    .tile.is-target { border-color: rgba(238, 109, 255, .38); }
+    .tile.is-target.is-wet { border-color: rgba(238, 109, 255, .7); }
+
+    .rotator {
+      display: block;
+      width: 100%;
+      height: 100%;
+      transform-origin: 50% 50%;
+      transition: transform .16s cubic-bezier(.2, .8, .2, 1);
+      pointer-events: none;
+    }
+    .rotator svg { display: block; width: 100%; height: 100%; overflow: visible; }
+    .pipe-shadow { fill: none; stroke: #050a13; stroke-width: 33; stroke-linecap: round; stroke-linejoin: round; }
+    .pipe-shell { fill: none; stroke: #30465d; stroke-width: 25; stroke-linecap: round; stroke-linejoin: round; transition: stroke .2s; }
+    .pipe-shine { fill: none; stroke: #526a80; stroke-width: 13; stroke-linecap: round; stroke-linejoin: round; opacity: .55; }
+    .pipe-joint { fill: #30465d; stroke: #60788e; stroke-width: 2; }
+    .water-flow {
+      fill: none;
+      stroke: var(--cyan);
+      stroke-width: 10;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-dasharray: 13 5;
+      opacity: 0;
+      filter: drop-shadow(0 0 4px var(--cyan));
+      transition: opacity .2s;
+    }
+    .tile.is-wet .pipe-shell { stroke: #24576b; }
+    .tile.is-wet .pipe-joint { fill: #1d566b; stroke: #42d8ed; }
+    .tile.is-wet .water-flow { opacity: 1; animation: water-move .55s linear infinite; }
+
+    .endpoint-tag {
+      position: absolute;
+      z-index: 2;
+      top: 5%;
+      right: 7%;
+      display: grid;
+      place-items: center;
+      width: 17px;
+      height: 17px;
+      border-radius: 6px;
+      font-size: 9px;
+      font-weight: 800;
+      pointer-events: none;
+    }
+    .is-source .endpoint-tag { color: #06202a; background: var(--cyan); box-shadow: 0 0 9px rgba(53, 231, 255, .55); }
+    .is-target .endpoint-tag { color: #27052d; background: var(--pink); box-shadow: 0 0 9px rgba(238, 109, 255, .45); }
+
+    .flow-track { width: var(--board-size); height: 3px; overflow: hidden; border-radius: 9px; background: rgba(96, 130, 165, .12); }
+    .flow-progress { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--cyan), var(--pink)); box-shadow: 0 0 9px var(--cyan); transition: width .25s ease; }
+    .board.is-complete { animation: board-win .7s ease both; }
+
+    /* 底部操作提示 */
+    .controls { display: grid; gap: 7px; }
+    .gesture-hint { margin: 0; text-align: center; color: #a6b8cc; font-size: 11px; line-height: 1.5; }
+    .gesture-hint strong { color: var(--cyan); font-weight: 600; }
+    .gesture-hint span { margin: 0 6px; color: #435a74; }
+    .control-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .flow-legend { gap: 6px; color: #647c97; font-size: 10px; white-space: nowrap; }
+    .flow-legend i { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+    .keyboard-hint { margin: 0; color: #526983; font-size: 9px; text-align: center; }
+    .restart-button {
+      min-height: 34px;
+      padding: 0 13px;
+      border: 1px solid rgba(238, 109, 255, .22);
+      border-radius: 11px;
+      color: #d6a5e7;
+      background: rgba(133, 54, 148, .08);
+      font-size: 11px;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .restart-button:active { transform: scale(.96); }
+
+    /* 暂停、胜利与失败共用弹窗 */
+    .game-dialog {
+      width: min(calc(100% - 36px), 390px);
+      max-height: calc(100dvh - 36px);
+      margin: auto;
+      padding: 0;
+      overflow: auto;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      border: 1px solid rgba(104, 197, 224, .25);
+      border-radius: 26px;
+      color: var(--text);
+      background: linear-gradient(155deg, #15243c, #0b1224 72%);
+      box-shadow: 0 28px 100px rgba(0, 0, 0, .65), 0 0 45px rgba(53, 231, 255, .08), inset 0 1px rgba(255, 255, 255, .06);
+    }
+    .game-dialog::backdrop { background: rgba(3, 6, 15, .76); backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px); }
+    .dialog-content { padding: 28px 24px 23px; text-align: center; }
+    .dialog-icon {
+      width: 62px;
+      height: 62px;
+      margin: 0 auto 16px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(53, 231, 255, .35);
+      border-radius: 21px;
+      color: var(--cyan);
+      background: rgba(53, 231, 255, .08);
+      box-shadow: 0 0 28px rgba(53, 231, 255, .1);
+      font-size: 30px;
+      font-weight: 300;
+    }
+    .game-dialog.is-loss .dialog-icon { color: var(--danger); border-color: rgba(255, 95, 129, .35); background: rgba(255, 95, 129, .08); }
+    .game-dialog.is-win .dialog-icon { color: #73ffd3; border-color: rgba(115, 255, 211, .35); background: rgba(115, 255, 211, .08); }
+    .dialog-kicker { margin: 0 0 6px; color: var(--cyan); font-size: 10px; font-weight: 800; letter-spacing: .2em; }
+    .dialog-title { margin: 0; font-size: 27px; letter-spacing: .06em; }
+    .dialog-text { margin: 10px auto 18px; color: #91a7bf; font-size: 13px; line-height: 1.7; }
+
+    .result-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 7px; margin: 0 0 19px; }
+    .result-item { padding: 10px 4px; border: 1px solid var(--line); border-radius: 12px; background: rgba(4, 10, 22, .3); }
+    .result-item span { display: block; margin-bottom: 5px; color: #7188a2; font-size: 9px; }
+    .result-item strong { display: block; color: #dceeff; font-size: 17px; font-variant-numeric: tabular-nums; }
+    .result-item:first-child strong { color: var(--cyan); }
+
+    .dialog-actions { display: grid; gap: 9px; }
+    .dialog-button {
+      min-height: 48px;
+      border: 0;
+      border-radius: 15px;
+      color: #04131b;
+      background: linear-gradient(100deg, #46edff, #62d9ff);
+      box-shadow: 0 8px 24px rgba(53, 231, 255, .14);
+      font-weight: 800;
+      letter-spacing: .08em;
+      cursor: pointer;
+    }
+    .dialog-button:active { transform: translateY(1px) scale(.985); }
+    .dialog-button.secondary { min-height: 42px; color: #8fa6bd; border: 1px solid var(--line); background: transparent; box-shadow: none; font-size: 12px; font-weight: 500; }
+
+    @keyframes water-move { to { stroke-dashoffset: -18; } }
+    @keyframes danger-pulse { to { opacity: .52; text-shadow: 0 0 12px var(--danger); } }
+    @keyframes board-win { 45% { box-shadow: 0 0 55px rgba(53, 231, 255, .22), inset 0 0 35px rgba(53, 231, 255, .08); } }
+
+    /* 矮屏与横屏使用双栏，确保页面始终无需滚动 */
+    @media (max-height: 640px) and (orientation: portrait) {
+      :root { --board-size: min(100%, 45dvh, 420px); }
+      .game-shell { gap: 7px; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(7px, env(safe-area-inset-bottom)); }
+      .brand-mark { width: 38px; height: 38px; }
+      .stat { padding: 7px 3px 6px; }
+      .keyboard-hint { display: none; }
+      .controls { gap: 4px; }
+    }
+
+    @media (orientation: landscape) and (max-height: 600px) {
+      :root { --board-size: min(48vw, 76dvh, 460px); }
+      .game-shell {
+        width: min(100%, 960px);
+        max-width: 960px;
+        grid-template-columns: minmax(220px, .85fr) minmax(270px, 1.15fr);
+        grid-template-rows: auto auto minmax(0, 1fr);
+        grid-template-areas: "top board" "hud board" "controls board";
+        align-content: center;
+        align-items: center;
+        gap: 12px 22px;
+        padding-top: max(8px, env(safe-area-inset-top));
+        padding-bottom: max(8px, env(safe-area-inset-bottom));
+      }
+      .topbar { grid-area: top; }
+      .hud { grid-area: hud; grid-template-columns: repeat(2, 1fr); }
+      .play-area { grid-area: board; }
+      .controls { grid-area: controls; align-self: end; }
+      .stat { padding: 7px 4px; }
+      .stat-value { font-size: 19px; }
+      .control-row { flex-wrap: wrap; justify-content: center; }
+      .keyboard-hint { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="game-shell" aria-label="霓虹水管游戏">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none">
+            <path d="M5 8h8v16h14M13 16h7V8" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M5 8h8v16h14M13 16h7V8" stroke="#d9fbff" stroke-opacity=".45" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <h1>霓虹水管</h1>
+          <p class="brand-subtitle">NEON PLUMBER</p>
+        </div>
+      </div>
+      <button class="pause-button" id="pauseButton" type="button" aria-label="暂停游戏" title="暂停游戏（P）">
+        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><rect x="4" y="3" width="4" height="14" rx="1.5"/><rect x="12" y="3" width="4" height="14" rx="1.5"/></svg>
+        <span>暂停</span>
+      </button>
+    </header>
+
+    <section class="hud" aria-label="游戏状态">
+      <div class="stat"><span class="stat-label">剩余时间</span><strong class="stat-value" id="timeValue">01:30</strong></div>
+      <div class="stat"><span class="stat-label">剩余步数</span><strong class="stat-value" id="movesValue">--</strong></div>
+      <div class="stat"><span class="stat-label">当前得分</span><strong class="stat-value" id="scoreValue">0</strong></div>
+      <div class="stat"><span class="stat-label">最高得分</span><strong class="stat-value" id="bestValue">0</strong></div>
+    </section>
+
+    <section class="play-area" aria-label="管道区域">
+      <div class="board-heading">
+        <p class="game-message" id="gameMessage" aria-live="polite">接通水源与终点</p>
+        <span class="flow-count" id="flowCount">0 / 25 通水</span>
+      </div>
+      <div class="board" id="board" role="group" aria-label="5 行 5 列管道棋盘"></div>
+      <div class="flow-track" aria-hidden="true"><span class="flow-progress" id="flowProgress"></span></div>
+    </section>
+
+    <footer class="controls">
+      <p class="gesture-hint"><strong>轻触</strong> 顺时针 90° <span>·</span> <strong>长按 / 右键</strong> 逆时针</p>
+      <div class="control-row">
+        <div class="flow-legend"><i></i>蓝色水流已接通</div>
+        <p class="keyboard-hint">方向键移动 · 回车旋转 · P 暂停</p>
+        <button class="restart-button" id="restartButton" type="button">重新开局</button>
+      </div>
+    </footer>
+  </main>
+
+  <dialog class="game-dialog" id="gameDialog" aria-labelledby="dialogTitle" aria-describedby="dialogText">
+    <div class="dialog-content">
+      <div class="dialog-icon" id="dialogIcon" aria-hidden="true">Ⅱ</div>
+      <p class="dialog-kicker" id="dialogKicker">稍作休息</p>
+      <h2 class="dialog-title" id="dialogTitle">游戏已暂停</h2>
+      <p class="dialog-text" id="dialogText">计时已经停止，准备好后继续接通水路。</p>
+      <div class="result-grid" id="resultGrid" hidden>
+        <div class="result-item"><span>本局得分</span><strong id="finalScore">0</strong></div>
+        <div class="result-item"><span>剩余时间</span><strong id="finalTime">0秒</strong></div>
+        <div class="result-item"><span>剩余步数</span><strong id="finalMoves">0</strong></div>
+      </div>
+      <div class="dialog-actions">
+        <button class="dialog-button" id="dialogPrimary" type="button">继续游戏</button>
+        <button class="dialog-button secondary" id="dialogSecondary" type="button">重新开局</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    'use strict';
+
+    /* 纯逻辑独立于此处，便于验证旋转、生成与连通规则。 */
+    const PipeCore = (() => {
+      const N = 1, E = 2, S = 4, W = 8;
+      const DIRECTIONS = [
+        { bit: N, opposite: S, dr: -1, dc: 0 },
+        { bit: E, opposite: W, dr: 0, dc: 1 },
+        { bit: S, opposite: N, dr: 1, dc: 0 },
+        { bit: W, opposite: E, dr: 0, dc: -1 }
+      ];
+
+      // 位掩码顺时针旋转：上 → 右 → 下 → 左。
+      function rotateMask(mask, turns) {
+        const amount = ((turns % 4) + 4) % 4;
+        return ((mask << amount) | (mask >> (4 - amount))) & 15;
+      }
+
+      function currentMask(tile) {
+        return rotateMask(tile.solutionMask, tile.rot);
+      }
+
+      // 从水源做广度优先搜索，只沿两侧都有接口的管道通水。
+      function analyzeFlow(tiles, size, source, target) {
+        const wet = new Set();
+        if ((currentMask(tiles[source]) & W) === 0) return { wet, won: false };
+
+        const queue = [source];
+        wet.add(source);
+        for (let head = 0; head < queue.length; head++) {
+          const index = queue[head];
+          const row = Math.floor(index / size);
+          const col = index % size;
+          const mask = currentMask(tiles[index]);
+
+          for (const direction of DIRECTIONS) {
+            if ((mask & direction.bit) === 0) continue;
+            const nextRow = row + direction.dr;
+            const nextCol = col + direction.dc;
+            if (nextRow < 0 || nextRow >= size || nextCol < 0 || nextCol >= size) continue;
+            const next = nextRow * size + nextCol;
+            if (wet.has(next)) continue;
+            if ((currentMask(tiles[next]) & direction.opposite) === 0) continue;
+            wet.add(next);
+            queue.push(next);
+          }
+        }
+
+        const won = wet.has(target) && (currentMask(tiles[target]) & E) !== 0;
+        return { wet, won };
+      }
+
+      // 顺时针恢复到答案所需的最少步数，直管等形状会自动识别旋转对称。
+      function minClockwiseTurns(tile) {
+        const start = currentMask(tile);
+        for (let turns = 0; turns < 4; turns++) {
+          if (rotateMask(start, turns) === tile.solutionMask) return turns;
+        }
+        return 0;
+      }
+
+      // 随机深度优先生成覆盖全棋盘的树，因此每局都至少存在一条完整解法。
+      function buildSolution(size) {
+        const source = Math.floor(size / 2) * size;
+        const target = source + size - 1;
+        const masks = new Array(size * size).fill(0);
+        const parent = new Array(size * size).fill(-2);
+        const stack = [source];
+        parent[source] = -1;
+
+        while (stack.length) {
+          const index = stack[stack.length - 1];
+          const row = Math.floor(index / size);
+          const col = index % size;
+          const choices = [];
+
+          for (const direction of DIRECTIONS) {
+            const nextRow = row + direction.dr;
+            const nextCol = col + direction.dc;
+            if (nextRow < 0 || nextRow >= size || nextCol < 0 || nextCol >= size) continue;
+            const next = nextRow * size + nextCol;
+            if (parent[next] !== -2) continue;
+            choices.push({ next, direction });
+          }
+
+          if (!choices.length) {
+            stack.pop();
+            continue;
+          }
+
+          const { next, direction } = choices[Math.floor(Math.random() * choices.length)];
+          masks[index] |= direction.bit;
+          masks[next] |= direction.opposite;
+          parent[next] = index;
+          stack.push(next);
+        }
+
+        // 水源固定在左侧、终点固定在右侧，作为额外的外部接口。
+        masks[source] |= W;
+        masks[target] |= E;
+        let pathLength = 0;
+        for (let at = target; at !== -1; at = parent[at]) pathLength++;
+        return { masks, source, target, pathLength };
+      }
+
+      function generatePuzzle(size = 5) {
+        let solution;
+        // 优先选择源到终点不太短的布局，避免一眼通关。
+        for (let attempt = 0; attempt < 30; attempt++) {
+          solution = buildSolution(size);
+          if (solution.pathLength >= size + 3) break;
+        }
+
+        const tiles = solution.masks.map(solutionMask => ({
+          solutionMask,
+          rot: Math.floor(Math.random() * 4)
+        }));
+
+        // 若随机后碰巧已经通关，依次转动非十字管，确保开局一定有谜可解。
+        const scrambleOrder = [solution.target, solution.source, ...tiles.map((_, index) => index)];
+        for (const index of scrambleOrder) {
+          if (!analyzeFlow(tiles, size, solution.source, solution.target).won) break;
+          const tile = tiles[index];
+          if (rotateMask(tile.solutionMask, 1) === tile.solutionMask) continue;
+          tile.rot = (tile.rot + 1) % 4;
+        }
+
+        const minMoves = tiles.reduce((sum, tile) => sum + minClockwiseTurns(tile), 0);
+        return { tiles, minMoves, source: solution.source, target: solution.target, pathLength: solution.pathLength };
+      }
+
+      return Object.freeze({ N, E, S, W, DIRECTIONS, rotateMask, currentMask, analyzeFlow, minClockwiseTurns, generatePuzzle });
+    })();
+
+    (() => {
+      // 允许在无 DOM 的环境中单独加载 PipeCore 做规则测试。
+      if (typeof document === 'undefined') return;
+
+      const { N, E, S, W, rotateMask, currentMask, analyzeFlow, generatePuzzle } = PipeCore;
+      const SIZE = 5;
+      const GAME_SECONDS = 90;
+      const EXTRA_MOVES = 12;
+      const BEST_KEY = 'neon-plumber-best-v1';
+      const $ = id => document.getElementById(id);
+
+      const board = $('board');
+      const dialog = $('gameDialog');
+      const pauseButton = $('pauseButton');
+      const timeValue = $('timeValue');
+      const movesValue = $('movesValue');
+      const scoreValue = $('scoreValue');
+      const bestValue = $('bestValue');
+      const gameMessage = $('gameMessage');
+      const flowCount = $('flowCount');
+      const flowProgress = $('flowProgress');
+
+      const state = {
+        phase: 'playing',
+        tiles: [],
+        source: 0,
+        target: 0,
+        wet: new Set(),
+        timeLeft: GAME_SECONDS,
+        movesLeft: 0,
+        score: 0,
+        best: loadBest(),
+        timer: null,
+        lastTick: 0
+      };
+
+      let press = null;
+      let suppressClick = { index: -1, until: 0 };
+      let suppressContextUntil = 0;
+
+      function loadBest() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(BEST_KEY), 10);
+          return Number.isFinite(value) && value > 0 ? value : 0;
+        } catch (_) {
+          return 0; // 隐私模式或禁用存储时仍可正常游玩。
+        }
+      }
+
+      function saveBest() {
+        if (state.score <= state.best) return false;
+        state.best = state.score;
+        try { localStorage.setItem(BEST_KEY, String(state.best)); } catch (_) { /* 存储不可用时忽略。 */ }
+        return true;
+      }
+
+      function formatNumber(value) {
+        return Math.max(0, Math.round(value)).toLocaleString('zh-CN');
+      }
+
+      function formatTime(seconds) {
+        const total = Math.max(0, Math.ceil(seconds));
+        const minutes = Math.floor(total / 60);
+        return `${String(minutes).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+      }
+
+      function pipePath(mask) {
+        let path = '';
+        if (mask & N) path += 'M50 50L50 3 ';
+        if (mask & E) path += 'M50 50L97 50 ';
+        if (mask & S) path += 'M50 50L50 97 ';
+        if (mask & W) path += 'M50 50L3 50 ';
+        return path.trim();
+      }
+
+      function pipeSvg(mask) {
+        const path = pipePath(mask);
+        return `<svg viewBox="0 0 100 100" aria-hidden="true">
+          <path class="pipe-shadow" d="${path}"/>
+          <path class="pipe-shell" d="${path}"/>
+          <path class="pipe-shine" d="${path}"/>
+          <circle class="pipe-joint" cx="50" cy="50" r="10"/>
+          <path class="water-flow" d="${path}"/>
+        </svg>`;
+      }
+
+      function buildBoard() {
+        const fragment = document.createDocumentFragment();
+        state.tiles.forEach((tile, index) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'tile';
+          if (index === state.source) button.classList.add('is-source');
+          if (index === state.target) button.classList.add('is-target');
+          button.dataset.index = String(index);
+          button.innerHTML = `<span class="rotator" style="transform:rotate(${tile.rot * 90}deg)">${pipeSvg(tile.solutionMask)}</span>`;
+          if (index === state.source || index === state.target) {
+            const tag = document.createElement('span');
+            tag.className = 'endpoint-tag';
+            tag.textContent = index === state.source ? '源' : '终';
+            button.appendChild(tag);
+          }
+          fragment.appendChild(button);
+        });
+        board.replaceChildren(fragment);
+      }
+
+      function directionNames(mask) {
+        const names = [];
+        if (mask & N) names.push('上');
+        if (mask & E) names.push('右');
+        if (mask & S) names.push('下');
+        if (mask & W) names.push('左');
+        return names.join('、');
+      }
+
+      function updateTileA11y() {
+        state.tiles.forEach((tile, index) => {
+          const row = Math.floor(index / SIZE) + 1;
+          const col = index % SIZE + 1;
+          const water = state.wet.has(index) ? '已通水' : '未通水';
+          board.children[index].setAttribute('aria-label', `第 ${row} 行第 ${col} 列，开口朝${directionNames(currentMask(tile))}，${water}`);
+        });
+      }
+
+      function updateHud() {
+        timeValue.textContent = formatTime(state.timeLeft);
+        movesValue.textContent = String(Math.max(0, state.movesLeft));
+        scoreValue.textContent = formatNumber(state.score);
+        bestValue.textContent = formatNumber(state.best);
+        timeValue.classList.toggle('is-danger', state.phase === 'playing' && state.timeLeft <= 15);
+        movesValue.classList.toggle('is-danger', state.phase === 'playing' && state.movesLeft <= 8);
+        flowCount.textContent = `${state.wet.size} / ${SIZE * SIZE} 通水`;
+        flowProgress.style.width = `${state.wet.size / (SIZE * SIZE) * 100}%`;
+      }
+
+      // 每次旋转后重新计算水路，胜利要求水进入终点且终点接口朝右。
+      function updateFlow() {
+        const flow = analyzeFlow(state.tiles, SIZE, state.source, state.target);
+        state.wet = flow.wet;
+        state.tiles.forEach((_, index) => board.children[index].classList.toggle('is-wet', state.wet.has(index)));
+        if (state.phase === 'playing') state.score = state.wet.size * 20;
+        updateTileA11y();
+        updateHud();
+        return flow.won;
+      }
+
+      function rotateTile(index, direction) {
+        if (state.phase !== 'playing' || !state.tiles[index]) return;
+        const tile = state.tiles[index];
+        tile.rot = (tile.rot + direction + 4) % 4;
+        state.movesLeft--;
+        board.children[index].querySelector('.rotator').style.transform = `rotate(${tile.rot * 90}deg)`;
+
+        if (updateFlow()) {
+          finishWin();
+        } else if (state.movesLeft <= 0) {
+          finishLoss('步数已经用完，调整旋转顺序再试一次吧。');
+        }
+      }
+
+      function stopTimer() {
+        if (state.timer !== null) clearInterval(state.timer);
+        state.timer = null;
+      }
+
+      function startTimer() {
+        stopTimer();
+        state.lastTick = performance.now();
+        state.timer = setInterval(() => {
+          if (state.phase !== 'playing') return;
+          const now = performance.now();
+          state.timeLeft = Math.max(0, state.timeLeft - (now - state.lastTick) / 1000);
+          state.lastTick = now;
+          updateHud();
+          if (state.timeLeft <= 0) finishLoss('时间耗尽，水路还未完全接通。');
+        }, 200);
+      }
+
+      function showDialog({ type, icon, kicker, title, text, primary, showScore }) {
+        dialog.classList.toggle('is-win', type === 'win');
+        dialog.classList.toggle('is-loss', type === 'loss');
+        $('dialogIcon').textContent = icon;
+        $('dialogKicker').textContent = kicker;
+        $('dialogTitle').textContent = title;
+        $('dialogText').textContent = text;
+        $('dialogPrimary').textContent = primary;
+        $('resultGrid').hidden = !showScore;
+        $('dialogSecondary').hidden = type !== 'pause';
+        $('finalScore').textContent = formatNumber(state.score);
+        $('finalTime').textContent = `${Math.ceil(state.timeLeft)}秒`;
+        $('finalMoves').textContent = String(Math.max(0, state.movesLeft));
+        if (!dialog.open) dialog.showModal();
+      }
+
+      function finishWin() {
+        if (state.phase !== 'playing') return;
+        state.phase = 'won';
+        stopTimer();
+        // 通水、剩余时间和剩余步数都会转化为最终得分。
+        state.score = 1000 + state.wet.size * 25 + Math.ceil(state.timeLeft) * 15 + Math.max(0, state.movesLeft) * 10;
+        const newRecord = saveBest();
+        pauseButton.disabled = true;
+        board.classList.add('is-complete');
+        gameMessage.textContent = '水路贯通，供水中！';
+        updateHud();
+        setTimeout(() => {
+          if (state.phase !== 'won') return;
+          showDialog({
+            type: 'win', icon: '✓', kicker: newRecord ? '新纪录 · NEW RECORD' : '水路贯通 · COMPLETE',
+            title: '供水成功！', text: newRecord ? '漂亮！你创造了新的最高得分。' : '干净利落的接管，城市重新亮起来了。',
+            primary: '再来一局', showScore: true
+          });
+        }, 350);
+      }
+
+      function finishLoss(reason) {
+        if (state.phase !== 'playing') return;
+        state.phase = 'lost';
+        stopTimer();
+        saveBest();
+        pauseButton.disabled = true;
+        gameMessage.textContent = '供水中断，再试一次';
+        updateHud();
+        showDialog({
+          type: 'loss', icon: '×', kicker: '挑战结束 · GAME OVER', title: '还差一点！',
+          text: reason, primary: '重新挑战', showScore: true
+        });
+      }
+
+      function pauseGame(automatic = false) {
+        if (state.phase !== 'playing') return;
+        state.phase = 'paused';
+        stopTimer();
+        clearPress();
+        pauseButton.querySelector('span').textContent = '继续';
+        pauseButton.setAttribute('aria-label', '继续游戏');
+        showDialog({
+          type: 'pause', icon: 'Ⅱ', kicker: automatic ? '离开页面 · 自动暂停' : '稍作休息 · PAUSED',
+          title: '游戏已暂停', text: '计时已经停止，准备好后继续接通水路。',
+          primary: '继续游戏', showScore: false
+        });
+      }
+
+      function resumeGame() {
+        if (state.phase !== 'paused') return;
+        state.phase = 'playing';
+        if (dialog.open) dialog.close();
+        pauseButton.querySelector('span').textContent = '暂停';
+        pauseButton.setAttribute('aria-label', '暂停游戏');
+        startTimer();
+      }
+
+      function newGame() {
+        stopTimer();
+        clearPress();
+        if (dialog.open) dialog.close();
+        const puzzle = generatePuzzle(SIZE);
+        state.tiles = puzzle.tiles;
+        state.source = puzzle.source;
+        state.target = puzzle.target;
+        state.wet = new Set();
+        state.timeLeft = GAME_SECONDS;
+        state.movesLeft = puzzle.minMoves + EXTRA_MOVES;
+        state.score = 0;
+        state.phase = 'playing';
+        board.classList.remove('is-complete');
+        pauseButton.disabled = false;
+        pauseButton.querySelector('span').textContent = '暂停';
+        pauseButton.setAttribute('aria-label', '暂停游戏');
+        gameMessage.textContent = '接通水源与终点';
+        buildBoard();
+        updateFlow();
+        startTimer();
+      }
+
+      function clearPress() {
+        if (press) clearTimeout(press.timer);
+        press = null;
+      }
+
+      // 轻触使用原生 click；长按 480ms 反转，并阻止随后的 click 重复旋转。
+      board.addEventListener('pointerdown', event => {
+        const tile = event.target.closest('.tile');
+        if (!tile || state.phase !== 'playing' || (event.pointerType === 'mouse' && event.button !== 0)) return;
+        clearPress();
+        const index = Number(tile.dataset.index);
+        const current = {
+          id: event.pointerId, index, x: event.clientX, y: event.clientY, long: false, timer: null
+        };
+        current.timer = setTimeout(() => {
+          if (press !== current || state.phase !== 'playing') return;
+          current.long = true;
+          suppressClick = { index, until: performance.now() + 1200 };
+          suppressContextUntil = performance.now() + 1000;
+          rotateTile(index, -1);
+          if (navigator.vibrate) navigator.vibrate(20);
+        }, 480);
+        press = current;
+        try { tile.setPointerCapture(event.pointerId); } catch (_) { /* 某些旧浏览器不支持捕获。 */ }
+      });
+
+      board.addEventListener('pointermove', event => {
+        if (!press || press.id !== event.pointerId || press.long) return;
+        if (Math.hypot(event.clientX - press.x, event.clientY - press.y) > 12) clearPress();
+      });
+      board.addEventListener('pointerup', clearPress);
+      board.addEventListener('pointercancel', clearPress);
+
+      board.addEventListener('click', event => {
+        const tile = event.target.closest('.tile');
+        if (!tile) return;
+        const index = Number(tile.dataset.index);
+        if (suppressClick.index === index && performance.now() < suppressClick.until) return;
+        rotateTile(index, 1);
+      });
+
+      board.addEventListener('contextmenu', event => {
+        event.preventDefault();
+        const tile = event.target.closest('.tile');
+        if (!tile || performance.now() < suppressContextUntil) return;
+        rotateTile(Number(tile.dataset.index), -1);
+      });
+
+      // 键盘方向键移动焦点，回车/空格触发点击，Q/E 也可反向/正向旋转。
+      board.addEventListener('keydown', event => {
+        const tile = event.target.closest('.tile');
+        if (!tile) return;
+        const index = Number(tile.dataset.index);
+        const row = Math.floor(index / SIZE);
+        const col = index % SIZE;
+        let next = index;
+        if (event.key === 'ArrowUp') next = ((row + SIZE - 1) % SIZE) * SIZE + col;
+        else if (event.key === 'ArrowDown') next = ((row + 1) % SIZE) * SIZE + col;
+        else if (event.key === 'ArrowLeft') next = row * SIZE + (col + SIZE - 1) % SIZE;
+        else if (event.key === 'ArrowRight') next = row * SIZE + (col + 1) % SIZE;
+        else if (event.key.toLowerCase() === 'q') rotateTile(index, -1);
+        else if (event.key.toLowerCase() === 'e') rotateTile(index, 1);
+        else return;
+        event.preventDefault();
+        if (next !== index) board.children[next].focus();
+      });
+
+      pauseButton.addEventListener('click', () => {
+        if (state.phase === 'playing') pauseGame();
+        else if (state.phase === 'paused') resumeGame();
+      });
+      $('restartButton').addEventListener('click', newGame);
+      $('dialogPrimary').addEventListener('click', () => state.phase === 'paused' ? resumeGame() : newGame());
+      $('dialogSecondary').addEventListener('click', newGame);
+
+      dialog.addEventListener('cancel', event => {
+        event.preventDefault();
+        if (state.phase === 'paused') resumeGame();
+      });
+
+      document.addEventListener('keydown', event => {
+        if (event.key.toLowerCase() === 'p' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          if (state.phase === 'playing') pauseGame();
+          else if (state.phase === 'paused') resumeGame();
+        }
+      });
+
+      // 切到后台时自动暂停，避免玩家无感知地损失时间。
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state.phase === 'playing') pauseGame(true);
+      });
+
+      // 禁止双击缩放、双指缩放与页面拖动，游戏内部按钮仍可正常操作。
+      document.addEventListener('dblclick', event => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', event => event.preventDefault(), { passive: false });
+      document.addEventListener('touchmove', event => {
+        if (!dialog.contains(event.target)) event.preventDefault();
+      }, { passive: false });
+
+      newGame();
+    })();
+  </script>
+</body>
+</html>

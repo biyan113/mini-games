@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070914">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>霓虹钢琴块</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070914;
+      --panel: #101426;
+      --cyan: #55f6ff;
+      --violet: #a78bfa;
+      --pink: #ff65c3;
+      --text: #f5f7ff;
+      --muted: #8d96b2;
+      --danger: #ff5277;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 10%, rgba(87, 68, 190, .24), transparent 38%),
+        radial-gradient(circle at 90% 85%, rgba(0, 224, 255, .13), transparent 36%),
+        var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    button {
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    .ambient {
+      position: fixed;
+      width: 260px;
+      height: 260px;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: .18;
+      pointer-events: none;
+    }
+
+    .ambient-a {
+      top: -100px;
+      left: -80px;
+      background: var(--violet);
+    }
+
+    .ambient-b {
+      right: -100px;
+      bottom: -80px;
+      background: var(--cyan);
+    }
+
+    .game-shell {
+      position: relative;
+      isolation: isolate;
+      display: flex;
+      flex-direction: column;
+      width: min(100%, 520px);
+      height: 100vh;
+      height: 100dvh;
+      max-height: 940px;
+      padding: max(14px, env(safe-area-inset-top)) 14px max(12px, env(safe-area-inset-bottom));
+      overflow: hidden;
+      background: linear-gradient(165deg, rgba(18, 22, 43, .97), rgba(7, 10, 23, .98));
+      border: 1px solid rgba(145, 158, 255, .14);
+      box-shadow: 0 24px 90px rgba(0, 0, 0, .5);
+    }
+
+    .topbar {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 2px 13px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      gap: 11px;
+    }
+
+    .brand-mark {
+      position: relative;
+      display: flex;
+      flex: 0 0 auto;
+      align-items: flex-end;
+      justify-content: center;
+      width: 43px;
+      height: 43px;
+      padding: 9px 8px;
+      gap: 3px;
+      overflow: hidden;
+      border: 1px solid rgba(85, 246, 255, .3);
+      border-radius: 13px;
+      background: linear-gradient(145deg, rgba(85, 246, 255, .13), rgba(167, 139, 250, .14));
+      box-shadow: inset 0 0 18px rgba(85, 246, 255, .05), 0 0 20px rgba(85, 246, 255, .06);
+    }
+
+    .brand-mark i {
+      display: block;
+      width: 5px;
+      height: 21px;
+      border-radius: 2px;
+      background: linear-gradient(to top, var(--cyan), #e9feff);
+      box-shadow: 0 0 8px rgba(85, 246, 255, .5);
+    }
+
+    .brand-mark i:nth-child(2) {
+      height: 15px;
+      background: linear-gradient(to top, var(--violet), #eee9ff);
+    }
+
+    .brand-mark i:nth-child(3) {
+      height: 25px;
+      background: linear-gradient(to top, var(--pink), #ffe6f6);
+    }
+
+    .brand-mark i:nth-child(4) {
+      height: 18px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 19px;
+      font-weight: 750;
+      letter-spacing: .08em;
+      line-height: 1.25;
+    }
+
+    .brand p {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 650;
+      letter-spacing: .25em;
+    }
+
+    .actions {
+      display: flex;
+      flex: 0 0 auto;
+      gap: 8px;
+    }
+
+    .icon-button {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border: 1px solid rgba(164, 176, 226, .16);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .045);
+      transition: background .18s, border-color .18s, transform .18s;
+    }
+
+    .icon-button:active {
+      transform: scale(.93);
+    }
+
+    .icon-button:hover {
+      border-color: rgba(85, 246, 255, .35);
+      background: rgba(85, 246, 255, .08);
+    }
+
+    .icon-button:disabled {
+      cursor: default;
+      opacity: .35;
+    }
+
+    .icon-button svg {
+      width: 19px;
+      height: 19px;
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 1.8;
+    }
+
+    .stats {
+      display: grid;
+      flex: 0 0 auto;
+      grid-template-columns: 1.2fr 1fr 1fr;
+      padding: 12px 6px;
+      border: 1px solid rgba(153, 166, 224, .12);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, .028);
+    }
+
+    .stat {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .stat + .stat::before {
+      position: absolute;
+      top: 7px;
+      bottom: 7px;
+      left: 0;
+      width: 1px;
+      content: "";
+      background: rgba(158, 171, 222, .12);
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: .12em;
+    }
+
+    .stat strong {
+      font-size: 25px;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.2;
+    }
+
+    .stat:first-child strong {
+      color: var(--cyan);
+      text-shadow: 0 0 18px rgba(85, 246, 255, .28);
+    }
+
+    .stat:first-child strong.pop {
+      animation: score-pop .2s ease-out;
+    }
+
+    .goal-stat strong {
+      color: #c7b8ff;
+    }
+
+    .progress-wrap {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 3px 11px;
+    }
+
+    .progress-track {
+      flex: 1;
+      height: 4px;
+      overflow: hidden;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, .075);
+    }
+
+    .progress-bar {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--violet), var(--cyan));
+      box-shadow: 0 0 10px rgba(85, 246, 255, .55);
+      transition: width .18s ease-out;
+    }
+
+    .speed-label {
+      min-width: 63px;
+      color: var(--muted);
+      font-size: 10px;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: .04em;
+      text-align: right;
+    }
+
+    .speed-label span {
+      color: #dce3ff;
+    }
+
+    .board {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid rgba(199, 213, 255, .22);
+      border-radius: 17px;
+      background: #e9edf5;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, .32), 0 0 0 1px rgba(85, 246, 255, .025);
+      touch-action: none;
+    }
+
+    .lane-guides,
+    .tile-layer,
+    .board-shade,
+    .feedback-flash {
+      position: absolute;
+      inset: 0;
+    }
+
+    .lane-guides {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      pointer-events: none;
+    }
+
+    .lane-guides i {
+      border-right: 1px solid rgba(72, 82, 112, .15);
+      background: linear-gradient(to bottom, rgba(255, 255, 255, .65), rgba(224, 229, 240, .5));
+    }
+
+    .lane-guides i:last-child {
+      border-right: 0;
+    }
+
+    .tile-layer {
+      z-index: 2;
+    }
+
+    .tile-row {
+      position: absolute;
+      top: 0;
+      right: 0;
+      left: 0;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      will-change: transform;
+    }
+
+    .tile {
+      position: relative;
+      min-width: 0;
+      padding: 0;
+      overflow: hidden;
+      border-right: 1px solid rgba(70, 80, 110, .17);
+      border-bottom: 1px solid rgba(70, 80, 110, .15);
+      border-radius: 0;
+      background: rgba(249, 250, 253, .93);
+      cursor: pointer;
+    }
+
+    .tile:last-child {
+      border-right: 0;
+    }
+
+    .tile.black {
+      background: rgba(239, 243, 250, .94);
+    }
+
+    .tile.black::before {
+      position: absolute;
+      inset: 5px;
+      content: "";
+      border: 1px solid rgba(132, 240, 255, .17);
+      border-radius: 10px;
+      background:
+        radial-gradient(circle at 50% 110%, rgba(73, 225, 255, .16), transparent 48%),
+        linear-gradient(145deg, #242a3d 0%, #0c101c 55%, #05070d 100%);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .11), 0 4px 10px rgba(3, 7, 18, .38), 0 0 15px rgba(85, 246, 255, .07);
+      transition: transform .08s, filter .08s;
+    }
+
+    .tile.black::after {
+      position: absolute;
+      right: 15px;
+      bottom: 13px;
+      left: 15px;
+      height: 2px;
+      content: "";
+      border-radius: 4px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      box-shadow: 0 0 8px rgba(85, 246, 255, .65);
+      opacity: .65;
+    }
+
+    .tile.black:active::before {
+      transform: scale(.97);
+      filter: brightness(1.3);
+    }
+
+    .note {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      color: rgba(194, 249, 255, .78);
+      font-family: Georgia, serif;
+      font-size: 24px;
+      line-height: 1;
+      text-shadow: 0 0 12px rgba(85, 246, 255, .45);
+      transform: translate(-50%, -58%);
+      pointer-events: none;
+    }
+
+    .key-hint {
+      position: absolute;
+      bottom: 19px;
+      left: 50%;
+      color: rgba(207, 218, 241, .42);
+      font-size: 8px;
+      font-weight: 700;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .tile-row.is-hit {
+      pointer-events: none;
+      animation: row-hit .18s ease-out forwards;
+    }
+
+    .tile-row.is-hit .tile.black::before {
+      border-color: var(--cyan);
+      background: linear-gradient(145deg, #b9fcff, #55dfea);
+      box-shadow: 0 0 26px rgba(85, 246, 255, .8);
+    }
+
+    .tile-row.is-hit .note,
+    .tile-row.is-hit .key-hint {
+      color: #07111a;
+      text-shadow: none;
+    }
+
+    .tile.is-wrong {
+      z-index: 2;
+      background: #ffdbe3;
+      animation: wrong-flash .25s ease-out;
+    }
+
+    .board-shade {
+      z-index: 3;
+      background: linear-gradient(to bottom, rgba(12, 16, 32, .16), transparent 12%, transparent 88%, rgba(12, 16, 32, .13));
+      pointer-events: none;
+    }
+
+    .bottom-label {
+      position: absolute;
+      z-index: 4;
+      right: 0;
+      bottom: 8px;
+      left: 0;
+      color: rgba(37, 46, 70, .48);
+      font-size: 9px;
+      font-weight: 650;
+      letter-spacing: .18em;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .feedback-flash {
+      z-index: 5;
+      background: radial-gradient(circle at var(--flash-x, 50%) var(--flash-y, 50%), rgba(85, 246, 255, .27), transparent 33%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .feedback-flash.play {
+      animation: feedback .24s ease-out;
+    }
+
+    .board.shake {
+      animation: board-shake .28s ease-in-out;
+    }
+
+    .float-score {
+      position: absolute;
+      z-index: 7;
+      color: #087b89;
+      font-size: 18px;
+      font-weight: 800;
+      text-shadow: 0 1px 0 white;
+      transform: translate(-50%, -50%);
+      animation: float-score .5s ease-out forwards;
+      pointer-events: none;
+    }
+
+    .game-footer {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 11px 3px 0;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .rule {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .rule-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+    }
+
+    .keyboard-tip {
+      color: #717b99;
+      font-size: 9px;
+      letter-spacing: .08em;
+      white-space: nowrap;
+    }
+
+    .keyboard-tip b {
+      color: #b8c2df;
+      font-weight: 650;
+    }
+
+    .modal-overlay {
+      position: absolute;
+      z-index: 20;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(4, 6, 16, .7);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      animation: overlay-in .2s ease-out;
+    }
+
+    .modal {
+      position: relative;
+      width: min(100%, 360px);
+      padding: 30px 24px 24px;
+      overflow: hidden;
+      border: 1px solid rgba(137, 229, 255, .2);
+      border-radius: 25px;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(85, 246, 255, .09), transparent 43%),
+        linear-gradient(155deg, rgba(25, 30, 54, .98), rgba(11, 14, 29, .99));
+      box-shadow: 0 25px 70px rgba(0, 0, 0, .52), inset 0 1px 0 rgba(255, 255, 255, .045);
+      text-align: center;
+      animation: modal-in .3s cubic-bezier(.2, .8, .2, 1);
+    }
+
+    .modal::before {
+      position: absolute;
+      top: 0;
+      right: 22%;
+      left: 22%;
+      height: 1px;
+      content: "";
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      box-shadow: 0 0 12px var(--cyan);
+    }
+
+    .modal-icon {
+      display: grid;
+      place-items: center;
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 18px;
+      border: 1px solid rgba(85, 246, 255, .25);
+      border-radius: 20px;
+      color: var(--cyan);
+      background: linear-gradient(145deg, rgba(85, 246, 255, .11), rgba(167, 139, 250, .11));
+      box-shadow: 0 0 30px rgba(85, 246, 255, .09);
+      font-family: Georgia, serif;
+      font-size: 34px;
+      text-shadow: 0 0 15px rgba(85, 246, 255, .45);
+    }
+
+    .modal-kicker {
+      margin: 0 0 7px;
+      color: var(--cyan);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .24em;
+    }
+
+    .modal h2 {
+      margin: 0;
+      font-size: 27px;
+      letter-spacing: .06em;
+    }
+
+    .modal-desc {
+      max-width: 265px;
+      margin: 12px auto 20px;
+      color: #9ca6c3;
+      font-size: 13px;
+      line-height: 1.75;
+    }
+
+    .how-to {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 0 0 20px;
+    }
+
+    .how-to div {
+      padding: 10px 6px;
+      border: 1px solid rgba(157, 171, 224, .1);
+      border-radius: 12px;
+      color: #aab4d0;
+      background: rgba(255, 255, 255, .025);
+      font-size: 11px;
+    }
+
+    .how-to span {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 17px;
+    }
+
+    .result-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      margin: 0 0 18px;
+      padding: 14px 0;
+      border: 1px solid rgba(149, 165, 221, .12);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .025);
+    }
+
+    .result-stats div {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .result-stats div + div {
+      border-left: 1px solid rgba(149, 165, 221, .12);
+    }
+
+    .result-stats span {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .result-stats strong {
+      font-size: 25px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .result-stats div:first-child strong {
+      color: var(--cyan);
+    }
+
+    .new-record {
+      margin: -7px 0 15px;
+      color: #ffe792;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-shadow: 0 0 12px rgba(255, 224, 120, .35);
+    }
+
+    .primary-button,
+    .secondary-button {
+      width: 100%;
+      min-height: 49px;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      transition: transform .15s, filter .15s;
+    }
+
+    .primary-button {
+      color: #07121c;
+      background: linear-gradient(100deg, #8ff9ff, #65e9f7 48%, #b5a2ff);
+      box-shadow: 0 8px 24px rgba(85, 246, 255, .17), inset 0 1px 0 rgba(255, 255, 255, .7);
+    }
+
+    .primary-button:active,
+    .secondary-button:active {
+      transform: scale(.97);
+    }
+
+    .primary-button:hover {
+      filter: brightness(1.08);
+    }
+
+    .secondary-button {
+      margin-top: 9px;
+      border: 1px solid rgba(164, 177, 225, .15);
+      color: #aab4cf;
+      background: rgba(255, 255, 255, .035);
+    }
+
+    .modal-tip {
+      margin: 13px 0 0;
+      color: #646e8b;
+      font-size: 9px;
+      letter-spacing: .05em;
+    }
+
+    @media (min-width: 600px) {
+      body {
+        padding: 16px;
+      }
+
+      .game-shell {
+        height: min(940px, calc(100dvh - 32px));
+        border-radius: 27px;
+      }
+    }
+
+    @media (max-height: 680px) {
+      .game-shell {
+        padding-top: max(9px, env(safe-area-inset-top));
+        padding-bottom: max(8px, env(safe-area-inset-bottom));
+      }
+
+      .topbar {
+        padding-bottom: 8px;
+      }
+
+      .brand-mark {
+        width: 37px;
+        height: 37px;
+        padding: 7px;
+        border-radius: 11px;
+      }
+
+      .brand h1 {
+        font-size: 17px;
+      }
+
+      .brand p {
+        display: none;
+      }
+
+      .icon-button {
+        width: 36px;
+        height: 36px;
+      }
+
+      .stats {
+        padding: 8px 5px;
+      }
+
+      .stat strong {
+        font-size: 21px;
+      }
+
+      .progress-wrap {
+        padding: 7px 3px 8px;
+      }
+
+      .game-footer {
+        padding-top: 7px;
+      }
+
+      .modal {
+        padding: 22px 21px 19px;
+      }
+
+      .modal-icon {
+        width: 51px;
+        height: 51px;
+        margin-bottom: 12px;
+        border-radius: 16px;
+        font-size: 28px;
+      }
+
+      .modal h2 {
+        font-size: 24px;
+      }
+
+      .modal-desc {
+        margin: 8px auto 13px;
+      }
+
+      .how-to {
+        margin-bottom: 14px;
+      }
+    }
+
+    @media (max-width: 350px) {
+      .game-shell {
+        padding-right: 9px;
+        padding-left: 9px;
+      }
+
+      .keyboard-tip {
+        display: none;
+      }
+
+      .modal-overlay {
+        padding: 17px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .modal-overlay,
+      .modal,
+      .stat strong,
+      .progress-bar {
+        animation-duration: .01ms !important;
+        transition-duration: .01ms !important;
+      }
+    }
+
+    @keyframes score-pop {
+      50% { transform: scale(1.22); }
+    }
+
+    @keyframes row-hit {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+
+    @keyframes feedback {
+      0% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    @keyframes float-score {
+      0% { opacity: 0; transform: translate(-50%, -30%) scale(.8); }
+      25% { opacity: 1; }
+      100% { opacity: 0; transform: translate(-50%, -150%) scale(1.08); }
+    }
+
+    @keyframes wrong-flash {
+      50% { background: #ff7894; }
+    }
+
+    @keyframes board-shake {
+      20%, 60% { transform: translateX(-5px); }
+      40%, 80% { transform: translateX(5px); }
+    }
+
+    @keyframes overlay-in {
+      from { opacity: 0; }
+    }
+
+    @keyframes modal-in {
+      from { opacity: 0; transform: translateY(14px) scale(.97); }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+
+  <main class="game-shell" id="gameShell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+        <div>
+          <h1>霓虹钢琴</h1>
+          <p>NEON PIANO TILES</p>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="icon-button" id="soundButton" type="button" aria-label="关闭音效" aria-pressed="true">
+          <svg id="soundOnIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"></path><path d="M15 9a4 4 0 0 1 0 6"></path><path d="M18 6a8 8 0 0 1 0 12"></path></svg>
+          <svg id="soundOffIcon" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M11 5 6 9H3v6h3l5 4V5Z"></path><path d="m16 9 5 6m0-6-5 6"></path></svg>
+        </button>
+        <button class="icon-button" id="pauseButton" type="button" aria-label="暂停游戏" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"></path></svg>
+        </button>
+      </div>
+    </header>
+
+    <section class="stats" aria-label="游戏数据">
+      <div class="stat">
+        <span class="stat-label">本局得分</span>
+        <strong id="score">0</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">最高分</span>
+        <strong id="bestScore">0</strong>
+      </div>
+      <div class="stat goal-stat">
+        <span class="stat-label">挑战目标</span>
+        <strong id="targetScore">30</strong>
+      </div>
+    </section>
+
+    <div class="progress-wrap">
+      <div class="progress-track" aria-hidden="true"><div class="progress-bar" id="progressBar"></div></div>
+      <div class="speed-label">速度 <span id="speed">1.0×</span></div>
+    </div>
+
+    <section class="board" id="board" aria-label="四列钢琴块游戏区：点击下落的黑块，不要点击白块">
+      <div class="lane-guides" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div class="tile-layer" id="tileLayer"></div>
+      <div class="board-shade"></div>
+      <div class="bottom-label">保持节奏 · 别漏黑块</div>
+      <div class="feedback-flash" id="feedbackFlash"></div>
+    </section>
+
+    <footer class="game-footer">
+      <span class="rule"><i class="rule-dot"></i>只点黑块，白块勿碰</span>
+      <span class="keyboard-tip">键盘 <b>D F J K</b> · 空格暂停</span>
+    </footer>
+
+    <div class="modal-overlay" id="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal">
+        <div class="modal-icon" id="modalIcon" aria-hidden="true">♪</div>
+        <p class="modal-kicker" id="modalKicker">指尖节奏挑战</p>
+        <h2 id="modalTitle">霓虹钢琴</h2>
+        <p class="modal-desc" id="modalDesc">黑块落下时轻触它，别点白块，也别让黑块落出底部。完成 30 块即可获胜！</p>
+
+        <div class="how-to" id="howTo">
+          <div><span>▣</span>点击黑色琴块</div>
+          <div><span>□</span>避开白色琴块</div>
+        </div>
+
+        <div class="result-stats" id="resultStats" hidden>
+          <div><span>本局得分</span><strong id="finalScore">0</strong></div>
+          <div><span>历史最高</span><strong id="finalBest">0</strong></div>
+        </div>
+        <div class="new-record" id="newRecord" hidden>✦ 新纪录 ✦</div>
+
+        <button class="primary-button" id="primaryButton" type="button">开始游戏</button>
+        <button class="secondary-button" id="secondaryButton" type="button" hidden>重新开始</button>
+        <p class="modal-tip" id="modalTip">手机轻触 · 鼠标点击 · 键盘 D F J K</p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // ---------- 常量与页面元素 ----------
+      const COLUMN_COUNT = 4;
+      const TARGET = 30;
+      const BEST_KEY = 'neonPianoTilesBestV1';
+      const KEY_TO_COLUMN = {
+        KeyD: 0, KeyF: 1, KeyJ: 2, KeyK: 3,
+        Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3,
+        Numpad1: 0, Numpad2: 1, Numpad3: 2, Numpad4: 3
+      };
+      const KEY_LABELS = ['D', 'F', 'J', 'K'];
+      const NOTES = [261.63, 329.63, 392.00, 523.25];
+
+      const board = document.getElementById('board');
+      const tileLayer = document.getElementById('tileLayer');
+      const scoreEl = document.getElementById('score');
+      const bestEl = document.getElementById('bestScore');
+      const progressBar = document.getElementById('progressBar');
+      const speedEl = document.getElementById('speed');
+      const pauseButton = document.getElementById('pauseButton');
+      const soundButton = document.getElementById('soundButton');
+      const soundOnIcon = document.getElementById('soundOnIcon');
+      const soundOffIcon = document.getElementById('soundOffIcon');
+      const feedbackFlash = document.getElementById('feedbackFlash');
+      const overlay = document.getElementById('modalOverlay');
+      const modalIcon = document.getElementById('modalIcon');
+      const modalKicker = document.getElementById('modalKicker');
+      const modalTitle = document.getElementById('modalTitle');
+      const modalDesc = document.getElementById('modalDesc');
+      const howTo = document.getElementById('howTo');
+      const resultStats = document.getElementById('resultStats');
+      const finalScore = document.getElementById('finalScore');
+      const finalBest = document.getElementById('finalBest');
+      const newRecord = document.getElementById('newRecord');
+      const primaryButton = document.getElementById('primaryButton');
+      const secondaryButton = document.getElementById('secondaryButton');
+      const modalTip = document.getElementById('modalTip');
+
+      // ---------- 游戏状态 ----------
+      let state = 'ready';
+      let rows = [];
+      let nextRowId = 1;
+      let score = 0;
+      let best = loadBest();
+      let startingBest = best;
+      let boardHeight = 0;
+      let rowHeight = 100;
+      let spawnTravel = 0;
+      let lastFrame = 0;
+      let endTimer = 0;
+      let soundEnabled = true;
+      let audioContext = null;
+
+      document.getElementById('targetScore').textContent = TARGET;
+      bestEl.textContent = best;
+
+      // localStorage 在隐私模式下可能不可用，因此读写都需容错。
+      function loadBest() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(BEST_KEY) || '0', 10);
+          return Number.isFinite(value) && value > 0 ? value : 0;
+        } catch (error) {
+          return 0;
+        }
+      }
+
+      function saveBest() {
+        try {
+          localStorage.setItem(BEST_KEY, String(best));
+        } catch (error) {
+          // 存储不可用时仍可正常游戏，仅不保留最高分。
+        }
+      }
+
+      // ---------- 轻量合成音效，无需音频文件 ----------
+      function getAudioContext() {
+        if (!soundEnabled) return null;
+        const AudioCtor = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtor) return null;
+        if (!audioContext) audioContext = new AudioCtor();
+        if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
+        return audioContext;
+      }
+
+      function playTone(frequency, duration = .11, volume = .055, delay = 0, type = 'sine') {
+        const context = getAudioContext();
+        if (!context) return;
+        const start = context.currentTime + delay;
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = type;
+        oscillator.frequency.setValueAtTime(frequency, start);
+        gain.gain.setValueAtTime(.0001, start);
+        gain.gain.exponentialRampToValueAtTime(volume, start + .012);
+        gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(start);
+        oscillator.stop(start + duration + .02);
+      }
+
+      function playHitSound(column) {
+        const octave = Math.floor(score / 8) % 2 === 1 ? 2 : 1;
+        playTone(NOTES[column] * octave, .12, .045, 0, 'sine');
+        playTone(NOTES[column] * octave * 2, .07, .012, .01, 'triangle');
+      }
+
+      function playErrorSound() {
+        playTone(155, .25, .06, 0, 'sawtooth');
+        playTone(116, .3, .04, .08, 'sawtooth');
+      }
+
+      function playWinSound() {
+        [523.25, 659.25, 783.99, 1046.5].forEach((note, index) => {
+          playTone(note, .28, .045, index * .09, 'sine');
+        });
+      }
+
+      function vibrate(pattern) {
+        if (navigator.vibrate) navigator.vibrate(pattern);
+      }
+
+      // ---------- 尺寸自适应 ----------
+      function resizeBoard() {
+        const oldHeight = boardHeight;
+        const oldRowHeight = rowHeight;
+        boardHeight = board.clientHeight;
+        if (!boardHeight) return;
+        rowHeight = Math.max(76, Math.min(124, boardHeight / 4.65));
+
+        // 屏幕旋转时按比例换算位置，避免已有琴块突然漏判。
+        if (oldHeight && rows.length) {
+          const ratio = boardHeight / oldHeight;
+          rows.forEach(row => {
+            row.y *= ratio;
+            row.element.style.height = `${rowHeight}px`;
+            renderRow(row);
+          });
+          spawnTravel *= rowHeight / oldRowHeight;
+        }
+        updateSpeedLabel();
+      }
+
+      function baseSpeed() {
+        return Math.max(90, boardHeight * .25);
+      }
+
+      function currentSpeed() {
+        return Math.min(boardHeight * .82, baseSpeed() + score * 5.2);
+      }
+
+      function updateSpeedLabel() {
+        const ratio = baseSpeed() ? currentSpeed() / baseSpeed() : 1;
+        speedEl.textContent = `${ratio.toFixed(1)}×`;
+      }
+
+      // ---------- 琴块生成与渲染 ----------
+      function spawnRow(initialY = -rowHeight) {
+        const element = document.createElement('div');
+        const blackColumn = Math.floor(Math.random() * COLUMN_COUNT);
+        const row = { id: nextRowId++, y: initialY, blackColumn, element };
+        element.className = 'tile-row';
+        element.dataset.rowId = row.id;
+        element.style.height = `${rowHeight}px`;
+
+        for (let column = 0; column < COLUMN_COUNT; column += 1) {
+          const tile = document.createElement('div');
+          const isBlack = column === blackColumn;
+          tile.className = `tile ${isBlack ? 'black' : 'white'}`;
+          tile.dataset.column = column;
+          tile.setAttribute('role', 'button');
+          tile.setAttribute('aria-label', isBlack ? `第 ${column + 1} 列黑色琴块` : '白色琴块，请勿点击');
+          if (isBlack) {
+            const note = document.createElement('span');
+            note.className = 'note';
+            note.textContent = '♪';
+            const keyHint = document.createElement('span');
+            keyHint.className = 'key-hint';
+            keyHint.textContent = KEY_LABELS[column];
+            tile.append(note, keyHint);
+          }
+          element.appendChild(tile);
+        }
+
+        rows.push(row);
+        tileLayer.appendChild(element);
+        renderRow(row);
+      }
+
+      function renderRow(row) {
+        row.element.style.transform = `translate3d(0, ${row.y}px, 0)`;
+      }
+
+      function updateGame(deltaTime) {
+        const movement = currentSpeed() * deltaTime;
+        spawnTravel += movement;
+
+        for (const row of rows) {
+          row.y += movement;
+          renderRow(row);
+        }
+
+        // 按实际移动距离生成下一行，保证不同速度下间距一致。
+        if (spawnTravel >= rowHeight * 1.12) {
+          spawnTravel -= rowHeight * 1.12;
+          spawnRow();
+        }
+
+        const missedRow = rows.find(row => row.y + rowHeight >= boardHeight - 1);
+        if (missedRow) finishGame(false, '黑块落出了底部，再跟紧一点节奏！');
+      }
+
+      function animationLoop(timestamp) {
+        const deltaTime = lastFrame ? Math.min((timestamp - lastFrame) / 1000, .035) : 0;
+        lastFrame = timestamp;
+        if (state === 'playing') updateGame(deltaTime);
+        requestAnimationFrame(animationLoop);
+      }
+
+      // ---------- 输入与计分 ----------
+      function hitRow(row, column, tileElement) {
+        if (state !== 'playing' || !rows.includes(row)) return;
+
+        if (column !== row.blackColumn) {
+          if (tileElement) tileElement.classList.add('is-wrong');
+          finishGame(false, '哎呀，点到白块了！只点击黑色琴块哦。');
+          return;
+        }
+
+        rows.splice(rows.indexOf(row), 1);
+        row.element.classList.add('is-hit');
+        window.setTimeout(() => row.element.remove(), 180);
+        score += 1;
+
+        if (score > best) {
+          best = score;
+          saveBest();
+        }
+
+        updateStats();
+        playHitSound(column);
+        vibrate(10);
+        showHitFeedback(row);
+        if (score >= TARGET) finishGame(true, `完美击中 ${TARGET} 块，节奏大师就是你！`);
+      }
+
+      function updateStats() {
+        scoreEl.textContent = score;
+        bestEl.textContent = best;
+        progressBar.style.width = `${Math.min(100, score / TARGET * 100)}%`;
+        updateSpeedLabel();
+        scoreEl.classList.remove('pop');
+        void scoreEl.offsetWidth;
+        scoreEl.classList.add('pop');
+      }
+
+      function showHitFeedback(row) {
+        const x = (row.blackColumn + .5) / COLUMN_COUNT * 100;
+        const y = Math.max(0, Math.min(100, (row.y + rowHeight / 2) / boardHeight * 100));
+        feedbackFlash.style.setProperty('--flash-x', `${x}%`);
+        feedbackFlash.style.setProperty('--flash-y', `${y}%`);
+        feedbackFlash.classList.remove('play');
+        void feedbackFlash.offsetWidth;
+        feedbackFlash.classList.add('play');
+
+        const floatScore = document.createElement('span');
+        floatScore.className = 'float-score';
+        floatScore.textContent = '+1';
+        floatScore.style.left = `${x}%`;
+        floatScore.style.top = `${y}%`;
+        board.appendChild(floatScore);
+        window.setTimeout(() => floatScore.remove(), 520);
+      }
+
+      // 触屏与鼠标统一使用 Pointer Events，按下即响应，无点击延迟。
+      board.addEventListener('pointerdown', event => {
+        if (state !== 'playing') return;
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        const tile = event.target.closest('.tile');
+        if (!tile || !board.contains(tile)) return;
+        event.preventDefault();
+        const rowElement = tile.parentElement;
+        const row = rows.find(item => String(item.id) === rowElement.dataset.rowId);
+        if (row) hitRow(row, Number(tile.dataset.column), tile);
+      }, { passive: false });
+
+      // 键盘始终操作最靠下的可见行，规则与直接点块一致。
+      function hitColumnByKeyboard(column) {
+        const visibleRows = rows.filter(row => row.y + rowHeight > 0 && row.y < boardHeight);
+        if (!visibleRows.length) return;
+        const targetRow = visibleRows.reduce((lowest, row) => row.y > lowest.y ? row : lowest);
+        const tile = targetRow.element.children[column];
+        hitRow(targetRow, column, tile);
+      }
+
+      // ---------- 开始、暂停与结算 ----------
+      function startGame() {
+        window.clearTimeout(endTimer);
+        getAudioContext();
+        rows = [];
+        tileLayer.replaceChildren();
+        board.querySelectorAll('.float-score').forEach(element => element.remove());
+        score = 0;
+        startingBest = best;
+        spawnTravel = 0;
+        nextRowId = 1;
+        state = 'playing';
+        scoreEl.textContent = '0';
+        bestEl.textContent = best;
+        progressBar.style.width = '0%';
+        pauseButton.disabled = false;
+        overlay.hidden = true;
+        board.classList.remove('shake');
+        resizeBoard();
+        spawnRow(Math.max(-rowHeight * .2, boardHeight * .08));
+        updateSpeedLabel();
+        lastFrame = performance.now();
+      }
+
+      function pauseGame(automatic = false) {
+        if (state !== 'playing') return;
+        state = 'paused';
+        pauseButton.disabled = true;
+        showModal({
+          icon: 'Ⅱ',
+          kicker: automatic ? '已自动暂停' : '稍作休息',
+          title: '游戏暂停',
+          description: automatic ? '页面离开时已为你暂停，准备好后继续。' : '节奏已冻结，准备好后继续演奏。',
+          primary: '继续游戏',
+          showRestart: true,
+          showResult: false
+        });
+      }
+
+      function resumeGame() {
+        if (state !== 'paused') return;
+        getAudioContext();
+        state = 'playing';
+        pauseButton.disabled = false;
+        overlay.hidden = true;
+        lastFrame = performance.now();
+      }
+
+      function finishGame(won, reason) {
+        if (state !== 'playing') return;
+        state = won ? 'won' : 'over';
+        pauseButton.disabled = true;
+        saveBest();
+
+        if (won) {
+          playWinSound();
+          vibrate([30, 40, 30, 40, 60]);
+        } else {
+          playErrorSound();
+          vibrate([70, 45, 90]);
+          board.classList.remove('shake');
+          void board.offsetWidth;
+          board.classList.add('shake');
+        }
+
+        window.clearTimeout(endTimer);
+        endTimer = window.setTimeout(() => {
+          showModal({
+            icon: won ? '★' : '♪',
+            kicker: won ? '挑战完成' : '节奏中断',
+            title: won ? '演奏完成！' : '游戏结束',
+            description: reason,
+            primary: won ? '再玩一次' : '再来一局',
+            showRestart: false,
+            showResult: true
+          });
+        }, won ? 320 : 240);
+      }
+
+      function showModal({ icon, kicker, title, description, primary, showRestart, showResult }) {
+        modalIcon.textContent = icon;
+        modalKicker.textContent = kicker;
+        modalTitle.textContent = title;
+        modalDesc.textContent = description;
+        primaryButton.textContent = primary;
+        howTo.hidden = showResult || state === 'paused';
+        resultStats.hidden = !showResult;
+        newRecord.hidden = !showResult || score <= startingBest || score === 0;
+        secondaryButton.hidden = !showRestart;
+        finalScore.textContent = score;
+        finalBest.textContent = best;
+        modalTip.textContent = state === 'paused' ? '按空格键也可以继续' : '手机轻触 · 鼠标点击 · 键盘 D F J K';
+        overlay.hidden = false;
+        primaryButton.focus({ preventScroll: true });
+      }
+
+      pauseButton.addEventListener('click', () => pauseGame());
+
+      primaryButton.addEventListener('click', () => {
+        if (state === 'paused') resumeGame();
+        else startGame();
+      });
+
+      secondaryButton.addEventListener('click', startGame);
+
+      soundButton.addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        soundButton.setAttribute('aria-pressed', String(soundEnabled));
+        soundButton.setAttribute('aria-label', soundEnabled ? '关闭音效' : '开启音效');
+        soundOnIcon.hidden = !soundEnabled;
+        soundOffIcon.hidden = soundEnabled;
+        if (soundEnabled) playTone(523.25, .08, .035);
+      });
+
+      document.addEventListener('keydown', event => {
+        if (event.code === 'Space' || event.code === 'Escape' || event.code === 'KeyP') {
+          event.preventDefault();
+          if (event.repeat) return;
+          if (state === 'playing') pauseGame();
+          else if (state === 'paused') resumeGame();
+          else if (event.code === 'Space') startGame();
+          return;
+        }
+
+        if (event.code === 'Enter' && state !== 'playing') {
+          event.preventDefault();
+          if (!event.repeat) {
+            if (state === 'paused') resumeGame();
+            else startGame();
+          }
+          return;
+        }
+
+        if (event.code === 'KeyM' && !event.repeat) {
+          event.preventDefault();
+          soundButton.click();
+          return;
+        }
+
+        const column = KEY_TO_COLUMN[event.code];
+        if (state === 'playing' && column !== undefined) {
+          event.preventDefault();
+          if (!event.repeat) hitColumnByKeyboard(column);
+        }
+      });
+
+      // 切到后台时自动暂停，避免返回页面后误判漏块。
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state === 'playing') pauseGame(true);
+      });
+
+      // 禁止移动端滚动、双击缩放与双指缩放手势。
+      document.addEventListener('touchmove', event => event.preventDefault(), { passive: false });
+      document.addEventListener('dblclick', event => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', event => event.preventDefault(), { passive: false });
+      board.addEventListener('contextmenu', event => event.preventDefault());
+
+      if ('ResizeObserver' in window) {
+        new ResizeObserver(resizeBoard).observe(board);
+      } else {
+        window.addEventListener('resize', resizeBoard);
+      }
+
+      resizeBoard();
+      requestAnimationFrame(animationLoop);
+    })();
+  </script>
+</body>
+</html>

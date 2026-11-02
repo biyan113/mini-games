@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#090615">
+  <title>霓虹 777 · 幸运老虎机</title>
+  <style>
+    /* ---------- 基础与移动端适配 ---------- */
+    :root {
+      color-scheme: dark;
+      --bg: #070510;
+      --panel: rgba(20, 15, 39, .88);
+      --pink: #ff3d9a;
+      --cyan: #43e7ff;
+      --gold: #ffd166;
+      --text: #f8f5ff;
+      --muted: #9a91b4;
+      --symbol-h: clamp(46px, 14vw, 68px);
+      font-family: Inter, ui-rounded, "SF Pro Rounded", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 5%, rgba(113, 45, 160, .24), transparent 35%),
+        radial-gradient(circle at 90% 85%, rgba(0, 191, 255, .12), transparent 38%),
+        var(--bg);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .16;
+      background-image:
+        linear-gradient(rgba(117, 82, 160, .18) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(117, 82, 160, .18) 1px, transparent 1px);
+      background-size: 32px 32px;
+      -webkit-mask-image: linear-gradient(to bottom, black, transparent 80%);
+      mask-image: linear-gradient(to bottom, black, transparent 80%);
+    }
+
+    button { font: inherit; }
+    button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    .app {
+      position: relative;
+      width: min(100%, 480px);
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: max(10px, env(safe-area-inset-top)) 14px max(9px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    /* ---------- 顶栏与计分 ---------- */
+    .topbar {
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 9px; }
+    .brand-seven {
+      color: var(--pink);
+      font: 1000 35px/1 Arial Black, Impact, sans-serif;
+      font-style: italic;
+      text-shadow: 0 0 8px rgba(255, 61, 154, .9), 0 0 24px rgba(255, 61, 154, .45);
+      transform: rotate(-7deg);
+    }
+    .brand-title { font-size: 15px; font-weight: 900; letter-spacing: 2px; }
+    .brand-subtitle { margin-top: 2px; color: var(--muted); font-size: 9px; letter-spacing: 3px; }
+
+    .icon-button {
+      min-width: 68px;
+      min-height: 38px;
+      padding: 0 12px;
+      border: 1px solid rgba(163, 137, 202, .28);
+      border-radius: 12px;
+      color: #d8d0e9;
+      background: rgba(29, 23, 49, .8);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .icon-button:active { transform: scale(.96); }
+    .icon-button:disabled { opacity: .45; }
+
+    .stats { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 7px; }
+    .stat {
+      position: relative;
+      min-width: 0;
+      padding: 8px 10px 7px;
+      overflow: hidden;
+      border: 1px solid rgba(152, 121, 191, .2);
+      border-radius: 13px;
+      background: linear-gradient(145deg, rgba(30, 23, 53, .94), rgba(13, 11, 28, .94));
+      box-shadow: inset 0 1px rgba(255, 255, 255, .035);
+    }
+    .stat-label { display: block; color: var(--muted); font-size: 10px; letter-spacing: 1px; }
+    .stat-value {
+      display: block;
+      margin-top: 2px;
+      overflow: hidden;
+      font-size: clamp(17px, 5vw, 23px);
+      font-weight: 900;
+      line-height: 1.15;
+      text-overflow: ellipsis;
+      font-variant-numeric: tabular-nums;
+    }
+    .stat:first-child .stat-value { color: var(--gold); }
+    .stat:last-child .stat-value { color: var(--cyan); }
+    .stat.bump .stat-value { animation: number-bump .35s ease; }
+
+    .goal-row { display: flex; align-items: center; gap: 8px; margin-top: -3px; }
+    .goal-label { flex: none; color: #827997; font-size: 9px; letter-spacing: .5px; }
+    .goal-track { flex: 1; height: 3px; overflow: hidden; border-radius: 4px; background: #211a32; }
+    .goal-fill {
+      width: 20%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--pink), var(--gold));
+      box-shadow: 0 0 8px var(--pink);
+      transition: width .45s ease;
+    }
+
+    /* ---------- 老虎机机身 ---------- */
+    .machine {
+      position: relative;
+      padding: 11px 11px 10px;
+      border: 1px solid rgba(211, 158, 255, .25);
+      border-radius: 24px;
+      background: linear-gradient(145deg, rgba(34, 23, 58, .97), rgba(13, 10, 27, .98));
+      box-shadow:
+        0 18px 45px rgba(0, 0, 0, .38),
+        0 0 30px rgba(149, 60, 255, .08),
+        inset 0 1px rgba(255, 255, 255, .08);
+    }
+    .machine::before {
+      content: "";
+      position: absolute;
+      inset: -1px 18% auto;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--pink), transparent);
+      box-shadow: 0 0 12px var(--pink);
+    }
+
+    .jackpot-sign { text-align: center; margin-bottom: 9px; }
+    .jackpot-caption { color: #b7a6cf; font-size: 8px; font-weight: 800; letter-spacing: 4px; }
+    .jackpot-value {
+      margin-top: 1px;
+      color: var(--gold);
+      font: 1000 23px/1.1 Arial Black, Impact, sans-serif;
+      letter-spacing: 2px;
+      text-shadow: 0 0 12px rgba(255, 209, 102, .38);
+    }
+    .jackpot-value span { color: var(--pink); }
+
+    .play-area {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 58px;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .reels-wrap {
+      position: relative;
+      padding: 7px;
+      border: 1px solid rgba(255, 210, 120, .28);
+      border-radius: 17px;
+      background: #090711;
+      box-shadow: inset 0 0 20px #000, 0 0 16px rgba(255, 190, 80, .06);
+    }
+    .reels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+    .reel {
+      position: relative;
+      height: calc(var(--symbol-h) * 3);
+      overflow: hidden;
+      border: 1px solid rgba(123, 97, 156, .2);
+      border-radius: 10px;
+      background: linear-gradient(90deg, #080711, #14101f 48%, #080711);
+    }
+    .reel-strip {
+      position: absolute;
+      inset: 0 0 auto;
+      will-change: transform;
+      transform: translateY(calc(var(--symbol-h) * -1));
+    }
+    .reel-cell {
+      height: var(--symbol-h);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .symbol {
+      display: block;
+      font-family: Arial Black, Impact, "PingFang SC", sans-serif;
+      font-size: calc(var(--symbol-h) * .58);
+      font-weight: 1000;
+      line-height: 1;
+      filter: saturate(1.12);
+    }
+    .symbol.seven {
+      color: #ff4b9f;
+      font-size: calc(var(--symbol-h) * .77);
+      font-style: italic;
+      text-shadow: 0 0 9px rgba(255, 55, 147, .8), 0 0 23px rgba(255, 55, 147, .35);
+    }
+    .symbol.bar { color: var(--cyan); font-size: calc(var(--symbol-h) * .32); letter-spacing: -1px; text-shadow: 0 0 10px rgba(67, 231, 255, .65); }
+    .symbol.diamond { color: #a983ff; text-shadow: 0 0 12px rgba(169, 131, 255, .6); }
+    .symbol.star { color: var(--gold); text-shadow: 0 0 11px rgba(255, 209, 102, .55); }
+    .symbol.bell { font-size: calc(var(--symbol-h) * .49); }
+    .symbol.cherry { font-size: calc(var(--symbol-h) * .48); }
+
+    .reel::before, .reel::after {
+      content: "";
+      position: absolute;
+      z-index: 2;
+      left: 0;
+      right: 0;
+      height: var(--symbol-h);
+      pointer-events: none;
+    }
+    .reel::before { top: 0; background: linear-gradient(#080710 12%, rgba(8, 7, 16, .65) 60%, transparent); }
+    .reel::after { bottom: 0; background: linear-gradient(transparent, rgba(8, 7, 16, .65) 40%, #080710 88%); }
+    .reel.is-spinning .symbol { filter: blur(1.5px) saturate(1.3); }
+    .reel.is-winning {
+      border-color: var(--gold);
+      box-shadow: inset 0 0 18px rgba(255, 209, 102, .18), 0 0 12px rgba(255, 209, 102, .25);
+      animation: win-glow .65s ease-in-out infinite alternate;
+    }
+
+    .payline {
+      position: absolute;
+      z-index: 4;
+      top: 50%;
+      left: 1px;
+      right: 1px;
+      height: 1px;
+      pointer-events: none;
+      background: linear-gradient(90deg, var(--pink), rgba(255, 61, 154, .15) 15%, rgba(255, 61, 154, .15) 85%, var(--pink));
+      box-shadow: 0 0 5px rgba(255, 61, 154, .5);
+    }
+    .payline::before, .payline::after {
+      content: "";
+      position: absolute;
+      top: -4px;
+      width: 7px;
+      height: 7px;
+      border: 1px solid var(--pink);
+      background: #251026;
+      transform: rotate(45deg);
+    }
+    .payline::before { left: -3px; }
+    .payline::after { right: -3px; }
+
+    /* ---------- 触控拉杆 ---------- */
+    .lever {
+      position: relative;
+      width: 58px;
+      height: calc(var(--symbol-h) * 3 + 14px);
+      min-height: 150px;
+      padding: 0;
+      border: 0;
+      border-radius: 20px;
+      background: transparent;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .lever-track {
+      position: absolute;
+      top: 15px;
+      bottom: 17px;
+      left: 21px;
+      width: 17px;
+      border: 2px solid #514360;
+      border-radius: 12px;
+      background: linear-gradient(90deg, #0a0810, #25202e, #0a0810);
+      box-shadow: inset 0 0 5px #000;
+    }
+    .lever-handle {
+      position: absolute;
+      z-index: 2;
+      top: 3px;
+      left: 10px;
+      width: 40px;
+      height: 84px;
+      transition: transform .24s cubic-bezier(.2, .8, .3, 1);
+    }
+    .lever-stem {
+      position: absolute;
+      top: 29px;
+      left: 17px;
+      width: 7px;
+      height: 53px;
+      border-radius: 5px;
+      background: linear-gradient(90deg, #766b82, #f0e9f5 48%, #655b70);
+    }
+    .lever-knob {
+      position: absolute;
+      top: 0;
+      left: 2px;
+      width: 37px;
+      height: 37px;
+      border: 2px solid #ff9bc7;
+      border-radius: 50%;
+      background: radial-gradient(circle at 32% 24%, #ffb5d4 0 7%, #ff4a9e 22%, #bd145f 65%, #630b3b);
+      box-shadow: 0 0 10px rgba(255, 61, 154, .8), 0 0 25px rgba(255, 61, 154, .3);
+    }
+    .lever-base {
+      position: absolute;
+      bottom: 5px;
+      left: 11px;
+      width: 38px;
+      height: 18px;
+      border: 1px solid #675471;
+      border-radius: 50%;
+      background: linear-gradient(#403348, #15101d);
+      box-shadow: 0 4px 5px #000;
+    }
+    .lever.is-pulled .lever-handle { transform: translateY(74px); }
+    .lever:not(:disabled):active .lever-knob { filter: brightness(1.25); }
+    .lever:disabled { cursor: default; }
+    .lever:disabled:not(.is-pulled) { opacity: .65; }
+    .lever-label {
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      color: #ab9abb;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 2px;
+    }
+
+    .result-banner {
+      min-height: 32px;
+      margin: 8px 1px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      color: #b6a9c9;
+      font-size: 11px;
+      text-align: center;
+    }
+    .result-banner::before { content: "✦"; color: #6d5b83; }
+    .result-banner.win { color: var(--gold); font-weight: 800; }
+    .result-banner.win::before { content: "★"; color: var(--gold); }
+    .result-banner.spinning::before { content: "◌"; color: var(--cyan); animation: spin-dot 1s linear infinite; }
+
+    /* ---------- 筹码选择 ---------- */
+    .bet-panel {
+      margin-top: 2px;
+      padding-top: 9px;
+      border-top: 1px solid rgba(147, 113, 178, .16);
+    }
+    .bet-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+    .bet-heading span:first-child { color: #9d90b0; font-size: 10px; letter-spacing: 1px; }
+    .current-bet { color: #d9cce8; font-size: 11px; }
+    .current-bet strong { color: var(--gold); font-size: 14px; }
+    .chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .chip {
+      min-height: 48px;
+      padding: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: 1px solid transparent;
+      border-radius: 13px;
+      color: #a89bb9;
+      background: rgba(9, 7, 18, .55);
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .chip-token {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      flex: none;
+      border: 2px dashed rgba(255, 255, 255, .75);
+      border-radius: 50%;
+      color: white;
+      background: var(--chip-color, #875cff);
+      box-shadow: inset 0 0 0 3px rgba(0, 0, 0, .18), 0 3px 8px rgba(0, 0, 0, .35);
+      font-size: 10px;
+      font-weight: 900;
+    }
+    .chip:nth-child(1) { --chip-color: #7954d9; }
+    .chip:nth-child(2) { --chip-color: #078aa7; }
+    .chip:nth-child(3) { --chip-color: #d73b7e; }
+    .chip:nth-child(4) { --chip-color: #b78016; }
+    .chip.selected {
+      border-color: rgba(255, 209, 102, .65);
+      color: var(--gold);
+      background: rgba(255, 209, 102, .07);
+      box-shadow: 0 0 12px rgba(255, 209, 102, .08);
+    }
+    .chip.selected .chip-token { transform: translateY(-2px); box-shadow: inset 0 0 0 3px rgba(0, 0, 0, .18), 0 0 12px var(--chip-color); }
+    .chip:active:not(:disabled) { transform: scale(.96); }
+    .chip:disabled { opacity: .32; cursor: default; }
+
+    .paytable {
+      margin-top: 8px;
+      display: flex;
+      justify-content: space-between;
+      gap: 4px;
+      color: #776c8a;
+      font-size: 9px;
+      white-space: nowrap;
+    }
+    .paytable b { color: #b8a7c9; font-weight: 700; }
+    .paytable .jackpot-rule, .paytable .jackpot-rule b { color: var(--pink); }
+
+    .footer-tip { color: #655a77; font-size: 9px; text-align: center; letter-spacing: .5px; }
+    .footer-tip kbd { padding: 1px 4px; border: 1px solid #44374f; border-radius: 3px; font: inherit; }
+
+    /* ---------- 弹窗与特效 ---------- */
+    .overlay {
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      padding: 22px;
+      display: grid;
+      place-items: center;
+      background: rgba(4, 3, 10, .78);
+      -webkit-backdrop-filter: blur(9px);
+      backdrop-filter: blur(9px);
+      animation: fade-in .2s ease;
+    }
+    .modal {
+      width: min(100%, 360px);
+      padding: 27px 22px 22px;
+      border: 1px solid rgba(197, 151, 255, .35);
+      border-radius: 25px;
+      background: linear-gradient(150deg, #25183c, #0e0b1c 72%);
+      box-shadow: 0 25px 80px #000, 0 0 40px rgba(172, 68, 255, .12), inset 0 1px rgba(255, 255, 255, .08);
+      text-align: center;
+      animation: modal-in .32s cubic-bezier(.2, .9, .25, 1.15);
+    }
+    .modal-icon {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 14px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255, 209, 102, .4);
+      border-radius: 22px;
+      color: var(--gold);
+      background: rgba(255, 209, 102, .07);
+      box-shadow: 0 0 25px rgba(255, 209, 102, .12);
+      font: 1000 43px/1 Arial Black, sans-serif;
+      font-style: italic;
+      text-shadow: 0 0 14px currentColor;
+      transform: rotate(-5deg);
+    }
+    .modal h2 { margin: 0; font-size: 25px; letter-spacing: 1px; }
+    .modal p { margin: 10px 0 18px; color: #aa9abb; font-size: 13px; line-height: 1.7; }
+    .modal-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 19px; }
+    .modal-stat { padding: 9px 3px; border-radius: 11px; background: rgba(5, 4, 13, .4); }
+    .modal-stat span { display: block; color: #786b8b; font-size: 9px; }
+    .modal-stat strong { display: block; margin-top: 3px; color: #e9e1f4; font-size: 17px; }
+    .primary-button {
+      width: 100%;
+      min-height: 50px;
+      border: 0;
+      border-radius: 15px;
+      color: #210b1a;
+      background: linear-gradient(100deg, #ff5ca7, #ffd166);
+      box-shadow: 0 7px 22px rgba(255, 61, 154, .23);
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .primary-button:active { transform: translateY(2px); }
+    .modal-hint { margin-top: 10px; color: #6f627f; font-size: 9px; }
+    .pause-modal .modal-icon { color: var(--cyan); border-color: rgba(67, 231, 255, .3); background: rgba(67, 231, 255, .06); font-style: normal; }
+
+    .effects { position: fixed; z-index: 30; inset: 0; overflow: hidden; pointer-events: none; }
+    .confetti {
+      position: absolute;
+      top: -20px;
+      left: var(--left);
+      width: var(--size);
+      height: calc(var(--size) * 1.8);
+      border-radius: 2px;
+      background: var(--color);
+      box-shadow: 0 0 7px var(--color);
+      animation: confetti-fall var(--duration) cubic-bezier(.15, .65, .4, 1) var(--delay) forwards;
+    }
+
+    @keyframes number-bump { 50% { transform: scale(1.16); filter: brightness(1.4); } }
+    @keyframes win-glow { to { filter: brightness(1.35); } }
+    @keyframes spin-dot { to { transform: rotate(360deg); } }
+    @keyframes fade-in { from { opacity: 0; } }
+    @keyframes modal-in { from { opacity: 0; transform: translateY(15px) scale(.94); } }
+    @keyframes confetti-fall { to { transform: translate(var(--drift), 110vh) rotate(var(--spin)); opacity: .1; } }
+
+    /* 矮屏与横屏压缩布局，保证所有操作仍留在屏幕内 */
+    @media (max-height: 680px) {
+      :root { --symbol-h: clamp(40px, 11.5vh, 54px); }
+      .app { gap: 5px; padding-top: max(6px, env(safe-area-inset-top)); }
+      .topbar { min-height: 32px; }
+      .brand-seven { font-size: 29px; }
+      .brand-subtitle { display: none; }
+      .stat { padding: 5px 9px; }
+      .stat-value { font-size: 18px; }
+      .machine { padding: 8px 9px; border-radius: 20px; }
+      .jackpot-sign { margin-bottom: 5px; }
+      .jackpot-caption { display: none; }
+      .jackpot-value { font-size: 19px; }
+      .result-banner { min-height: 25px; margin-top: 4px; }
+      .bet-panel { padding-top: 5px; }
+      .bet-heading { margin-bottom: 4px; }
+      .chip { min-height: 40px; }
+      .chip-token { width: 30px; height: 30px; }
+      .paytable { margin-top: 5px; }
+    }
+    @media (max-height: 480px) {
+      :root { --symbol-h: 39px; }
+      .goal-row, .paytable, .footer-tip { display: none; }
+      .stats { position: absolute; top: 7px; right: 88px; left: 145px; }
+      .stat { padding: 4px 6px; background: transparent; border: 0; }
+      .stat-label { font-size: 8px; }
+      .stat-value { font-size: 14px; }
+      .machine { margin-top: 2px; }
+      .result-banner { min-height: 20px; }
+    }
+    @media (max-width: 340px) {
+      .app { padding-left: 9px; padding-right: 9px; }
+      .play-area { grid-template-columns: minmax(0, 1fr) 50px; gap: 5px; }
+      .lever { width: 50px; }
+      .chip { gap: 2px; }
+      .chip-token { width: 30px; height: 30px; }
+      .paytable { font-size: 8px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .reel.is-winning, .result-banner.spinning::before { animation: none; }
+      .goal-fill, .lever-handle { transition-duration: .01ms; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="霓虹 777 老虎机">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-seven">7</div>
+        <div>
+          <div class="brand-title">霓虹幸运馆</div>
+          <div class="brand-subtitle">NEON SLOTS</div>
+        </div>
+      </div>
+      <button class="icon-button" id="pauseButton" type="button" aria-label="暂停游戏">Ⅱ 暂停</button>
+    </header>
+
+    <section class="stats" aria-label="游戏计分">
+      <div class="stat" id="balanceStat">
+        <span class="stat-label">我的筹码</span>
+        <strong class="stat-value" id="balance">1,000</strong>
+      </div>
+      <div class="stat" id="scoreStat">
+        <span class="stat-label">本局得分</span>
+        <strong class="stat-value" id="score">0</strong>
+      </div>
+      <div class="stat" id="bestStat">
+        <span class="stat-label">最高分</span>
+        <strong class="stat-value" id="bestScore">0</strong>
+      </div>
+    </section>
+
+    <div class="goal-row" aria-label="胜利目标：五千筹码">
+      <span class="goal-label">目标 5,000</span>
+      <div class="goal-track"><div class="goal-fill" id="goalFill"></div></div>
+    </div>
+
+    <section class="machine" aria-label="老虎机">
+      <div class="jackpot-sign">
+        <div class="jackpot-caption">SUPER JACKPOT</div>
+        <div class="jackpot-value"><span>777</span> 大奖 ×77</div>
+      </div>
+
+      <div class="play-area">
+        <div class="reels-wrap">
+          <div class="reels" aria-label="三个转轴">
+            <div class="reel" id="reel0"><div class="reel-strip"></div></div>
+            <div class="reel" id="reel1"><div class="reel-strip"></div></div>
+            <div class="reel" id="reel2"><div class="reel-strip"></div></div>
+          </div>
+          <div class="payline"></div>
+        </div>
+
+        <button class="lever" id="lever" type="button" aria-label="拉动拉杆开始游戏">
+          <span class="lever-track"></span>
+          <span class="lever-handle">
+            <span class="lever-stem"></span>
+            <span class="lever-knob"></span>
+          </span>
+          <span class="lever-base"></span>
+          <span class="lever-label">拉杆</span>
+        </button>
+      </div>
+
+      <div class="result-banner" id="message" role="status" aria-live="polite">选择筹码，点击拉杆试试手气</div>
+
+      <div class="bet-panel">
+        <div class="bet-heading">
+          <span>选择下注筹码</span>
+          <span class="current-bet">本次 <strong id="currentBet">25</strong></span>
+        </div>
+        <div class="chips" role="group" aria-label="选择下注金额">
+          <button class="chip" type="button" data-bet="10" aria-label="下注 10 筹码"><span class="chip-token">10</span></button>
+          <button class="chip selected" type="button" data-bet="25" aria-label="下注 25 筹码"><span class="chip-token">25</span></button>
+          <button class="chip" type="button" data-bet="50" aria-label="下注 50 筹码"><span class="chip-token">50</span></button>
+          <button class="chip" type="button" data-bet="100" aria-label="下注 100 筹码"><span class="chip-token">100</span></button>
+        </div>
+      </div>
+
+      <div class="paytable" aria-label="派奖规则">
+        <span class="jackpot-rule">777 <b>×77</b></span>
+        <span>◆◆◆ <b>×20</b></span>
+        <span>其他三连 <b>×8~15</b></span>
+        <span>任意一对 <b>×2</b></span>
+      </div>
+    </section>
+
+    <footer class="footer-tip">触屏点击拉杆 · 桌面可按 <kbd>空格</kbd> 拉杆 / <kbd>P</kbd> 暂停</footer>
+  </main>
+
+  <div class="overlay" id="pauseOverlay" hidden>
+    <section class="modal pause-modal" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+      <div class="modal-icon">Ⅱ</div>
+      <h2 id="pauseTitle">游戏已暂停</h2>
+      <p>好运正在原地等你，准备好就继续。</p>
+      <button class="primary-button" id="resumeButton" type="button">继续游戏</button>
+    </section>
+  </div>
+
+  <div class="overlay" id="resultOverlay" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+      <div class="modal-icon" id="resultIcon">7</div>
+      <h2 id="resultTitle">777 超级大奖！</h2>
+      <p id="resultDescription"></p>
+      <div class="modal-stats">
+        <div class="modal-stat"><span>剩余筹码</span><strong id="finalBalance">0</strong></div>
+        <div class="modal-stat"><span>本局得分</span><strong id="finalScore">0</strong></div>
+        <div class="modal-stat"><span>最高分</span><strong id="finalBest">0</strong></div>
+      </div>
+      <button class="primary-button" id="restartButton" type="button">再玩一局</button>
+      <div class="modal-hint">按 R 键也可重新开始</div>
+    </section>
+  </div>
+
+  <div class="effects" id="effects" aria-hidden="true"></div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // ---------- 游戏常量与状态 ----------
+      const INITIAL_CHIPS = 1000;
+      const WIN_TARGET = 5000;
+      const MIN_BET = 10;
+      const CHIP_VALUES = [10, 25, 50, 100];
+      const STORAGE_KEY = 'neon777.highScore.v1';
+      const SYMBOLS = [
+        { icon: '7', weight: 1, multiplier: 77, className: 'seven' },
+        { icon: '◆', weight: 2, multiplier: 20, className: 'diamond' },
+        { icon: 'BAR', weight: 3, multiplier: 15, className: 'bar' },
+        { icon: '🔔', weight: 4, multiplier: 12, className: 'bell' },
+        { icon: '★', weight: 5, multiplier: 10, className: 'star' },
+        { icon: '🍒', weight: 6, multiplier: 8, className: 'cherry' }
+      ];
+
+      const $ = (selector) => document.querySelector(selector);
+      const elements = {
+        balance: $('#balance'),
+        score: $('#score'),
+        best: $('#bestScore'),
+        balanceStat: $('#balanceStat'),
+        scoreStat: $('#scoreStat'),
+        bestStat: $('#bestStat'),
+        goalFill: $('#goalFill'),
+        currentBet: $('#currentBet'),
+        message: $('#message'),
+        lever: $('#lever'),
+        pauseButton: $('#pauseButton'),
+        pauseOverlay: $('#pauseOverlay'),
+        resumeButton: $('#resumeButton'),
+        resultOverlay: $('#resultOverlay'),
+        resultIcon: $('#resultIcon'),
+        resultTitle: $('#resultTitle'),
+        resultDescription: $('#resultDescription'),
+        finalBalance: $('#finalBalance'),
+        finalScore: $('#finalScore'),
+        finalBest: $('#finalBest'),
+        restartButton: $('#restartButton'),
+        effects: $('#effects')
+      };
+      const reels = [0, 1, 2].map((index) => {
+        const root = $(`#reel${index}`);
+        return { root, strip: root.querySelector('.reel-strip') };
+      });
+      const chipButtons = [...document.querySelectorAll('.chip')];
+
+      const state = {
+        balance: INITIAL_CHIPS,
+        bet: 25,
+        score: 0,
+        best: loadBestScore(),
+        symbols: ['🍒', '7', '★'],
+        spinning: false,
+        paused: false,
+        ended: false,
+        animations: [],
+        spinId: 0,
+        lastPayout: 0
+      };
+
+      const formatNumber = (number) => number.toLocaleString('zh-CN');
+
+      // localStorage 在隐私模式下可能不可用，读写都做好降级。
+      function loadBestScore() {
+        try {
+          const saved = Number.parseInt(localStorage.getItem(STORAGE_KEY), 10);
+          return Number.isFinite(saved) && saved >= 0 ? saved : 0;
+        } catch (_) {
+          return 0;
+        }
+      }
+
+      function saveBestScore() {
+        try {
+          localStorage.setItem(STORAGE_KEY, String(state.best));
+        } catch (_) {
+          // 无法存储时仍可正常游玩，仅不跨局保留最高分。
+        }
+      }
+
+      function getSymbol(icon) {
+        return SYMBOLS.find((symbol) => symbol.icon === icon);
+      }
+
+      // 按权重随机取符号，幸运 7 最稀有。
+      function randomSymbol() {
+        const totalWeight = SYMBOLS.reduce((sum, symbol) => sum + symbol.weight, 0);
+        let cursor = Math.random() * totalWeight;
+        for (const symbol of SYMBOLS) {
+          cursor -= symbol.weight;
+          if (cursor < 0) return symbol.icon;
+        }
+        return SYMBOLS[SYMBOLS.length - 1].icon;
+      }
+
+      function createCell(icon) {
+        const cell = document.createElement('div');
+        const symbol = document.createElement('span');
+        const config = getSymbol(icon);
+        cell.className = 'reel-cell';
+        symbol.className = `symbol ${config.className}`;
+        symbol.textContent = icon;
+        cell.appendChild(symbol);
+        return cell;
+      }
+
+      function symbolHeight() {
+        return reels[0].strip.querySelector('.reel-cell')?.getBoundingClientRect().height || 60;
+      }
+
+      // 静止时每个转轴仅绘制上、中、下三个符号。
+      function renderIdleReels() {
+        reels.forEach((reel, index) => {
+          reel.strip.replaceChildren(
+            createCell(randomSymbol()),
+            createCell(state.symbols[index]),
+            createCell(randomSymbol())
+          );
+          reel.strip.style.transform = 'translateY(calc(var(--symbol-h) * -1))';
+          reel.root.classList.remove('is-spinning', 'is-winning');
+        });
+      }
+
+      function setMessage(text, type = '') {
+        elements.message.textContent = text;
+        elements.message.className = `result-banner${type ? ` ${type}` : ''}`;
+      }
+
+      function pulse(element) {
+        element.classList.remove('bump');
+        void element.offsetWidth;
+        element.classList.add('bump');
+      }
+
+      function updateUI() {
+        elements.balance.textContent = formatNumber(state.balance);
+        elements.score.textContent = formatNumber(state.score);
+        elements.best.textContent = formatNumber(state.best);
+        elements.currentBet.textContent = formatNumber(state.bet);
+        elements.goalFill.style.width = `${Math.min(100, state.balance / WIN_TARGET * 100)}%`;
+
+        elements.lever.disabled = state.spinning || state.paused || state.ended || state.balance < MIN_BET;
+        elements.pauseButton.disabled = state.ended;
+        elements.pauseButton.textContent = state.paused ? '▶ 继续' : 'Ⅱ 暂停';
+        elements.pauseButton.setAttribute('aria-label', state.paused ? '继续游戏' : '暂停游戏');
+
+        chipButtons.forEach((button) => {
+          const value = Number(button.dataset.bet);
+          button.disabled = state.spinning || state.paused || state.ended || value > state.balance;
+          button.classList.toggle('selected', value === state.bet);
+          button.setAttribute('aria-pressed', String(value === state.bet));
+        });
+      }
+
+      function chooseAffordableBet() {
+        const affordable = [...CHIP_VALUES].reverse().find((value) => value <= state.balance);
+        if (affordable) state.bet = affordable;
+      }
+
+      // ---------- 转轴动画与结算 ----------
+      function animateReel(reel, finalSymbol, index, spinId) {
+        const oldSymbol = state.symbols[index];
+        const cells = [randomSymbol(), oldSymbol, randomSymbol()];
+        const randomSteps = 15 + index * 4;
+        for (let step = 0; step < randomSteps; step += 1) cells.push(randomSymbol());
+        cells.push(randomSymbol(), finalSymbol, randomSymbol());
+        reel.strip.replaceChildren(...cells.map(createCell));
+
+        const height = symbolHeight();
+        const finalIndex = cells.length - 2;
+        const finalOffset = -(finalIndex - 1) * height;
+        reel.strip.style.transform = `translateY(${-height}px)`;
+        reel.root.classList.add('is-spinning');
+
+        const animation = reel.strip.animate(
+          [
+            { transform: `translateY(${-height}px)`, offset: 0 },
+            { transform: `translateY(${finalOffset * .88}px)`, offset: .78 },
+            { transform: `translateY(${finalOffset - height * .18}px)`, offset: .92 },
+            { transform: `translateY(${finalOffset}px)`, offset: 1 }
+          ],
+          {
+            duration: 1150 + index * 430,
+            easing: 'cubic-bezier(.18, .65, .25, 1)',
+            fill: 'forwards'
+          }
+        );
+        state.animations.push(animation);
+
+        return animation.finished.catch(() => {}).then(() => {
+          if (spinId !== state.spinId) return;
+          reel.strip.style.transform = `translateY(${finalOffset}px)`;
+          animation.cancel();
+          reel.root.classList.remove('is-spinning');
+        });
+      }
+
+      function calculatePayout(result, bet) {
+        const counts = result.reduce((map, icon) => map.set(icon, (map.get(icon) || 0) + 1), new Map());
+        const isTriple = result.every((icon) => icon === result[0]);
+        if (isTriple) {
+          const multiplier = getSymbol(result[0]).multiplier;
+          return { amount: bet * multiplier, multiplier, triple: true, jackpot: result[0] === '7' };
+        }
+        const hasPair = [...counts.values()].some((count) => count === 2);
+        return hasPair
+          ? { amount: bet * 2, multiplier: 2, triple: false, jackpot: false }
+          : { amount: 0, multiplier: 0, triple: false, jackpot: false };
+      }
+
+      async function startSpin() {
+        if (state.spinning || state.paused || state.ended) return;
+        if (state.balance < MIN_BET) {
+          endGame(false, 'broke');
+          return;
+        }
+        if (state.bet > state.balance) chooseAffordableBet();
+
+        const spinId = ++state.spinId;
+        const bet = state.bet;
+        const result = [randomSymbol(), randomSymbol(), randomSymbol()];
+        state.spinning = true;
+        state.lastPayout = 0;
+        state.balance -= bet;
+        setMessage('好运转动中…', 'spinning');
+        elements.lever.classList.add('is-pulled');
+        window.setTimeout(() => elements.lever.classList.remove('is-pulled'), 330);
+        pulse(elements.balanceStat);
+        updateUI();
+
+        const animations = reels.map((reel, index) => animateReel(reel, result[index], index, spinId));
+        await Promise.all(animations);
+        if (spinId !== state.spinId) return;
+
+        state.symbols = result;
+        state.spinning = false;
+        state.animations = [];
+        const payout = calculatePayout(result, bet);
+        state.lastPayout = payout.amount;
+        state.balance += payout.amount;
+        state.score += payout.amount;
+
+        if (payout.amount > 0) {
+          // 派奖已计入余额，净收益为派奖减去下注。
+          reels.forEach((reel) => reel.root.classList.add('is-winning'));
+          setMessage(
+            payout.jackpot
+              ? `777！超级大奖 +${formatNumber(payout.amount)} 筹码`
+              : `${payout.triple ? '三连' : '一对'}中奖 ×${payout.multiplier}，赢得 ${formatNumber(payout.amount)} 筹码`,
+            'win'
+          );
+          pulse(elements.balanceStat);
+          pulse(elements.scoreStat);
+          if (payout.multiplier >= 10) launchConfetti(payout.jackpot ? 70 : 35);
+        } else {
+          setMessage('差一点！调整筹码，再试一次');
+        }
+
+        if (state.score > state.best) {
+          state.best = state.score;
+          saveBestScore();
+          pulse(elements.bestStat);
+        }
+
+        if (payout.jackpot) {
+          endGame(true, 'jackpot');
+        } else if (state.balance >= WIN_TARGET) {
+          endGame(true, 'target');
+        } else if (state.balance < MIN_BET) {
+          endGame(false, 'broke');
+        } else {
+          if (state.bet > state.balance) chooseAffordableBet();
+          updateUI();
+        }
+      }
+
+      // ---------- 暂停、胜负与重开 ----------
+      function setPaused(paused) {
+        if (state.ended || state.paused === paused) return;
+        state.paused = paused;
+        state.animations.forEach((animation) => {
+          if (paused) animation.pause();
+          else animation.play();
+        });
+        elements.pauseOverlay.hidden = !paused;
+        updateUI();
+        if (paused) elements.resumeButton.focus({ preventScroll: true });
+        else elements.pauseButton.focus({ preventScroll: true });
+      }
+
+      function endGame(won, reason) {
+        state.ended = true;
+        state.paused = false;
+        elements.pauseOverlay.hidden = true;
+        elements.resultIcon.textContent = won ? (reason === 'jackpot' ? '7' : '★') : '↻';
+        elements.resultTitle.textContent = won
+          ? (reason === 'jackpot' ? '777 超级大奖！' : '挑战成功！')
+          : '游戏结束';
+        elements.resultDescription.textContent = won
+          ? (reason === 'jackpot'
+            ? `三枚幸运 7 同时出现！你赢得了 ${formatNumber(state.lastPayout)} 筹码，今晚的霓虹为你闪耀。`
+            : `筹码突破 ${formatNumber(WIN_TARGET)}！节奏与好运缺一不可，漂亮的一局。`)
+          : '筹码已经用完。小注试探、见好就收，下一局幸运一定会眷顾你。';
+        elements.finalBalance.textContent = formatNumber(state.balance);
+        elements.finalScore.textContent = formatNumber(state.score);
+        elements.finalBest.textContent = formatNumber(state.best);
+        elements.resultOverlay.hidden = false;
+        updateUI();
+        elements.restartButton.focus({ preventScroll: true });
+      }
+
+      function restartGame() {
+        state.spinId += 1;
+        state.animations.forEach((animation) => animation.cancel());
+        Object.assign(state, {
+          balance: INITIAL_CHIPS,
+          bet: 25,
+          score: 0,
+          symbols: ['🍒', '7', '★'],
+          spinning: false,
+          paused: false,
+          ended: false,
+          animations: [],
+          lastPayout: 0
+        });
+        elements.resultOverlay.hidden = true;
+        elements.pauseOverlay.hidden = true;
+        elements.effects.replaceChildren();
+        elements.lever.classList.remove('is-pulled');
+        renderIdleReels();
+        setMessage('选择筹码，点击拉杆试试手气');
+        updateUI();
+      }
+
+      // 使用原生元素生成轻量彩带，不依赖图片或第三方库。
+      function launchConfetti(count) {
+        const colors = ['#ff3d9a', '#43e7ff', '#ffd166', '#a983ff'];
+        for (let index = 0; index < count; index += 1) {
+          const piece = document.createElement('i');
+          piece.className = 'confetti';
+          piece.style.setProperty('--left', `${Math.random() * 100}%`);
+          piece.style.setProperty('--size', `${3 + Math.random() * 6}px`);
+          piece.style.setProperty('--color', colors[index % colors.length]);
+          piece.style.setProperty('--duration', `${1.6 + Math.random() * 1.4}s`);
+          piece.style.setProperty('--delay', `${Math.random() * .35}s`);
+          piece.style.setProperty('--drift', `${-100 + Math.random() * 200}px`);
+          piece.style.setProperty('--spin', `${Math.random() * 1000}deg`);
+          elements.effects.appendChild(piece);
+          piece.addEventListener('animationend', () => piece.remove(), { once: true });
+        }
+      }
+
+      // ---------- 触屏、鼠标和键盘事件 ----------
+      elements.lever.addEventListener('click', startSpin);
+      elements.pauseButton.addEventListener('click', () => setPaused(!state.paused));
+      elements.resumeButton.addEventListener('click', () => setPaused(false));
+      elements.restartButton.addEventListener('click', restartGame);
+      chipButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          if (button.disabled) return;
+          state.bet = Number(button.dataset.bet);
+          updateUI();
+        });
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.repeat) return;
+        const key = event.key.toLowerCase();
+        if (key === 'p') {
+          event.preventDefault();
+          setPaused(!state.paused);
+        } else if (key === 'r' && state.ended) {
+          restartGame();
+        } else if (event.code === 'Space' && !event.target.closest('button')) {
+          event.preventDefault();
+          if (state.paused) setPaused(false);
+          else startSpin();
+        }
+      });
+
+      // 页面切入后台时自动暂停，避免转轴在看不见时结束。
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && !state.ended && !state.paused) setPaused(true);
+      });
+
+      // 禁止移动端双击缩放、双指缩放手势和橡皮筋滚动。
+      document.addEventListener('dblclick', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('touchmove', (event) => event.preventDefault(), { passive: false });
+
+      renderIdleReels();
+      updateUI();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080b17">
+  <meta name="color-scheme" content="dark">
+  <title>霓虹猜拳 · 三局两胜</title>
+  <style>
+    /* ---------- 基础与移动端约束 ---------- */
+    :root {
+      color-scheme: dark;
+      --bg: #080b17;
+      --panel: rgba(17, 22, 43, 0.82);
+      --line: rgba(148, 163, 255, 0.14);
+      --text: #f2f5ff;
+      --muted: #8992b2;
+      --cyan: #63e6ff;
+      --pink: #ff67d4;
+      --violet: #a98bff;
+      --gold: #ffd479;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    * { -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      background: var(--bg);
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      justify-content: center;
+      height: 100vh;
+      height: 100dvh;
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    button {
+      margin: 0;
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    button:focus-visible, .arena:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    button:disabled { cursor: default; }
+    [hidden] { display: none !important; }
+
+    /* ---------- 氛围背景 ---------- */
+    .ambient {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 12% 5%, rgba(78, 98, 255, 0.15), transparent 36%),
+        radial-gradient(circle at 90% 88%, rgba(255, 63, 196, 0.10), transparent 34%);
+    }
+
+    .ambient::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: 0.2;
+      background-image:
+        linear-gradient(rgba(111, 132, 210, 0.10) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(111, 132, 210, 0.10) 1px, transparent 1px);
+      background-size: 36px 36px;
+      -webkit-mask-image: linear-gradient(to bottom, black, transparent 80%);
+      mask-image: linear-gradient(to bottom, black, transparent 80%);
+    }
+
+    .orb {
+      position: absolute;
+      width: 190px;
+      height: 190px;
+      border-radius: 50%;
+      filter: blur(65px);
+      opacity: 0.13;
+      animation: drift 9s ease-in-out infinite alternate;
+    }
+
+    .orb.cyan { top: 18%; left: -100px; background: var(--cyan); }
+    .orb.pink { right: -110px; bottom: 12%; background: var(--pink); animation-delay: -4s; }
+
+    /* ---------- 游戏主框架 ---------- */
+    .game-shell {
+      position: relative;
+      isolation: isolate;
+      display: flex;
+      flex-direction: column;
+      gap: clamp(8px, 1.35vh, 13px);
+      width: min(100%, 480px);
+      height: 100%;
+      padding: max(12px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right))
+        max(12px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+      overflow: hidden;
+    }
+
+    .topbar, .brand, .top-actions, .stats-bar, .scoreboard,
+    .fighter, .choice, .modal-actions { display: flex; align-items: center; }
+
+    .topbar { justify-content: space-between; flex: 0 0 auto; }
+    .brand { gap: 10px; min-width: 0; }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 39px;
+      height: 39px;
+      flex: 0 0 auto;
+      border: 1px solid rgba(99, 230, 255, 0.3);
+      border-radius: 12px;
+      color: var(--cyan);
+      background: linear-gradient(145deg, rgba(99, 230, 255, 0.12), rgba(169, 139, 255, 0.05));
+      box-shadow: inset 0 0 18px rgba(99, 230, 255, 0.06), 0 0 24px rgba(99, 230, 255, 0.08);
+      font-size: 20px;
+    }
+
+    .eyebrow {
+      display: block;
+      margin-bottom: 1px;
+      color: var(--cyan);
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: 0.28em;
+    }
+
+    h1 { margin: 0; font-size: 21px; line-height: 1.15; letter-spacing: 0.08em; }
+    .top-actions { gap: 7px; }
+
+    .icon-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-width: 42px;
+      height: 42px;
+      padding: 0 11px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(19, 25, 47, 0.76);
+      color: #c8d0ed;
+      font-size: 12px;
+      transition: border-color 160ms ease, background 160ms ease, opacity 160ms ease, transform 160ms ease;
+    }
+
+    .icon-button .symbol { font-size: 17px; line-height: 1; }
+    .icon-button:active:not(:disabled) { transform: scale(0.94); background: rgba(40, 50, 86, 0.9); }
+    .icon-button:disabled { opacity: 0.35; }
+
+    /* ---------- 得分与比分 ---------- */
+    .stats-bar {
+      flex: 0 0 auto;
+      gap: 8px;
+      min-height: 45px;
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(14, 19, 37, 0.68);
+      backdrop-filter: blur(12px);
+    }
+
+    .stat {
+      display: grid;
+      grid-template-columns: auto auto;
+      align-items: baseline;
+      gap: 7px;
+      min-width: 0;
+    }
+
+    .stat + .stat { padding-left: 10px; border-left: 1px solid var(--line); }
+    .stat span { color: var(--muted); font-size: 10px; white-space: nowrap; }
+    .stat strong { color: var(--cyan); font-size: 17px; font-variant-numeric: tabular-nums; }
+    .stat.best strong { color: var(--gold); }
+
+    .target {
+      margin-left: auto;
+      padding: 5px 7px;
+      border-radius: 7px;
+      color: #b8c1df;
+      background: rgba(139, 152, 197, 0.08);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+
+    .scoreboard {
+      position: relative;
+      flex: 0 0 auto;
+      justify-content: space-between;
+      min-height: 77px;
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: linear-gradient(110deg, rgba(255, 103, 212, 0.045), rgba(14, 19, 37, 0.8) 42%, rgba(99, 230, 255, 0.045));
+    }
+
+    .competitor { width: 72px; }
+    .competitor.player { text-align: right; }
+    .competitor-name { display: block; color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: 0.1em; }
+    .competitor-score { display: block; margin: 1px 0; font-size: 29px; line-height: 1; font-variant-numeric: tabular-nums; }
+    .competitor.ai .competitor-score { color: var(--pink); text-shadow: 0 0 20px rgba(255, 103, 212, 0.25); }
+    .competitor.player .competitor-score { color: var(--cyan); text-shadow: 0 0 20px rgba(99, 230, 255, 0.25); }
+
+    .win-pips { display: flex; gap: 4px; margin-top: 5px; }
+    .player .win-pips { justify-content: flex-end; }
+    .win-pips i { width: 14px; height: 3px; border-radius: 4px; background: rgba(143, 154, 194, 0.17); }
+    .ai .win-pips i.won { background: var(--pink); box-shadow: 0 0 8px rgba(255, 103, 212, 0.6); }
+    .player .win-pips i.won { background: var(--cyan); box-shadow: 0 0 8px rgba(99, 230, 255, 0.6); }
+
+    .round-info { text-align: center; }
+    .round-info strong { display: block; font-size: 13px; letter-spacing: 0.08em; }
+    .round-info small { display: block; margin-top: 4px; color: var(--muted); font-size: 9px; }
+
+    /* ---------- 中央出拳战区，支持滑动手势 ---------- */
+    .arena {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 174px;
+      overflow: hidden;
+      border: 1px solid rgba(130, 147, 227, 0.17);
+      border-radius: 22px;
+      background:
+        linear-gradient(rgba(16, 22, 43, 0.88), rgba(12, 17, 34, 0.94)),
+        repeating-linear-gradient(0deg, transparent 0 20px, rgba(99, 230, 255, 0.025) 21px);
+      box-shadow: inset 0 0 45px rgba(55, 72, 147, 0.08), 0 12px 45px rgba(0, 0, 0, 0.15);
+      touch-action: none;
+    }
+
+    .arena::before {
+      content: "";
+      position: absolute;
+      width: 230px;
+      height: 230px;
+      top: 44%;
+      left: 50%;
+      border: 1px solid rgba(99, 230, 255, 0.055);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 0 32px rgba(169, 139, 255, 0.018), 0 0 0 64px rgba(169, 139, 255, 0.012);
+      pointer-events: none;
+    }
+
+    .arena-top {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 11px 13px 0;
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+    }
+
+    .live-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+    .arena-top .bo3 { margin-left: auto; opacity: 0.65; }
+
+    .fighters {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr 42px 1fr;
+      align-items: center;
+      padding: clamp(7px, 1.5vh, 14px) 15px 5px;
+    }
+
+    .fighter { flex-direction: column; gap: 5px; min-width: 0; }
+    .fighter-name { color: #b3bddc; font-size: 10px; font-weight: 650; letter-spacing: 0.08em; }
+
+    .hand-wrap {
+      display: grid;
+      place-items: center;
+      width: clamp(76px, 11vh, 100px);
+      height: clamp(76px, 11vh, 100px);
+      border: 1px solid rgba(255, 103, 212, 0.2);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 103, 212, 0.09), transparent 68%);
+      box-shadow: inset 0 0 25px rgba(255, 103, 212, 0.04);
+    }
+
+    .player-side .hand-wrap {
+      border-color: rgba(99, 230, 255, 0.22);
+      background: radial-gradient(circle, rgba(99, 230, 255, 0.09), transparent 68%);
+      box-shadow: inset 0 0 25px rgba(99, 230, 255, 0.04);
+    }
+
+    .hand {
+      font-family: "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+      font-size: clamp(42px, 6.6vh, 60px);
+      line-height: 1;
+      filter: drop-shadow(0 7px 12px rgba(0, 0, 0, 0.25));
+      transform-origin: 50% 80%;
+    }
+
+    .hand.thinking { animation: fist-shake 230ms ease-in-out infinite alternate; }
+    .hand.revealed { animation: reveal 360ms cubic-bezier(.2, .9, .25, 1.2) both; }
+
+    .vs { position: relative; text-align: center; color: #6e789d; font-size: 12px; font-weight: 900; font-style: italic; }
+    .vs::before, .vs::after { content: ""; position: absolute; top: 50%; width: 10px; height: 1px; background: currentColor; opacity: 0.35; }
+    .vs::before { left: -2px; }
+    .vs::after { right: -2px; }
+
+    .result-panel {
+      position: relative;
+      z-index: 1;
+      margin: 4px 14px 12px;
+      padding: 9px 10px;
+      border: 1px solid rgba(132, 148, 210, 0.10);
+      border-radius: 12px;
+      text-align: center;
+      background: rgba(7, 11, 25, 0.52);
+      transition: border-color 200ms ease, background 200ms ease;
+    }
+
+    .result-panel strong { display: block; font-size: 13px; line-height: 1.25; letter-spacing: 0.04em; }
+    .result-panel span { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; line-height: 1.35; }
+    .result-panel[data-outcome="win"] { border-color: rgba(99, 230, 255, 0.23); background: rgba(30, 110, 128, 0.10); }
+    .result-panel[data-outcome="win"] strong { color: var(--cyan); }
+    .result-panel[data-outcome="lose"] { border-color: rgba(255, 103, 212, 0.22); background: rgba(130, 35, 104, 0.09); }
+    .result-panel[data-outcome="lose"] strong { color: #ff91df; }
+    .result-panel[data-outcome="draw"] strong { color: var(--gold); }
+
+    /* ---------- 大尺寸触屏出拳按钮 ---------- */
+    .choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; flex: 0 0 auto; }
+
+    .choice {
+      --accent: var(--cyan);
+      position: relative;
+      flex-direction: column;
+      justify-content: center;
+      min-width: 0;
+      min-height: 96px;
+      padding: 10px 5px 9px;
+      overflow: hidden;
+      border: 1px solid rgba(135, 150, 213, 0.17);
+      border-radius: 17px;
+      background: linear-gradient(155deg, rgba(28, 35, 65, 0.96), rgba(15, 20, 39, 0.96));
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.025), 0 6px 20px rgba(0, 0, 0, 0.14);
+      transition: transform 130ms ease, border-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+    }
+
+    .choice.scissors { --accent: var(--pink); }
+    .choice.paper { --accent: var(--violet); }
+    .choice::after {
+      content: "";
+      position: absolute;
+      left: 24%;
+      right: 24%;
+      bottom: 0;
+      height: 2px;
+      border-radius: 2px;
+      background: var(--accent);
+      box-shadow: 0 0 12px var(--accent);
+      opacity: 0.55;
+    }
+
+    .choice:active:not(:disabled), .choice.selected {
+      transform: translateY(2px) scale(0.97);
+      border-color: var(--accent);
+      box-shadow: inset 0 0 25px color-mix(in srgb, var(--accent) 8%, transparent), 0 0 20px color-mix(in srgb, var(--accent) 10%, transparent);
+    }
+
+    .choice:disabled { opacity: 0.42; }
+    .choice.selected:disabled { opacity: 0.9; }
+    .choice-icon { font-family: "Apple Color Emoji", "Segoe UI Emoji", sans-serif; font-size: 33px; line-height: 1.05; }
+    .choice-name { margin-top: 4px; font-size: 12px; font-weight: 750; }
+    .choice-en { margin-top: 1px; color: var(--muted); font-size: 7px; font-weight: 700; letter-spacing: 0.16em; }
+
+    .choice-key {
+      position: absolute;
+      top: 7px;
+      right: 8px;
+      display: grid;
+      place-items: center;
+      width: 16px;
+      height: 16px;
+      border: 1px solid rgba(147, 159, 207, 0.15);
+      border-radius: 5px;
+      color: #737eaa;
+      font-size: 8px;
+    }
+
+    .help { flex: 0 0 auto; text-align: center; color: #697492; font-size: 9px; line-height: 1.6; }
+    .help p { margin: 0; }
+    .help .accent { color: #aab5d5; }
+    .help kbd { padding: 0 2px; color: #9ba7cc; font: inherit; }
+
+    /* ---------- 暂停与结算弹窗 ---------- */
+    .modal-backdrop {
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: max(22px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+        max(22px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+      background: rgba(4, 6, 15, 0.78);
+      backdrop-filter: blur(12px);
+      animation: fade-in 180ms ease both;
+    }
+
+    .modal {
+      position: relative;
+      width: min(100%, 360px);
+      padding: 28px 22px 22px;
+      overflow: hidden;
+      border: 1px solid rgba(99, 230, 255, 0.22);
+      border-radius: 25px;
+      text-align: center;
+      background: linear-gradient(150deg, rgba(26, 33, 62, 0.98), rgba(11, 15, 31, 0.99));
+      box-shadow: 0 25px 90px rgba(0, 0, 0, 0.5), inset 0 0 50px rgba(99, 230, 255, 0.025);
+      animation: modal-in 300ms cubic-bezier(.2, .85, .3, 1.1) both;
+    }
+
+    .modal::before {
+      content: "";
+      position: absolute;
+      top: -90px;
+      left: 50%;
+      width: 230px;
+      height: 170px;
+      border-radius: 50%;
+      background: var(--modal-accent, var(--cyan));
+      filter: blur(70px);
+      opacity: 0.13;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .modal-icon {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: 74px;
+      height: 74px;
+      margin: 0 auto 15px;
+      border: 1px solid color-mix(in srgb, var(--modal-accent, var(--cyan)) 28%, transparent);
+      border-radius: 23px;
+      background: color-mix(in srgb, var(--modal-accent, var(--cyan)) 7%, transparent);
+      box-shadow: 0 0 30px color-mix(in srgb, var(--modal-accent, var(--cyan)) 9%, transparent);
+      font-family: "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+      font-size: 38px;
+      transform: rotate(-4deg);
+    }
+
+    .modal-eyebrow { color: var(--modal-accent, var(--cyan)); font-size: 8px; font-weight: 800; letter-spacing: 0.28em; }
+    .modal h2 { margin: 6px 0 7px; font-size: 27px; letter-spacing: 0.06em; }
+    .modal-description { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+
+    .modal-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      margin: 20px 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: var(--line);
+    }
+
+    .modal-stat { padding: 11px 4px; background: #11172c; }
+    .modal-stat span { display: block; color: var(--muted); font-size: 8px; }
+    .modal-stat strong { display: block; margin-top: 4px; color: #e9edff; font-size: 17px; font-variant-numeric: tabular-nums; }
+
+    .modal-actions { flex-direction: column; gap: 9px; margin-top: 20px; }
+    .modal-stats:not([hidden]) + .modal-actions { margin-top: 0; }
+
+    .modal-button {
+      width: 100%;
+      min-height: 48px;
+      padding: 12px 18px;
+      border-radius: 13px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      transition: transform 130ms ease, filter 130ms ease;
+    }
+
+    .modal-button:active { transform: scale(0.97); }
+    .modal-button.primary {
+      color: #07131b;
+      background: linear-gradient(100deg, var(--modal-accent, var(--cyan)), #b5f4ff);
+      box-shadow: 0 7px 25px color-mix(in srgb, var(--modal-accent, var(--cyan)) 18%, transparent);
+    }
+    .modal-button.secondary { border: 1px solid var(--line); color: #aeb8d9; background: rgba(111, 126, 183, 0.06); }
+
+    /* ---------- 动画 ---------- */
+    @keyframes drift { to { transform: translate(35px, -25px) scale(1.12); } }
+    @keyframes fist-shake { from { transform: translateY(-4px) rotate(-10deg); } to { transform: translateY(7px) rotate(8deg); } }
+    @keyframes reveal { from { opacity: 0.2; transform: scale(0.55) rotate(-14deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
+    @keyframes fade-in { from { opacity: 0; } }
+    @keyframes modal-in { from { opacity: 0; transform: translateY(16px) scale(0.94); } to { opacity: 1; transform: none; } }
+
+    @media (hover: hover) {
+      .icon-button:hover:not(:disabled) { border-color: rgba(99, 230, 255, 0.3); background: rgba(30, 39, 70, 0.9); }
+      .choice:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 55%, transparent); transform: translateY(-2px); }
+      .modal-button:hover { filter: brightness(1.08); }
+    }
+
+    /* 矮屏手机压缩留白，始终保证无需滚动。 */
+    @media (max-height: 700px) {
+      .game-shell { gap: 7px; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+      .brand-mark { width: 35px; height: 35px; }
+      h1 { font-size: 18px; }
+      .icon-button { height: 37px; min-width: 38px; }
+      .stats-bar { min-height: 39px; padding-top: 5px; padding-bottom: 5px; }
+      .scoreboard { min-height: 65px; padding-top: 7px; padding-bottom: 7px; }
+      .competitor-score { font-size: 25px; }
+      .win-pips { margin-top: 3px; }
+      .arena { min-height: 139px; border-radius: 18px; }
+      .arena-top { padding-top: 8px; }
+      .fighters { padding-top: 4px; padding-bottom: 2px; }
+      .hand-wrap { width: 68px; height: 68px; }
+      .hand { font-size: 40px; }
+      .result-panel { margin-top: 2px; margin-bottom: 8px; padding: 7px 8px; }
+      .choice { min-height: 78px; padding-top: 7px; padding-bottom: 7px; }
+      .choice-icon { font-size: 29px; }
+      .choice-name { margin-top: 2px; }
+      .help { font-size: 8px; }
+    }
+
+    @media (max-height: 580px) {
+      .game-shell { gap: 5px; }
+      .eyebrow, .choice-en, .help p:last-child { display: none; }
+      .stats-bar { min-height: 34px; }
+      .scoreboard { min-height: 57px; }
+      .arena { min-height: 116px; }
+      .arena-top { padding-top: 6px; }
+      .hand-wrap { width: 52px; height: 52px; }
+      .hand { font-size: 32px; }
+      .fighter { gap: 2px; }
+      .result-panel { padding: 5px 7px; margin-bottom: 6px; }
+      .result-panel span { margin-top: 1px; }
+      .choice { min-height: 65px; }
+      .choice-icon { font-size: 25px; }
+      .modal-backdrop { padding: 10px 16px; }
+      .modal { max-width: 420px; padding: 14px 18px; }
+      .modal-icon { width: 44px; height: 44px; margin-bottom: 6px; border-radius: 14px; font-size: 25px; }
+      .modal h2 { margin: 3px 0; font-size: 21px; }
+      .modal-description { font-size: 10px; line-height: 1.4; }
+      .modal-stats { margin: 10px 0; }
+      .modal-stat { padding: 6px 4px; }
+      .modal-actions { flex-direction: row; margin-top: 10px; }
+      .modal-button { min-height: 40px; padding: 8px 12px; }
+    }
+
+    @media (max-width: 350px) {
+      .game-shell { padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
+      .action-text { display: none; }
+      .stat { gap: 4px; }
+      .stat + .stat { padding-left: 6px; }
+      .target { display: none; }
+      .choices { gap: 7px; }
+    }
+
+    @media (min-width: 540px) and (min-height: 740px) {
+      body { padding: 18px; }
+      .game-shell {
+        height: 100%;
+        max-height: 920px;
+        margin: auto;
+        border: 1px solid rgba(134, 151, 221, 0.13);
+        border-radius: 28px;
+        background: rgba(8, 12, 26, 0.46);
+        box-shadow: 0 25px 90px rgba(0, 0, 0, 0.28);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true">
+    <div class="orb cyan"></div>
+    <div class="orb pink"></div>
+  </div>
+
+  <main class="game-shell" id="gameShell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">✦</span>
+        <div>
+          <span class="eyebrow">NEON RPS</span>
+          <h1>霓虹猜拳</h1>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="icon-button" id="pauseButton" type="button" aria-label="暂停游戏" title="暂停（Esc）">
+          <span class="symbol" aria-hidden="true">Ⅱ</span><span class="action-text">暂停</span>
+        </button>
+        <button class="icon-button" id="restartButton" type="button" aria-label="重新开局" title="重新开局">
+          <span class="symbol" aria-hidden="true">↻</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="stats-bar" aria-label="得分纪录">
+      <div class="stat"><span>累计得分</span><strong id="scoreValue">0</strong></div>
+      <div class="stat best"><span>最高纪录</span><strong id="bestValue">0</strong></div>
+      <span class="target">三局两胜</span>
+    </section>
+
+    <section class="scoreboard" id="scoreboard" aria-label="当前比分，AI 0 比 0">
+      <div class="competitor ai">
+        <span class="competitor-name">AI · ZERO</span>
+        <strong class="competitor-score" id="aiScore">0</strong>
+        <div class="win-pips" id="aiPips" aria-hidden="true"><i></i><i></i></div>
+      </div>
+      <div class="round-info">
+        <strong id="roundLabel">第 1 局</strong>
+        <small>率先赢得 2 局</small>
+      </div>
+      <div class="competitor player">
+        <span class="competitor-name">YOU · 你</span>
+        <strong class="competitor-score" id="playerScore">0</strong>
+        <div class="win-pips" id="playerPips" aria-hidden="true"><i></i><i></i></div>
+      </div>
+    </section>
+
+    <section class="arena" id="arena" tabindex="0" aria-label="出拳战区：向左滑动出石头，向上滑动出布，向右滑动出剪刀">
+      <div class="arena-top">
+        <span class="live-dot" aria-hidden="true"></span>
+        <span id="phaseLabel">等待出拳</span>
+        <span class="bo3">BEST OF 3</span>
+      </div>
+      <div class="fighters">
+        <div class="fighter">
+          <div class="hand-wrap"><div class="hand" id="aiHand" aria-hidden="true">🤖</div></div>
+          <span class="fighter-name">零 · AI</span>
+        </div>
+        <div class="vs" aria-hidden="true">VS</div>
+        <div class="fighter player-side">
+          <div class="hand-wrap"><div class="hand" id="playerHand" aria-hidden="true">✊</div></div>
+          <span class="fighter-name">你</span>
+        </div>
+      </div>
+      <div class="result-panel" id="resultPanel" role="status" aria-live="polite" aria-atomic="true">
+        <strong id="resultTitle">准备好了吗？</strong>
+        <span id="resultDetail">点击下方卡牌，与 AI 一决胜负</span>
+      </div>
+    </section>
+
+    <section class="choices" aria-label="选择你的出拳">
+      <button class="choice rock" type="button" data-choice="rock" aria-label="石头，快捷键 1 或 R">
+        <span class="choice-key" aria-hidden="true">1</span>
+        <span class="choice-icon" aria-hidden="true">✊</span>
+        <span class="choice-name">石头</span>
+        <span class="choice-en">ROCK</span>
+      </button>
+      <button class="choice scissors" type="button" data-choice="scissors" aria-label="剪刀，快捷键 2 或 S">
+        <span class="choice-key" aria-hidden="true">2</span>
+        <span class="choice-icon" aria-hidden="true">✌️</span>
+        <span class="choice-name">剪刀</span>
+        <span class="choice-en">SCISSORS</span>
+      </button>
+      <button class="choice paper" type="button" data-choice="paper" aria-label="布，快捷键 3 或 P">
+        <span class="choice-key" aria-hidden="true">3</span>
+        <span class="choice-icon" aria-hidden="true">✋</span>
+        <span class="choice-name">布</span>
+        <span class="choice-en">PAPER</span>
+      </button>
+    </section>
+
+    <footer class="help">
+      <p><span class="accent">点击出拳</span> · 战区滑动 <kbd>←</kbd> 石头 <kbd>↑</kbd> 布 <kbd>→</kbd> 剪刀</p>
+      <p>胜局 +100 · 平局 +20 · 比赛胜利 +150 · 键盘 1 / 2 / 3</p>
+    </footer>
+  </main>
+
+  <div class="modal-backdrop" id="modalBackdrop" hidden>
+    <section class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDescription">
+      <div class="modal-icon" id="modalIcon" aria-hidden="true">🏆</div>
+      <span class="modal-eyebrow" id="modalEyebrow">MATCH COMPLETE</span>
+      <h2 id="modalTitle">胜利！</h2>
+      <p class="modal-description" id="modalDescription"></p>
+      <div class="modal-stats" id="modalStats">
+        <div class="modal-stat"><span>最终比分</span><strong id="finalScore">0 : 0</strong></div>
+        <div class="modal-stat"><span>累计得分</span><strong id="finalPoints">0</strong></div>
+        <div class="modal-stat"><span>最高纪录</span><strong id="finalBest">0</strong></div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-button primary" id="modalPrimary" type="button">再来一场</button>
+        <button class="modal-button secondary" id="modalSecondary" type="button" hidden>重新开局</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // ---------- 常量与 DOM ----------
+      const CHOICES = {
+        rock: { name: "石头", icon: "✊", beats: "scissors" },
+        scissors: { name: "剪刀", icon: "✌️", beats: "paper" },
+        paper: { name: "布", icon: "✋", beats: "rock" }
+      };
+      const STORAGE_KEY = "neon-rps-stats-v1";
+      const $ = (id) => document.getElementById(id);
+      const choiceButtons = [...document.querySelectorAll("[data-choice]")];
+      const timers = new Set();
+
+      const el = {
+        shell: $("gameShell"), arena: $("arena"), score: $("scoreValue"), best: $("bestValue"),
+        aiScore: $("aiScore"), playerScore: $("playerScore"), scoreboard: $("scoreboard"),
+        aiPips: $("aiPips"), playerPips: $("playerPips"), round: $("roundLabel"),
+        phase: $("phaseLabel"), aiHand: $("aiHand"), playerHand: $("playerHand"),
+        result: $("resultPanel"), resultTitle: $("resultTitle"), resultDetail: $("resultDetail"),
+        pause: $("pauseButton"), restart: $("restartButton"), backdrop: $("modalBackdrop"),
+        modal: $("modal"), modalIcon: $("modalIcon"), modalEyebrow: $("modalEyebrow"),
+        modalTitle: $("modalTitle"), modalDescription: $("modalDescription"),
+        modalStats: $("modalStats"), finalScore: $("finalScore"), finalPoints: $("finalPoints"),
+        finalBest: $("finalBest"), modalPrimary: $("modalPrimary"), modalSecondary: $("modalSecondary")
+      };
+
+      // ---------- 安全读取本机纪录；隐私模式下存储不可用时仍可游戏 ----------
+      function loadStats() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+          const valid = (value) => Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0;
+          const score = valid(saved.score);
+          return { score, best: Math.max(score, valid(saved.best)) };
+        } catch (_) {
+          return { score: 0, best: 0 };
+        }
+      }
+
+      const savedStats = loadStats();
+      const state = {
+        playerWins: 0,
+        aiWins: 0,
+        round: 1,
+        phase: "idle", // idle / resolving / revealed / paused / over
+        playerChoice: null,
+        aiChoice: null,
+        outcome: "",
+        title: "准备好了吗？",
+        detail: "点击下方卡牌，与 AI 一决胜负",
+        score: savedStats.score,
+        best: savedStats.best
+      };
+
+      let modalMode = null;
+      let previousFocus = null;
+      let gesture = null;
+
+      function saveStats() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ score: state.score, best: state.best }));
+        } catch (_) {
+          // 存储失败不阻断游戏，仅保留本次页面中的纪录。
+        }
+      }
+
+      function addScore(points) {
+        state.score += points;
+        state.best = Math.max(state.best, state.score);
+        saveStats();
+      }
+
+      // 使用拒绝采样消除取模偏差；不支持 Web Crypto 时退回 Math.random。
+      function randomChoice() {
+        const names = Object.keys(CHOICES);
+        if (window.crypto && window.crypto.getRandomValues) {
+          const buffer = new Uint32Array(1);
+          const limit = Math.floor(0x100000000 / names.length) * names.length;
+          do {
+            window.crypto.getRandomValues(buffer);
+          } while (buffer[0] >= limit);
+          return names[buffer[0] % names.length];
+        }
+        return names[Math.floor(Math.random() * names.length)];
+      }
+
+      function getOutcome(player, ai) {
+        if (player === ai) return "draw";
+        return CHOICES[player].beats === ai ? "win" : "lose";
+      }
+
+      function later(callback, delay) {
+        const id = window.setTimeout(() => {
+          timers.delete(id);
+          callback();
+        }, delay);
+        timers.add(id);
+      }
+
+      function clearTimers() {
+        timers.forEach((id) => window.clearTimeout(id));
+        timers.clear();
+      }
+
+      // ---------- 统一渲染，避免按钮状态与比赛状态不同步 ----------
+      function render() {
+        const isResolving = state.phase === "resolving";
+        const isRevealed = state.phase === "revealed";
+        const canPlay = state.phase === "idle";
+
+        el.score.textContent = state.score.toLocaleString("zh-CN");
+        el.best.textContent = state.best.toLocaleString("zh-CN");
+        el.aiScore.textContent = state.aiWins;
+        el.playerScore.textContent = state.playerWins;
+        el.round.textContent = `第 ${state.round} 局`;
+        el.scoreboard.setAttribute("aria-label", `当前比分，AI ${state.aiWins} 比 ${state.playerWins}，你`);
+        el.resultTitle.textContent = state.title;
+        el.resultDetail.textContent = state.detail;
+        el.result.dataset.outcome = state.outcome;
+
+        [...el.aiPips.children].forEach((pip, i) => pip.classList.toggle("won", i < state.aiWins));
+        [...el.playerPips.children].forEach((pip, i) => pip.classList.toggle("won", i < state.playerWins));
+
+        choiceButtons.forEach((button) => {
+          button.disabled = !canPlay;
+          button.classList.toggle("selected", button.dataset.choice === state.playerChoice && (isResolving || isRevealed));
+        });
+        el.pause.disabled = !canPlay;
+
+        el.aiHand.className = "hand";
+        el.playerHand.className = "hand";
+        if (isResolving) {
+          el.aiHand.textContent = "✊";
+          el.playerHand.textContent = "✊";
+          el.aiHand.classList.add("thinking");
+          el.playerHand.classList.add("thinking");
+          el.phase.textContent = "出拳倒计时";
+        } else if (isRevealed) {
+          el.aiHand.textContent = CHOICES[state.aiChoice].icon;
+          el.playerHand.textContent = CHOICES[state.playerChoice].icon;
+          el.aiHand.classList.add("revealed");
+          el.playerHand.classList.add("revealed");
+          el.phase.textContent = "本局结果";
+        } else {
+          el.aiHand.textContent = "🤖";
+          el.playerHand.textContent = "✊";
+          el.phase.textContent = state.phase === "over" ? "比赛结束" : state.phase === "paused" ? "已暂停" : "等待出拳";
+        }
+      }
+
+      // ---------- 三局两胜：平局不计局数，任意一方先赢两局即结束 ----------
+      function playChoice(choice) {
+        if (state.phase !== "idle" || !CHOICES[choice]) return;
+
+        state.phase = "resolving";
+        state.playerChoice = choice;
+        state.aiChoice = randomChoice(); // 在动画前确定 AI 出拳，保证结果不受玩家之后操作影响。
+        state.outcome = "";
+        state.title = "石头 · 剪刀 · 布";
+        state.detail = "AI 正在同步出拳…";
+        render();
+
+        later(() => { el.phase.textContent = "石头…"; }, 160);
+        later(() => { el.phase.textContent = "剪刀…"; }, 340);
+        later(() => { el.phase.textContent = "布！"; }, 520);
+        later(settleRound, 720);
+      }
+
+      function settleRound() {
+        const outcome = getOutcome(state.playerChoice, state.aiChoice);
+        const player = CHOICES[state.playerChoice];
+        const ai = CHOICES[state.aiChoice];
+        let gained = 0;
+
+        state.phase = "revealed";
+        state.outcome = outcome;
+
+        if (outcome === "draw") {
+          state.title = "平局，再来一次！";
+          state.detail = `同为${player.name} · +20 分，本局不计入比分`;
+          gained = 20;
+        } else if (outcome === "win") {
+          state.playerWins += 1;
+          state.title = state.playerWins === 2 ? "赛点拿下，你赢了！" : "漂亮，你拿下本局！";
+          state.detail = `${player.name}克制${ai.name}`;
+          gained = 100;
+          if (state.playerWins === 2) {
+            gained += 150;
+            state.detail += " · 胜局与比赛奖励 +250 分";
+          } else {
+            state.detail += " · +100 分";
+          }
+        } else {
+          state.aiWins += 1;
+          state.title = state.aiWins === 2 ? "AI 抢先赢得两局" : "本局惜败，稳住！";
+          state.detail = `${ai.name}克制${player.name} · 下一局再扳回来`;
+        }
+
+        addScore(gained);
+        render();
+
+        later(() => {
+          if (state.playerWins === 2 || state.aiWins === 2) {
+            finishMatch();
+          } else {
+            // 只有分出胜负才推进局数，平局在当前局重赛。
+            if (outcome !== "draw") state.round += 1;
+            state.phase = "idle";
+            state.playerChoice = null;
+            state.aiChoice = null;
+            state.title = outcome === "draw" ? "平局重赛" : state.title;
+            state.detail += " · 请继续出拳";
+            render();
+          }
+        }, 1250);
+      }
+
+      function finishMatch() {
+        const won = state.playerWins === 2;
+        state.phase = "over";
+        state.title = won ? "胜利属于你！" : "差一点点，再战吧！";
+        state.detail = `最终比分 ${state.playerWins} : ${state.aiWins}`;
+        render();
+        openModal(won ? "win" : "lose");
+      }
+
+      function restartMatch() {
+        clearTimers();
+        closeModal(false);
+        gesture = null;
+        Object.assign(state, {
+          playerWins: 0,
+          aiWins: 0,
+          round: 1,
+          phase: "idle",
+          playerChoice: null,
+          aiChoice: null,
+          outcome: "",
+          title: "新的对决开始了！",
+          detail: "累计得分保留，点击卡牌出拳"
+        });
+        render();
+      }
+
+      // ---------- 暂停与弹窗 ----------
+      function pauseGame() {
+        if (state.phase !== "idle") return;
+        state.phase = "paused";
+        state.title = "比赛已暂停";
+        state.detail = "当前比分已保留";
+        render();
+        openModal("pause");
+      }
+
+      function resumeGame() {
+        if (state.phase !== "paused") return;
+        closeModal();
+        state.phase = "idle";
+        state.title = "继续对决！";
+        state.detail = "请选择你的下一次出拳";
+        render();
+      }
+
+      function openModal(mode) {
+        modalMode = mode;
+        previousFocus = document.activeElement;
+        el.backdrop.hidden = false;
+        el.shell.inert = true;
+        el.modalStats.hidden = mode === "pause";
+        el.modalSecondary.hidden = mode !== "pause";
+
+        if (mode === "pause") {
+          el.modal.style.setProperty("--modal-accent", "#a98bff");
+          el.modalIcon.textContent = "⏸️";
+          el.modalEyebrow.textContent = "TAKE A BREATH";
+          el.modalTitle.textContent = "游戏暂停";
+          el.modalDescription.textContent = `当前比分 ${state.playerWins} : ${state.aiWins}，进度已保留。准备好就继续吧。`;
+          el.modalPrimary.textContent = "继续游戏";
+        } else {
+          const won = mode === "win";
+          el.modal.style.setProperty("--modal-accent", won ? "#63e6ff" : "#ff67d4");
+          el.modalIcon.textContent = won ? "🏆" : "🌙";
+          el.modalEyebrow.textContent = won ? "VICTORY UNLOCKED" : "MATCH COMPLETE";
+          el.modalTitle.textContent = won ? "胜利！" : "本场惜败";
+          el.modalDescription.textContent = won
+            ? "漂亮的判断！你率先拿下两局，比赛奖励已计入累计得分。"
+            : "AI 这次先拿下两局。观察节奏，下一场把胜利赢回来！";
+          el.finalScore.textContent = `${state.playerWins} : ${state.aiWins}`;
+          el.finalPoints.textContent = state.score.toLocaleString("zh-CN");
+          el.finalBest.textContent = state.best.toLocaleString("zh-CN");
+          el.modalPrimary.textContent = "再来一场";
+        }
+
+        requestAnimationFrame(() => el.modalPrimary.focus({ preventScroll: true }));
+      }
+
+      function closeModal(restoreFocus = true) {
+        if (!modalMode && el.backdrop.hidden) return;
+        el.backdrop.hidden = true;
+        el.shell.inert = false;
+        modalMode = null;
+        if (restoreFocus && previousFocus && previousFocus.isConnected) {
+          previousFocus.focus({ preventScroll: true });
+        }
+      }
+
+      // ---------- 点击、键盘与滑动三类输入 ----------
+      choiceButtons.forEach((button) => {
+        button.addEventListener("click", () => playChoice(button.dataset.choice));
+      });
+      el.pause.addEventListener("click", pauseGame);
+      el.restart.addEventListener("click", restartMatch);
+      el.modalPrimary.addEventListener("click", () => modalMode === "pause" ? resumeGame() : restartMatch());
+      el.modalSecondary.addEventListener("click", restartMatch);
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          if (modalMode === "pause") resumeGame();
+          else if (!modalMode) pauseGame();
+          return;
+        }
+        if (event.repeat || modalMode || event.ctrlKey || event.metaKey || event.altKey) return;
+        const keyMap = {
+          "1": "rock", r: "rock", R: "rock",
+          "2": "scissors", s: "scissors", S: "scissors",
+          "3": "paper", p: "paper", P: "paper"
+        };
+        const choice = keyMap[event.key];
+        if (choice) {
+          event.preventDefault();
+          playChoice(choice);
+        }
+      });
+
+      // 战区手势：左滑石头、右滑剪刀、上滑布；鼠标拖动同样有效。
+      el.arena.addEventListener("pointerdown", (event) => {
+        if (state.phase !== "idle" || !event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
+        gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now() };
+        el.arena.setPointerCapture(event.pointerId);
+      });
+
+      el.arena.addEventListener("pointerup", (event) => {
+        if (!gesture || gesture.id !== event.pointerId || state.phase !== "idle") {
+          gesture = null;
+          return;
+        }
+        const dx = event.clientX - gesture.x;
+        const dy = event.clientY - gesture.y;
+        const elapsed = performance.now() - gesture.time;
+        gesture = null;
+        if (elapsed > 900 || Math.max(Math.abs(dx), Math.abs(dy)) < 32) return;
+
+        let choice = null;
+        if (Math.abs(dx) > Math.abs(dy)) choice = dx < 0 ? "rock" : "scissors";
+        else if (dy < 0) choice = "paper";
+        if (choice) playChoice(choice);
+      });
+      el.arena.addEventListener("pointercancel", () => { gesture = null; });
+
+      // 禁止双击缩放、双指缩放手势及页面回弹滚动。
+      document.addEventListener("dblclick", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
+
+      render();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070a16">
+  <title>手速测试 · 10 秒极限挑战</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070a16;
+      --panel: rgba(17, 23, 44, 0.78);
+      --line: rgba(148, 163, 255, 0.14);
+      --text: #f5f7ff;
+      --muted: #8791ad;
+      --cyan: #43f4ff;
+      --violet: #9666ff;
+      --pink: #ff4fd8;
+      --progress: 100%;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 10%, rgba(105, 65, 220, 0.2), transparent 35%),
+        radial-gradient(circle at 90% 90%, rgba(0, 220, 255, 0.12), transparent 38%),
+        var(--bg);
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    button { font: inherit; }
+    button, [hidden] { -webkit-tap-highlight-color: transparent; }
+    [hidden] { display: none !important; }
+
+    /* 游戏主容器：充分利用手机屏幕，并照顾刘海与底部安全区 */
+    .game {
+      position: relative;
+      isolation: isolate;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      width: min(100%, 500px);
+      height: 100vh;
+      height: 100dvh;
+      max-height: 940px;
+      margin: 0 auto;
+      padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+        max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+      overflow: hidden;
+      background: linear-gradient(160deg, rgba(15, 20, 40, 0.94), rgba(6, 9, 20, 0.98));
+    }
+
+    .game::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      width: 280px;
+      height: 280px;
+      top: -140px;
+      right: -100px;
+      border-radius: 50%;
+      background: rgba(127, 82, 255, 0.18);
+      filter: blur(65px);
+      pointer-events: none;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex: 0 0 auto;
+    }
+
+    .brand { display: flex; align-items: center; gap: 11px; }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 43px;
+      height: 43px;
+      border: 1px solid rgba(67, 244, 255, 0.26);
+      border-radius: 14px;
+      color: var(--cyan);
+      background: linear-gradient(145deg, rgba(67, 244, 255, 0.13), rgba(150, 102, 255, 0.12));
+      box-shadow: inset 0 0 18px rgba(67, 244, 255, 0.05), 0 0 24px rgba(67, 244, 255, 0.07);
+    }
+
+    .brand-mark svg { width: 23px; height: 23px; }
+    .brand h1 { margin: 0; font-size: 18px; letter-spacing: 0.08em; }
+    .brand p { margin: 3px 0 0; color: var(--muted); font-size: 11px; letter-spacing: 0.12em; }
+
+    .pause-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-width: 76px;
+      min-height: 42px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      color: #cbd3eb;
+      background: rgba(255, 255, 255, 0.045);
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s, opacity 0.2s;
+    }
+
+    .pause-button:not(:disabled):active { background: rgba(150, 102, 255, 0.16); }
+    .pause-button:disabled { opacity: 0.35; cursor: default; }
+    .pause-icon { color: var(--cyan); font-size: 13px; letter-spacing: -2px; }
+
+    /* 三项核心数据 */
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; flex: 0 0 auto; }
+
+    .stat {
+      min-width: 0;
+      padding: 11px 7px 10px;
+      text-align: center;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: var(--panel);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+    }
+
+    .stat-label { display: block; margin-bottom: 3px; color: var(--muted); font-size: 11px; }
+    .stat-value { font-size: clamp(20px, 6vw, 27px); font-weight: 750; line-height: 1.15; font-variant-numeric: tabular-nums; }
+    .stat-unit { margin-left: 2px; color: var(--muted); font-size: 10px; font-weight: 500; }
+    .stat:first-child .stat-value { color: var(--cyan); }
+    .stat:first-child.urgent .stat-value { color: #ff668e; text-shadow: 0 0 16px rgba(255, 70, 120, 0.45); }
+
+    /* 整个大按钮均支持 Pointer Events，多点触屏也能逐次计数 */
+    .tap-pad {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 205px;
+      width: 100%;
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid rgba(99, 224, 255, 0.2);
+      border-radius: 29px;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 50% 46%, rgba(81, 62, 180, 0.2), transparent 48%),
+        linear-gradient(145deg, rgba(19, 28, 52, 0.96), rgba(10, 14, 30, 0.98));
+      box-shadow: inset 0 0 45px rgba(61, 102, 200, 0.05), 0 12px 45px rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    .tap-pad::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: 0.22;
+      background-image:
+        linear-gradient(rgba(110, 148, 210, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(110, 148, 210, 0.1) 1px, transparent 1px);
+      background-size: 28px 28px;
+      pointer-events: none;
+    }
+
+    .tap-pad::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+      pointer-events: none;
+    }
+
+    .tap-pad:active { border-color: rgba(67, 244, 255, 0.42); }
+    .tap-pad:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+
+    .progress-ring {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: clamp(185px, 60vw, 270px);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: conic-gradient(var(--cyan) 0 var(--progress), rgba(107, 129, 181, 0.12) var(--progress) 100%);
+      -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 0);
+      mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 0);
+      filter: drop-shadow(0 0 7px rgba(67, 244, 255, 0.36));
+      transform: translate(-50%, -50%) rotate(-90deg);
+      pointer-events: none;
+    }
+
+    .ring-track {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: clamp(185px, 60vw, 270px);
+      aspect-ratio: 1;
+      border: 1px solid rgba(143, 159, 255, 0.08);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .tap-content {
+      position: absolute;
+      z-index: 2;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+    }
+
+    .idle-view, .play-view { text-align: center; }
+    .play-view { display: none; }
+    .tap-pad[data-state="running"] .idle-view,
+    .tap-pad[data-state="paused"] .idle-view,
+    .tap-pad[data-state="ended"] .idle-view { display: none; }
+    .tap-pad[data-state="running"] .play-view,
+    .tap-pad[data-state="paused"] .play-view,
+    .tap-pad[data-state="ended"] .play-view { display: block; }
+
+    .start-icon {
+      display: grid;
+      place-items: center;
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 15px;
+      border: 1px solid rgba(67, 244, 255, 0.3);
+      border-radius: 22px;
+      color: var(--cyan);
+      background: rgba(67, 244, 255, 0.07);
+      box-shadow: 0 0 30px rgba(67, 244, 255, 0.1);
+      animation: breathe 2s ease-in-out infinite;
+    }
+
+    .start-icon svg { width: 30px; height: 30px; }
+    .idle-title { display: block; margin: 0 0 8px; font-size: 26px; font-weight: 700; letter-spacing: 0.08em; }
+    .idle-subtitle { display: block; margin: 0; color: var(--muted); font-size: 13px; }
+
+    .score-label { display: block; margin-bottom: 10px; color: #a5b1ce; font-size: 12px; letter-spacing: 0.2em; }
+    .score-number {
+      display: inline-block;
+      font-size: clamp(76px, 24vw, 112px);
+      font-weight: 800;
+      line-height: 0.9;
+      letter-spacing: -0.06em;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 32px rgba(150, 102, 255, 0.3);
+    }
+    .score-unit { margin-left: 10px; color: var(--cyan); font-size: 15px; }
+
+    .tap-hint {
+      position: absolute;
+      z-index: 2;
+      bottom: 18px;
+      left: 0;
+      width: 100%;
+      color: var(--muted);
+      text-align: center;
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      pointer-events: none;
+    }
+
+    .live-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      margin-right: 7px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 9px var(--cyan);
+      animation: pulse 1s ease-in-out infinite;
+    }
+    .tap-pad[data-state="idle"] .live-dot { display: none; }
+
+    /* 点击反馈只负责视觉，不参与命中与计分 */
+    .tap-feedback {
+      position: absolute;
+      z-index: 5;
+      color: var(--cyan);
+      font-size: 18px;
+      font-weight: 800;
+      text-shadow: 0 0 12px rgba(67, 244, 255, 0.75);
+      transform: translate(-50%, -50%);
+      animation: float-up 0.45s ease-out forwards;
+      pointer-events: none;
+    }
+    .tap-feedback::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 42px;
+      height: 42px;
+      border: 1px solid rgba(67, 244, 255, 0.7);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      animation: ripple 0.45s ease-out forwards;
+    }
+
+    .how-to {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      flex: 0 0 auto;
+      min-height: 20px;
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .how-to .spark { color: var(--violet); }
+    .how-to i { width: 3px; height: 3px; margin: 0 2px; border-radius: 50%; background: #46506c; }
+    kbd { padding: 2px 6px; border: 1px solid #35405e; border-radius: 5px; color: #b6c0da; background: #151b2e; font: inherit; }
+
+    /* 暂停与结算共用遮罩，避免背后按钮被误触 */
+    .overlay {
+      position: absolute;
+      z-index: 20;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgba(3, 5, 13, 0.76);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      animation: fade-in 0.2s ease-out;
+    }
+
+    .modal-card {
+      width: 100%;
+      max-width: 400px;
+      max-height: 100%;
+      padding: 22px;
+      overflow: hidden;
+      border: 1px solid rgba(139, 155, 255, 0.22);
+      border-radius: 27px;
+      text-align: center;
+      background: linear-gradient(155deg, rgba(24, 31, 58, 0.98), rgba(10, 14, 29, 0.99));
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      animation: modal-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .result-badge {
+      display: inline-block;
+      padding: 5px 11px;
+      border: 1px solid rgba(67, 244, 255, 0.2);
+      border-radius: 999px;
+      color: var(--cyan);
+      background: rgba(67, 244, 255, 0.06);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+    }
+    .result-badge.record { color: #ffe379; border-color: rgba(255, 218, 90, 0.3); background: rgba(255, 218, 90, 0.07); }
+    .modal-card h2 { margin: 10px 0 3px; font-size: 23px; }
+    .result-subtitle { margin: 0; color: var(--muted); font-size: 12px; }
+    .final-score { margin: 7px 0 10px; }
+    .final-score strong { font-size: 65px; line-height: 1; letter-spacing: -0.05em; font-variant-numeric: tabular-nums; }
+    .final-score span { margin-left: 7px; color: var(--cyan); font-size: 14px; }
+
+    .result-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 14px; }
+    .result-metrics > div { padding: 9px 6px; border: 1px solid var(--line); border-radius: 13px; background: rgba(255, 255, 255, 0.025); }
+    .result-metrics span { display: block; margin-bottom: 3px; color: var(--muted); font-size: 10px; }
+    .result-metrics strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+    .result-metrics small { margin-left: 3px; color: var(--muted); font-size: 9px; }
+
+    .ranking-header { display: flex; align-items: center; justify-content: space-between; margin: 0 2px 7px; }
+    .ranking-header h3 { margin: 0; font-size: 12px; letter-spacing: 0.08em; }
+    .ranking-header span { color: var(--muted); font-size: 9px; letter-spacing: 0.15em; }
+    .rank-list { display: grid; gap: 5px; margin: 0 0 14px; padding: 0; list-style: none; }
+    .rank-item {
+      display: grid;
+      grid-template-columns: 29px 1fr auto;
+      align-items: center;
+      min-height: 31px;
+      padding: 4px 10px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      color: #aab4cd;
+      background: rgba(255, 255, 255, 0.025);
+      font-size: 11px;
+      text-align: left;
+    }
+    .rank-item.current { border-color: rgba(67, 244, 255, 0.25); color: var(--text); background: rgba(67, 244, 255, 0.06); }
+    .rank-position { color: #697590; font-weight: 800; }
+    .rank-item:nth-child(1) .rank-position { color: #ffe379; }
+    .rank-item:nth-child(2) .rank-position { color: #cad5ea; }
+    .rank-item:nth-child(3) .rank-position { color: #e7a57b; }
+    .rank-item strong { font-size: 13px; font-variant-numeric: tabular-nums; }
+    .rank-item strong small { margin-left: 2px; color: var(--muted); font-size: 9px; font-weight: 400; }
+    .rank-cps { color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+
+    .primary-button, .secondary-button {
+      width: 100%;
+      min-height: 49px;
+      border-radius: 15px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+    }
+    .primary-button {
+      border: 0;
+      color: #07121b;
+      background: linear-gradient(100deg, var(--cyan), #80b7ff);
+      box-shadow: 0 8px 26px rgba(67, 244, 255, 0.18);
+    }
+    .primary-button:active { transform: translateY(1px); filter: brightness(0.9); }
+    .secondary-button { margin-top: 9px; border: 1px solid var(--line); color: #aeb9d3; background: rgba(255, 255, 255, 0.035); }
+    .primary-button:focus-visible, .secondary-button:focus-visible, .pause-button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+    .key-hint { margin: 9px 0 0; color: #66718c; font-size: 10px; }
+
+    .pause-card { max-width: 340px; padding: 30px 24px 24px; }
+    .pause-symbol { display: grid; place-items: center; width: 64px; height: 64px; margin: 0 auto 15px; border: 1px solid rgba(150, 102, 255, 0.3); border-radius: 21px; color: #b99aff; background: rgba(150, 102, 255, 0.08); font-size: 25px; }
+    .pause-card p { margin: 8px 0 22px; color: var(--muted); font-size: 13px; }
+    .pause-card p strong { color: var(--cyan); font-variant-numeric: tabular-nums; }
+
+    @keyframes breathe { 50% { transform: translateY(-4px); box-shadow: 0 0 40px rgba(67, 244, 255, 0.2); } }
+    @keyframes pulse { 50% { opacity: 0.35; transform: scale(0.75); } }
+    @keyframes float-up { to { opacity: 0; transform: translate(-50%, -115%); } }
+    @keyframes ripple { to { opacity: 0; transform: translate(-50%, -50%) scale(2.2); } }
+    @keyframes fade-in { from { opacity: 0; } }
+    @keyframes modal-in { from { opacity: 0; transform: translateY(14px) scale(0.97); } }
+
+    @media (min-width: 540px) {
+      body { display: grid; place-items: center; padding: 20px; }
+      .game {
+        height: min(880px, calc(100dvh - 40px));
+        border: 1px solid rgba(139, 155, 255, 0.15);
+        border-radius: 32px;
+        box-shadow: 0 30px 100px rgba(0, 0, 0, 0.4);
+      }
+    }
+
+    /* 矮屏压缩留白，保证排行榜与重开按钮仍完整可见 */
+    @media (max-height: 700px) {
+      .game { gap: 10px; }
+      .brand-mark { width: 39px; height: 39px; }
+      .stat { padding: 8px 5px; }
+      .tap-hint { bottom: 12px; }
+      .modal-card { padding: 17px; }
+      .modal-card h2 { margin-top: 7px; font-size: 20px; }
+      .final-score { margin: 5px 0 8px; }
+      .final-score strong { font-size: 53px; }
+      .result-metrics { margin-bottom: 10px; }
+      .result-metrics > div { padding: 6px; }
+      .rank-list { gap: 4px; margin-bottom: 10px; }
+      .rank-item { min-height: 28px; padding-top: 3px; padding-bottom: 3px; }
+      .key-hint { display: none; }
+    }
+
+    @media (max-width: 340px) {
+      .game { padding-left: 12px; padding-right: 12px; }
+      .how-to { gap: 5px; font-size: 10px; }
+      .pause-button { min-width: 68px; padding: 0 10px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="game" id="game">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M13.2 2 5.8 13h5.9L10.8 22l7.4-11h-5.9L13.2 2Z" fill="currentColor"/></svg>
+        </div>
+        <div><h1>手速测试</h1><p>10 秒极限挑战</p></div>
+      </div>
+      <button class="pause-button" id="pauseButton" type="button" disabled aria-label="暂停游戏">
+        <span class="pause-icon" aria-hidden="true">Ⅱ</span><span>暂停</span>
+      </button>
+    </header>
+
+    <section class="stats" aria-label="实时数据">
+      <div class="stat" id="timeStat">
+        <span class="stat-label">剩余时间</span>
+        <strong class="stat-value" id="timeValue">10.0</strong><span class="stat-unit">秒</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">当前手速</span>
+        <strong class="stat-value" id="cpsValue">0.0</strong><span class="stat-unit">次/秒</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">最高分</span>
+        <strong class="stat-value" id="bestValue">0</strong><span class="stat-unit">次</span>
+      </div>
+    </section>
+
+    <button class="tap-pad" id="tapPad" type="button" data-state="idle" aria-label="点击开始，10 秒内尽可能多次点击">
+      <span class="ring-track" aria-hidden="true"></span>
+      <span class="progress-ring" id="progressRing" aria-hidden="true"></span>
+      <span class="tap-content">
+        <span class="idle-view">
+          <span class="start-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M13.2 2 5.8 13h5.9L10.8 22l7.4-11h-5.9L13.2 2Z" fill="currentColor"/></svg>
+          </span>
+          <span class="idle-title">准备好就点</span>
+          <span class="idle-subtitle">首次点击即开始计时</span>
+        </span>
+        <span class="play-view">
+          <span class="score-label">当前点击</span>
+          <strong class="score-number" id="scoreValue">0</strong><span class="score-unit">次</span>
+        </span>
+      </span>
+      <span class="tap-hint"><span class="live-dot" aria-hidden="true"></span><span id="tapHint">单指、多指交替点击均可</span></span>
+    </button>
+
+    <footer class="how-to">
+      <span class="spark" aria-hidden="true">✦</span><span>支持多指连点</span><i></i><kbd>空格</kbd><span>也能点击</span><i></i><span>P 暂停</span>
+    </footer>
+
+    <section class="overlay" id="pauseOverlay" hidden>
+      <div class="modal-card pause-card" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+        <div class="pause-symbol" aria-hidden="true">Ⅱ</div>
+        <h2 id="pauseTitle">喘口气</h2>
+        <p>还剩 <strong id="pausedTime">10.0</strong> 秒，随时继续挑战</p>
+        <button class="primary-button" id="resumeButton" type="button">继续游戏</button>
+        <button class="secondary-button" id="pauseRestartButton" type="button">重新开始</button>
+      </div>
+    </section>
+
+    <section class="overlay" id="resultOverlay" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+        <span class="result-badge" id="resultBadge">挑战完成</span>
+        <h2 id="resultTitle">指尖疾风</h2>
+        <p class="result-subtitle">你的 10 秒成绩</p>
+        <div class="final-score"><strong id="finalScore">0</strong><span>次</span></div>
+        <div class="result-metrics">
+          <div><span>平均手速</span><strong id="finalCps">0.0</strong><small>次/秒</small></div>
+          <div><span>本地排名</span><strong id="finalRank">第 1 名</strong></div>
+        </div>
+        <div class="ranking-header"><h3>本地排行榜</h3><span>TOP 5</span></div>
+        <ol class="rank-list" id="rankList"></ol>
+        <button class="primary-button" id="restartButton" type="button">再来一局 ↻</button>
+        <p class="key-hint">按空格键也可以快速重开</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // 固定常量与本地存储键，统一使用版本号避免旧数据冲突
+      const DURATION = 10000;
+      const BEST_KEY = "tapSpeed.best.v1";
+      const RANK_KEY = "tapSpeed.rankings.v1";
+
+      const $ = (id) => document.getElementById(id);
+      const tapPad = $("tapPad");
+      const scoreValue = $("scoreValue");
+      const timeValue = $("timeValue");
+      const timeStat = $("timeStat");
+      const cpsValue = $("cpsValue");
+      const bestValue = $("bestValue");
+      const progressRing = $("progressRing");
+      const pauseButton = $("pauseButton");
+      const pauseOverlay = $("pauseOverlay");
+      const resultOverlay = $("resultOverlay");
+
+      let state = "idle"; // idle / running / paused / ended
+      let score = 0;
+      let remaining = DURATION;
+      let endAt = 0;
+      let rafId = 0;
+      let rankings = loadRankings();
+      let best = Math.max(loadBest(), 0, ...rankings.map((item) => item.score));
+
+      // 本地存储不可用时自动退化为本次会话数据，不影响游戏
+      function loadBest() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(BEST_KEY), 10);
+          return Number.isFinite(value) && value >= 0 ? value : 0;
+        } catch (_) {
+          return 0;
+        }
+      }
+
+      function loadRankings() {
+        try {
+          const data = JSON.parse(localStorage.getItem(RANK_KEY) || "[]");
+          if (!Array.isArray(data)) return [];
+          return data
+            .filter((item) => item && Number.isFinite(item.score) && item.score >= 0)
+            .map((item) => ({
+              id: String(item.id || ""),
+              score: Math.floor(item.score),
+              cps: Number.isFinite(item.cps) ? item.cps : item.score / 10,
+              time: Number.isFinite(item.time) ? item.time : 0
+            }))
+            .sort((a, b) => b.score - a.score || b.time - a.time)
+            .slice(0, 5);
+        } catch (_) {
+          return [];
+        }
+      }
+
+      function saveLocal(key, value) {
+        try {
+          localStorage.setItem(key, typeof value === "string" ? value : JSON.stringify(value));
+        } catch (_) {
+          // 隐私模式或存储空间不足时静默降级
+        }
+      }
+
+      // 所有动态数字集中在同一处刷新，保证暂停与结算显示一致
+      function updateHUD() {
+        const elapsed = Math.max(0, DURATION - remaining) / 1000;
+        const cps = elapsed > 0 ? score / Math.max(elapsed, 1) : 0;
+        scoreValue.textContent = score;
+        timeValue.textContent = (remaining / 1000).toFixed(1);
+        cpsValue.textContent = cps.toFixed(1);
+        bestValue.textContent = Math.max(best, score);
+        progressRing.style.setProperty("--progress", `${(remaining / DURATION) * 100}%`);
+        timeStat.classList.toggle("urgent", state === "running" && remaining <= 3000);
+      }
+
+      function resetGame() {
+        cancelAnimationFrame(rafId);
+        state = "idle";
+        score = 0;
+        remaining = DURATION;
+        tapPad.dataset.state = "idle";
+        tapPad.setAttribute("aria-label", "点击开始，10 秒内尽可能多次点击");
+        $("tapHint").textContent = "单指、多指交替点击均可";
+        pauseButton.disabled = true;
+        pauseOverlay.hidden = true;
+        resultOverlay.hidden = true;
+        updateHUD();
+      }
+
+      function startGame() {
+        state = "running";
+        score = 0;
+        remaining = DURATION;
+        endAt = performance.now() + DURATION;
+        tapPad.dataset.state = "running";
+        tapPad.setAttribute("aria-label", "疯狂点击这里增加次数");
+        $("tapHint").textContent = "疯狂点击，多指更快！";
+        pauseButton.disabled = false;
+        resultOverlay.hidden = true;
+        updateHUD();
+        rafId = requestAnimationFrame(tick);
+      }
+
+      function tick(now) {
+        if (state !== "running") return;
+        remaining = Math.max(0, endAt - now);
+        updateHUD();
+        if (remaining <= 0) {
+          finishGame();
+          return;
+        }
+        rafId = requestAnimationFrame(tick);
+      }
+
+      // 每次 pointerdown 独立计一次，因此多根手指同时点也不会漏记
+      function registerTap(event) {
+        if (state === "idle") startGame();
+        if (state !== "running") return;
+        score += 1;
+        updateHUD();
+        spawnFeedback(event);
+      }
+
+      function spawnFeedback(event) {
+        const rect = tapPad.getBoundingClientRect();
+        const hasPosition = event && Number.isFinite(event.clientX) && Number.isFinite(event.clientY);
+        const feedback = document.createElement("span");
+        feedback.className = "tap-feedback";
+        feedback.style.left = `${hasPosition ? event.clientX - rect.left : rect.width / 2}px`;
+        feedback.style.top = `${hasPosition ? event.clientY - rect.top : rect.height / 2}px`;
+        feedback.textContent = "+1";
+        feedback.setAttribute("aria-hidden", "true");
+        tapPad.appendChild(feedback);
+        window.setTimeout(() => feedback.remove(), 480);
+      }
+
+      function pauseGame() {
+        if (state !== "running") return;
+        remaining = Math.max(0, endAt - performance.now());
+        if (remaining <= 0) {
+          finishGame();
+          return;
+        }
+        state = "paused";
+        cancelAnimationFrame(rafId);
+        tapPad.dataset.state = "paused";
+        pauseButton.disabled = true;
+        $("pausedTime").textContent = (remaining / 1000).toFixed(1);
+        pauseOverlay.hidden = false;
+        updateHUD();
+        $("resumeButton").focus({ preventScroll: true });
+      }
+
+      function resumeGame() {
+        if (state !== "paused") return;
+        state = "running";
+        endAt = performance.now() + remaining;
+        tapPad.dataset.state = "running";
+        pauseOverlay.hidden = true;
+        pauseButton.disabled = false;
+        tapPad.focus({ preventScroll: true });
+        rafId = requestAnimationFrame(tick);
+      }
+
+      function getRankTitle(value) {
+        if (value >= 100) return "人形加特林";
+        if (value >= 80) return "闪电之手";
+        if (value >= 60) return "指尖疾风";
+        if (value >= 40) return "连击好手";
+        if (value >= 20) return "节奏新星";
+        return "潜力选手";
+      }
+
+      function finishGame() {
+        if (state !== "running" && state !== "paused") return;
+        cancelAnimationFrame(rafId);
+        state = "ended";
+        remaining = 0;
+        tapPad.dataset.state = "ended";
+        pauseButton.disabled = true;
+        pauseOverlay.hidden = true;
+
+        const previousBest = best;
+        const isNewBest = score > previousBest;
+        if (isNewBest) {
+          best = score;
+          saveLocal(BEST_KEY, String(best));
+        }
+
+        // 用完整排序先计算本次名次，再只保留前五名到本地
+        const entry = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          score,
+          cps: Number((score / 10).toFixed(1)),
+          time: Date.now()
+        };
+        const sorted = [...rankings, entry].sort((a, b) => b.score - a.score || b.time - a.time);
+        const rankIndex = sorted.findIndex((item) => item.id === entry.id);
+        rankings = sorted.slice(0, 5);
+        saveLocal(RANK_KEY, rankings);
+
+        $("resultBadge").textContent = isNewBest ? "✦ 新纪录诞生" : "挑战完成";
+        $("resultBadge").classList.toggle("record", isNewBest);
+        $("resultTitle").textContent = getRankTitle(score);
+        $("finalScore").textContent = score;
+        $("finalCps").textContent = (score / 10).toFixed(1);
+        $("finalRank").textContent = rankIndex < 5 ? `第 ${rankIndex + 1} 名` : "未进前五";
+        renderRankings(entry.id);
+        updateHUD();
+        resultOverlay.hidden = false;
+        $("restartButton").focus({ preventScroll: true });
+
+        if (navigator.vibrate) navigator.vibrate(isNewBest ? [35, 40, 70] : 35);
+      }
+
+      function renderRankings(currentId) {
+        const list = $("rankList");
+        list.replaceChildren();
+        rankings.forEach((item, index) => {
+          const row = document.createElement("li");
+          row.className = `rank-item${item.id === currentId ? " current" : ""}`;
+          if (item.id === currentId) row.setAttribute("aria-label", `本次成绩，第 ${index + 1} 名`);
+
+          const position = document.createElement("span");
+          position.className = "rank-position";
+          position.textContent = String(index + 1).padStart(2, "0");
+          const points = document.createElement("strong");
+          points.textContent = item.score;
+          const unit = document.createElement("small");
+          unit.textContent = "次";
+          points.appendChild(unit);
+          const speed = document.createElement("span");
+          speed.className = "rank-cps";
+          speed.textContent = `${item.cps.toFixed(1)} 次/秒`;
+          row.append(position, points, speed);
+          list.appendChild(row);
+        });
+      }
+
+      function restartToReady() {
+        resetGame();
+        tapPad.focus({ preventScroll: true });
+      }
+
+      // 触屏与鼠标统一走 pointerdown；鼠标仅响应主键
+      tapPad.addEventListener("pointerdown", (event) => {
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        event.preventDefault();
+        registerTap(event);
+      });
+
+      // 为辅助技术生成的键盘 click 保留入口，避免与普通鼠标重复计数
+      tapPad.addEventListener("click", (event) => {
+        if (event.detail === 0) registerTap();
+      });
+      tapPad.addEventListener("contextmenu", (event) => event.preventDefault());
+      pauseButton.addEventListener("click", pauseGame);
+      $("resumeButton").addEventListener("click", resumeGame);
+      $("restartButton").addEventListener("click", restartToReady);
+      $("pauseRestartButton").addEventListener("click", restartToReady);
+
+      document.addEventListener("keydown", (event) => {
+        if (event.repeat) return; // 长按空格不连续刷分
+
+        if (event.code === "KeyP" || event.code === "Escape") {
+          if (state === "running") {
+            event.preventDefault();
+            pauseGame();
+          } else if (state === "paused") {
+            event.preventDefault();
+            resumeGame();
+          }
+          return;
+        }
+
+        if (event.code !== "Space" && event.code !== "Enter") return;
+        const onButton = event.target instanceof HTMLButtonElement;
+        // 弹窗按钮和暂停按钮保留原生键盘行为
+        if (onButton && event.target !== tapPad) return;
+
+        if (state === "running" || state === "idle") {
+          event.preventDefault();
+          registerTap();
+        } else if (state === "paused") {
+          event.preventDefault();
+          resumeGame();
+        } else if (state === "ended") {
+          event.preventDefault();
+          restartToReady();
+        }
+      });
+
+      // 阻止双击缩放、双指手势与页面滚动；切到后台时自动暂停
+      document.addEventListener("dblclick", (event) => event.preventDefault());
+      document.addEventListener("gesturestart", (event) => event.preventDefault());
+      document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && state === "running") pauseGame();
+      });
+
+      resetGame();
+    })();
+  </script>
+</body>
+</html>

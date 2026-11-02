@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070b18">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>霓虹七巧板</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #050814;
+      --panel: rgba(13, 20, 43, .82);
+      --line: rgba(145, 169, 255, .14);
+      --text: #f3f7ff;
+      --muted: #8491b3;
+      --cyan: #46e6ff;
+      --violet: #a978ff;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 4%, rgba(73, 52, 170, .24), transparent 35%),
+        radial-gradient(circle at 92% 88%, rgba(0, 209, 255, .12), transparent 38%),
+        var(--bg);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .22;
+      background-image:
+        linear-gradient(rgba(128, 151, 255, .045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(128, 151, 255, .045) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: linear-gradient(to bottom, black, transparent 85%);
+    }
+
+    button { font: inherit; }
+    button:focus-visible, canvas:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    #app {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 560px;
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: calc(10px + env(safe-area-inset-top)) 12px calc(8px + env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* 顶栏：品牌与实时数据 */
+    .topbar {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(98, 235, 255, .4);
+      border-radius: 13px;
+      font-size: 23px;
+      font-weight: 800;
+      color: #e9fdff;
+      background: linear-gradient(145deg, rgba(40, 224, 255, .2), rgba(128, 73, 255, .25));
+      box-shadow: inset 0 0 18px rgba(82, 223, 255, .08), 0 0 22px rgba(47, 210, 255, .12);
+      transform: rotate(-4deg);
+    }
+    .brand h1 { margin: 0; font-size: 19px; letter-spacing: .12em; line-height: 1.2; }
+    .brand p { margin: 4px 0 0; color: #7183aa; font-size: 8px; letter-spacing: .18em; white-space: nowrap; }
+
+    .stats { display: grid; grid-template-columns: repeat(3, minmax(52px, 1fr)); gap: 6px; flex: 1; max-width: 270px; }
+    .stat {
+      position: relative;
+      min-width: 0;
+      padding: 6px 7px;
+      overflow: hidden;
+      text-align: center;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(14, 21, 43, .68);
+      box-shadow: inset 0 1px rgba(255, 255, 255, .025);
+    }
+    .stat-label { display: block; margin-bottom: 2px; color: var(--muted); font-size: 9px; letter-spacing: .12em; }
+    .stat strong { display: block; overflow: hidden; font-size: 16px; line-height: 1.2; font-variant-numeric: tabular-nums; text-overflow: ellipsis; }
+    .stat.score strong { color: #70edff; }
+    .stat.best strong { color: #c5a7ff; }
+    .stat.time strong { color: #ecf3ff; }
+    .stat.time.danger strong { color: #ff7898; animation: timePulse 1s ease-in-out infinite; }
+    .time-track { position: absolute; left: 8px; right: 8px; bottom: 3px; height: 2px; border-radius: 2px; background: rgba(255,255,255,.07); }
+    #timeBar { display: block; width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #786dff, #43e7ff); transition: width .2s linear; }
+    .danger #timeBar { background: #ff648c; }
+
+    /* 主游戏画布 */
+    .game-shell {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 250px;
+      overflow: hidden;
+      border: 1px solid rgba(113, 152, 255, .19);
+      border-radius: 24px;
+      background:
+        radial-gradient(circle at 50% 30%, rgba(43, 64, 126, .2), transparent 50%),
+        linear-gradient(160deg, rgba(14, 22, 47, .94), rgba(6, 11, 27, .97));
+      box-shadow: 0 18px 50px rgba(0, 0, 0, .28), inset 0 1px rgba(255, 255, 255, .04);
+      isolation: isolate;
+    }
+    .game-shell::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background: linear-gradient(115deg, rgba(255,255,255,.025), transparent 28%);
+    }
+    #gameCanvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+    #gameCanvas:active { cursor: grabbing; }
+
+    #toast {
+      position: absolute;
+      left: 50%;
+      bottom: 12px;
+      z-index: 4;
+      max-width: calc(100% - 28px);
+      padding: 8px 13px;
+      border: 1px solid rgba(83, 225, 255, .25);
+      border-radius: 99px;
+      color: #dffcff;
+      background: rgba(7, 16, 34, .9);
+      box-shadow: 0 6px 24px rgba(0,0,0,.3), 0 0 18px rgba(53,218,255,.08);
+      font-size: 11px;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, 8px);
+      transition: opacity .2s, transform .2s;
+    }
+    #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    /* 触屏友好的六键工具栏 */
+    .toolbar { flex: 0 0 auto; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 7px; }
+    .tool-button {
+      min-width: 0;
+      height: 58px;
+      padding: 5px 1px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      color: #aab8d8;
+      border: 1px solid rgba(131, 157, 232, .14);
+      border-radius: 15px;
+      background: linear-gradient(155deg, rgba(22, 31, 60, .9), rgba(11, 17, 37, .9));
+      box-shadow: inset 0 1px rgba(255,255,255,.035);
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: transform .12s, color .12s, border-color .12s, background .12s;
+    }
+    .tool-button:active { transform: scale(.94); color: #ecfdff; border-color: rgba(67,229,255,.5); background: rgba(29,54,80,.95); }
+    .tool-button .icon { font-size: 21px; line-height: 1; font-weight: 400; }
+    .tool-button .label { font-size: 9px; letter-spacing: .04em; }
+    .tool-button.accent { color: #6deaff; border-color: rgba(69, 224, 255, .25); }
+
+    .quick-guide {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 5px;
+      color: #7887aa;
+      font-size: 10px;
+      line-height: 1.4;
+      text-align: center;
+    }
+    .quick-guide b { color: #b9c7e5; font-weight: 500; }
+    .quick-guide i { color: #3b4c70; font-style: normal; }
+    .keyboard-guide { flex: 0 0 auto; margin: -4px 0 0; color: #4f5f80; font-size: 9px; text-align: center; }
+
+    /* 开始、暂停与结算共用弹窗 */
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      padding: 22px;
+      display: grid;
+      place-items: center;
+      background: rgba(2, 5, 15, .72);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity .25s, visibility .25s;
+    }
+    .modal.visible { opacity: 1; visibility: visible; }
+    .modal-card {
+      position: relative;
+      width: min(100%, 390px);
+      padding: 30px 24px 23px;
+      overflow: hidden;
+      text-align: center;
+      border: 1px solid rgba(114, 222, 255, .24);
+      border-radius: 28px;
+      background:
+        radial-gradient(circle at 50% 0, rgba(80, 86, 210, .23), transparent 48%),
+        linear-gradient(155deg, rgba(19, 28, 57, .98), rgba(8, 13, 30, .98));
+      box-shadow: 0 28px 90px rgba(0,0,0,.55), inset 0 1px rgba(255,255,255,.06), 0 0 45px rgba(48,197,255,.07);
+      transform: translateY(14px) scale(.97);
+      transition: transform .3s cubic-bezier(.2,.8,.2,1);
+    }
+    .visible .modal-card { transform: translateY(0) scale(1); }
+    .modal-orbit {
+      position: relative;
+      width: 76px;
+      height: 76px;
+      margin: 0 auto 18px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(75, 226, 255, .35);
+      border-radius: 24px;
+      color: #c7f9ff;
+      background: linear-gradient(145deg, rgba(52,220,255,.15), rgba(139,83,255,.19));
+      box-shadow: 0 0 35px rgba(62,218,255,.14), inset 0 0 25px rgba(139,102,255,.1);
+      font-size: 35px;
+      font-weight: 700;
+      transform: rotate(45deg);
+    }
+    .modal-orbit span { transform: rotate(-45deg); }
+    .modal-kicker { margin: 0 0 7px; color: #63dff4; font-size: 9px; letter-spacing: .24em; }
+    .modal h2 { margin: 0; font-size: 28px; letter-spacing: .08em; }
+    .modal-text { max-width: 290px; margin: 12px auto 18px; color: #98a7c7; font-size: 13px; line-height: 1.75; }
+    .modal-gestures { margin: 0 0 20px; padding: 12px; border: 1px solid rgba(133,158,224,.1); border-radius: 14px; color: #7f90b2; background: rgba(7,13,29,.45); font-size: 11px; line-height: 1.8; }
+    .modal-gestures b { color: #c0cee9; font-weight: 500; }
+    .result-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin: 0 0 20px; }
+    .result-stats[hidden] { display: none; }
+    .result-item { padding: 10px 4px; border: 1px solid rgba(126,153,225,.12); border-radius: 13px; background: rgba(8,14,31,.55); }
+    .result-item strong { display: block; color: #dffcff; font-size: 18px; font-variant-numeric: tabular-nums; }
+    .result-item span { display: block; margin-top: 4px; color: #7081a4; font-size: 9px; }
+    .modal-actions { display: grid; gap: 9px; }
+    .modal-button {
+      width: 100%;
+      min-height: 49px;
+      border-radius: 15px;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .modal-button.primary {
+      color: #04101b;
+      border: 0;
+      font-weight: 700;
+      letter-spacing: .12em;
+      background: linear-gradient(100deg, #51e9ff, #9a8cff);
+      box-shadow: 0 8px 28px rgba(70, 211, 255, .2);
+    }
+    .modal-button.primary:active { transform: translateY(1px); filter: brightness(.92); }
+    .modal-button.secondary { color: #8293b7; border: 1px solid rgba(130,153,220,.14); background: transparent; }
+    .modal-button[hidden], .modal-gestures[hidden] { display: none; }
+
+    #confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+    .confetti-piece { position: absolute; top: -15px; width: 6px; height: 12px; border-radius: 2px; background: var(--c); left: var(--x); animation: confettiFall var(--d) var(--delay) cubic-bezier(.2,.7,.3,1) forwards; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+    @keyframes timePulse { 50% { opacity: .55; } }
+    @keyframes confettiFall { to { transform: translate(var(--drift), 520px) rotate(650deg); opacity: 0; } }
+
+    @media (max-width: 370px) {
+      #app { padding-left: 9px; padding-right: 9px; gap: 8px; }
+      .brand-mark { width: 36px; height: 36px; border-radius: 11px; font-size: 20px; }
+      .brand h1 { font-size: 16px; }
+      .brand p { display: none; }
+      .stats { gap: 4px; }
+      .stat { padding-left: 4px; padding-right: 4px; }
+      .stat strong { font-size: 14px; }
+      .toolbar { gap: 5px; }
+      .tool-button { height: 54px; border-radius: 13px; }
+      .tool-button .icon { font-size: 19px; }
+    }
+
+    @media (max-height: 680px) {
+      #app { gap: 7px; padding-top: calc(7px + env(safe-area-inset-top)); }
+      .brand-mark { width: 36px; height: 36px; font-size: 20px; }
+      .brand h1 { font-size: 17px; }
+      .stat { padding-top: 4px; padding-bottom: 5px; }
+      .tool-button { height: 51px; }
+      .keyboard-guide { display: none; }
+      .game-shell { min-height: 220px; border-radius: 20px; }
+    }
+
+    @media (max-height: 480px) and (orientation: landscape) {
+      #app { max-width: 760px; padding: 6px 12px; gap: 5px; }
+      .brand p, .quick-guide { display: none; }
+      .brand-mark { width: 32px; height: 32px; }
+      .stat { padding: 3px 6px; }
+      .stat-label { display: inline; margin-right: 4px; }
+      .stat strong { display: inline; font-size: 13px; }
+      .time-track { display: none; }
+      .game-shell { min-height: 145px; }
+      .tool-button { height: 40px; flex-direction: row; gap: 4px; }
+      .tool-button .icon { font-size: 17px; }
+      .modal-card { padding: 18px 24px; }
+      .modal-orbit { width: 50px; height: 50px; margin-bottom: 10px; font-size: 25px; border-radius: 16px; }
+      .modal h2 { font-size: 22px; }
+      .modal-text { margin: 7px auto 10px; }
+      .modal-gestures { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main id="app">
+    <header class="topbar">
+      <div class="brand" aria-label="霓虹七巧板">
+        <div class="brand-mark" aria-hidden="true">七</div>
+        <div><h1>七巧板</h1><p>NEON TANGRAM</p></div>
+      </div>
+      <div class="stats" aria-label="游戏数据">
+        <div class="stat score"><span class="stat-label">得分</span><strong id="scoreValue">0</strong></div>
+        <div class="stat best"><span class="stat-label">最高</span><strong id="bestValue">0</strong></div>
+        <div class="stat time" id="timeCard"><span class="stat-label">时间</span><strong id="timeValue">3:00</strong><div class="time-track"><span id="timeBar"></span></div></div>
+      </div>
+    </header>
+
+    <section class="game-shell" aria-label="七巧板游戏区">
+      <canvas id="gameCanvas" tabindex="0" role="application" aria-label="拖动拼块移动，双击旋转四十五度，双指转动拼块。也可使用方向键移动，Q、E 旋转，F 翻面。"></canvas>
+      <div id="toast" role="status" aria-live="polite"></div>
+    </section>
+
+    <nav class="toolbar" aria-label="拼图工具">
+      <button class="tool-button accent" id="pauseButton" type="button" aria-label="暂停游戏" title="暂停（空格）"><span class="icon" aria-hidden="true">Ⅱ</span><span class="label">暂停</span></button>
+      <button class="tool-button" id="leftButton" type="button" aria-label="选中拼块逆时针旋转四十五度" title="逆时针 45°"><span class="icon" aria-hidden="true">↶</span><span class="label">左转</span></button>
+      <button class="tool-button" id="rightButton" type="button" aria-label="选中拼块顺时针旋转四十五度" title="顺时针 45°"><span class="icon" aria-hidden="true">↷</span><span class="label">右转</span></button>
+      <button class="tool-button" id="flipButton" type="button" aria-label="翻转平行四边形" title="翻面（F）"><span class="icon" aria-hidden="true">⇋</span><span class="label">翻面</span></button>
+      <button class="tool-button" id="hintButton" type="button" aria-label="显示目标提示，扣五十分" title="提示（H）"><span class="icon" aria-hidden="true">✦</span><span class="label">提示</span></button>
+      <button class="tool-button" id="restartButton" type="button" aria-label="重新开始" title="重新开始"><span class="icon" aria-hidden="true">↺</span><span class="label">重开</span></button>
+    </nav>
+
+    <div class="quick-guide" aria-label="玩法说明">
+      <span><b>单指拖动</b> 移动</span><i>·</i><span><b>双击</b> 旋转 45°</span><i>·</i><span><b>双指捏转</b> 旋转</span>
+    </div>
+    <p class="keyboard-guide">键盘：方向键移动 · Q / E 旋转 · F 翻面 · H 提示 · 空格暂停</p>
+  </main>
+
+  <div class="modal visible" id="gameModal" aria-hidden="false">
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalText">
+      <div id="confetti" aria-hidden="true"></div>
+      <div class="modal-orbit" aria-hidden="true"><span id="modalIcon">七</span></div>
+      <p class="modal-kicker" id="modalKicker">东方几何 · 霓虹挑战</p>
+      <h2 id="modalTitle">七巧成诗</h2>
+      <p class="modal-text" id="modalText">在三分钟内，将七块霓虹拼块拖入上方轮廓，复原经典方阵。</p>
+      <div class="modal-gestures" id="modalGestures"><b>拖动</b> 移动拼块　·　<b>双击</b> 旋转 45°<br><b>双指捏转</b> 精细旋转　·　<b>翻面</b> 仅用于平行四边形<br>靠近正确位置会自动吸附</div>
+      <div class="result-stats" id="resultStats" hidden>
+        <div class="result-item"><strong id="resultScore">0</strong><span>本局得分</span></div>
+        <div class="result-item"><strong id="resultMoves">0</strong><span>移动步数</span></div>
+        <div class="result-item"><strong id="resultTime">0:00</strong><span id="resultTimeLabel">剩余时间</span></div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-button primary" id="modalPrimary" type="button">开始挑战</button>
+        <button class="modal-button secondary" id="modalSecondary" type="button" hidden>重新开始</button>
+      </div>
+    </section>
+  </div>
+  <div class="sr-only" id="liveRegion" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // ---------- 常量与标准七巧板解法 ----------
+      const GAME_SECONDS = 180;
+      const BEST_KEY = 'neonTangramBestV1';
+      const SNAP_ANGLE = 12;
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      const $ = id => document.getElementById(id);
+      const ui = {
+        score: $('scoreValue'), best: $('bestValue'), time: $('timeValue'), timeBar: $('timeBar'),
+        timeCard: $('timeCard'), toast: $('toast'), live: $('liveRegion'), modal: $('gameModal'),
+        modalIcon: $('modalIcon'), modalKicker: $('modalKicker'), modalTitle: $('modalTitle'),
+        modalText: $('modalText'), modalGestures: $('modalGestures'), resultStats: $('resultStats'),
+        resultScore: $('resultScore'), resultMoves: $('resultMoves'), resultTime: $('resultTime'),
+        resultTimeLabel: $('resultTimeLabel'), primary: $('modalPrimary'), secondary: $('modalSecondary'),
+        confetti: $('confetti')
+      };
+
+      // 所有坐标均来自同一个 4 × 4 标准方阵，不会重叠或留缝。
+      const SOLUTION = [
+        { id: 'largeA', kind: 'large', name: '青色大三角形', color: '#35ddf4', points: [[0,0],[4,0],[2,2]], startRotation: 180, orientation: 0 },
+        { id: 'largeB', kind: 'large', name: '紫色大三角形', color: '#a777ff', points: [[4,0],[4,4],[2,2]], startRotation: 90, orientation: 90 },
+        { id: 'medium', kind: 'medium', name: '粉色中三角形', color: '#ff68a7', points: [[0,4],[0,2],[2,4]], startRotation: 45, orientation: 0 },
+        { id: 'square', kind: 'square', name: '金色正方形', color: '#ffd166', points: [[2,2],[3,3],[2,4],[1,3]], startRotation: 45, orientation: 0 },
+        { id: 'para', kind: 'para', name: '绿色平行四边形', color: '#65edae', points: [[1,3],[1,1],[0,0],[0,2]], startRotation: 90, orientation: 0 },
+        { id: 'smallA', kind: 'small', name: '蓝色小三角形', color: '#6695ff', points: [[1,3],[1,1],[2,2]], startRotation: 180, orientation: 0 },
+        { id: 'smallB', kind: 'small', name: '橙色小三角形', color: '#ff9666', points: [[4,4],[2,4],[3,3]], startRotation: 270, orientation: 270 }
+      ];
+
+      const state = {
+        mode: 'ready', timeLeft: GAME_SECONDS, score: 0, moves: 0, hints: 0,
+        best: loadBest(), session: 0
+      };
+      const view = { w: 0, h: 0, dpr: 1 };
+      const targetBox = { x: 0, y: 42, size: 180, unit: 45 };
+      let pieces = [];
+      let targets = [];
+      let selectedId = null;
+      let zCounter = SOLUTION.length;
+      let hintPieceId = null;
+      let hintTargetId = null;
+      let hintUntil = 0;
+      let toastTimer = 0;
+      let winTimer = 0;
+      let lastFrame = performance.now();
+
+      // 指针状态统一处理触屏、鼠标与触控笔。
+      const activePointers = new Map();
+      let drag = null;
+      let twist = null;
+      let lastTap = { time: 0, id: null, x: 0, y: 0 };
+
+      function loadBest() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(BEST_KEY) || '0', 10);
+          return Number.isFinite(value) && value > 0 ? value : 0;
+        } catch (_) { return 0; }
+      }
+
+      function saveBest() {
+        try { localStorage.setItem(BEST_KEY, String(state.best)); } catch (_) { /* 隐私模式下仍可正常游戏 */ }
+      }
+
+      function centroid(points) {
+        return points.reduce((sum, point) => [sum[0] + point[0] / points.length, sum[1] + point[1] / points.length], [0, 0]);
+      }
+
+      function createPieces() {
+        pieces = SOLUTION.map((definition, index) => {
+          const center = centroid(definition.points);
+          return {
+            ...definition,
+            local: definition.points.map(([x, y]) => [x - center[0], y - center[1]]),
+            x: 0, y: 0, rotation: definition.startRotation,
+            mirrored: definition.kind === 'para', snappedTarget: null, z: index
+          };
+        });
+      }
+
+      // ---------- 尺寸、坐标与绘制 ----------
+      function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        if (rect.width < 1 || rect.height < 1) return;
+        const oldW = view.w;
+        const oldH = view.h;
+        view.w = rect.width;
+        view.h = rect.height;
+        view.dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+        canvas.width = Math.round(view.w * view.dpr);
+        canvas.height = Math.round(view.h * view.dpr);
+
+        targetBox.size = Math.max(72, Math.min(view.w * .59, view.h * .44, 250));
+        targetBox.unit = targetBox.size / 4;
+        targetBox.x = (view.w - targetBox.size) / 2;
+        targetBox.y = view.h < 260 ? 30 : 42;
+        targets = SOLUTION.map((definition, id) => {
+          const polygon = definition.points.map(([x, y]) => ({
+            x: targetBox.x + x * targetBox.unit,
+            y: targetBox.y + y * targetBox.unit
+          }));
+          const center = polygon.reduce((sum, point) => ({ x: sum.x + point.x / polygon.length, y: sum.y + point.y / polygon.length }), { x: 0, y: 0 });
+          return { id, kind: definition.kind, name: definition.name, color: definition.color, orientation: definition.orientation, polygon, center };
+        });
+
+        if (!oldW || !oldH) {
+          layoutPieces();
+        } else {
+          // 旋转屏幕后保留进度，已吸附的拼块仍对准目标。
+          pieces.forEach(piece => {
+            if (piece.snappedTarget !== null && targets[piece.snappedTarget]) {
+              piece.x = targets[piece.snappedTarget].center.x;
+              piece.y = targets[piece.snappedTarget].center.y;
+            } else {
+              piece.x *= view.w / oldW;
+              piece.y *= view.h / oldH;
+            }
+            clampPiece(piece);
+          });
+        }
+      }
+
+      function layoutPieces() {
+        const top = targetBox.y + targetBox.size + 35;
+        const available = Math.max(70, view.h - top);
+        const positions = [[.19,.19],[.81,.19],[.13,.67],[.36,.61],[.62,.67],[.86,.62],[.52,.96]];
+        pieces.forEach((piece, index) => {
+          piece.x = view.w * positions[index][0];
+          piece.y = top + available * positions[index][1];
+          piece.rotation = piece.startRotation;
+          piece.mirrored = piece.kind === 'para';
+          piece.snappedTarget = null;
+          piece.z = index;
+          clampPiece(piece);
+        });
+        selectedId = null;
+        zCounter = pieces.length;
+      }
+
+      function worldPoints(piece) {
+        const angle = piece.rotation * Math.PI / 180;
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        const mirror = piece.mirrored ? -1 : 1;
+        return piece.local.map(([localX, localY]) => {
+          const x = localX * targetBox.unit * mirror;
+          const y = localY * targetBox.unit;
+          return { x: piece.x + x * cos - y * sin, y: piece.y + x * sin + y * cos };
+        });
+      }
+
+      function clampPiece(piece) {
+        if (!view.w || !view.h) return;
+        const points = worldPoints(piece);
+        const xs = points.map(point => point.x);
+        const ys = points.map(point => point.y);
+        const minX = Math.min(...xs), maxX = Math.max(...xs);
+        const minY = Math.min(...ys), maxY = Math.max(...ys);
+        const pad = 8;
+        if (minX < pad) piece.x += pad - minX;
+        else if (maxX > view.w - pad) piece.x -= maxX - (view.w - pad);
+        if (minY < pad) piece.y += pad - minY;
+        else if (maxY > view.h - pad) piece.y -= maxY - (view.h - pad);
+      }
+
+      function tracePolygon(points) {
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+        ctx.closePath();
+      }
+
+      function rgba(hex, alpha) {
+        const value = Number.parseInt(hex.slice(1), 16);
+        return `rgba(${value >> 16},${(value >> 8) & 255},${value & 255},${alpha})`;
+      }
+
+      function drawBackground() {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(126,151,225,.045)';
+        ctx.lineWidth = 1;
+        const gap = 26;
+        for (let x = gap; x < view.w; x += gap) {
+          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, view.h); ctx.stroke();
+        }
+        for (let y = gap; y < view.h; y += gap) {
+          ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(view.w, y); ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawTarget(now) {
+        const { x, y, size } = targetBox;
+        ctx.save();
+        ctx.font = '600 11px -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif';
+        ctx.fillStyle = 'rgba(167,188,229,.72)';
+        ctx.textAlign = 'left';
+        ctx.fillText('目标 · 经典方阵', 16, 23);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = 'rgba(91,224,244,.72)';
+        ctx.fillText(`${placedCount()} / 7`, view.w - 16, 23);
+
+        // 整体剪影先发光，再叠加极淡的分区线。
+        ctx.shadowColor = 'rgba(61,191,255,.18)';
+        ctx.shadowBlur = 28;
+        const gradient = ctx.createLinearGradient(x, y, x + size, y + size);
+        gradient.addColorStop(0, '#121e40');
+        gradient.addColorStop(1, '#091128');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.rect(x, y, size, size);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        targets.forEach(target => {
+          const isHint = hintTargetId === target.id && now < hintUntil;
+          tracePolygon(target.polygon);
+          ctx.fillStyle = isHint ? rgba(target.color, .22 + Math.sin(now / 130) * .05) : 'rgba(25,38,72,.36)';
+          if (isHint) { ctx.shadowColor = target.color; ctx.shadowBlur = 20; }
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = isHint ? rgba(target.color, .95) : 'rgba(119,181,226,.17)';
+          ctx.lineWidth = isHint ? 2 : 1;
+          ctx.stroke();
+        });
+
+        ctx.strokeStyle = 'rgba(91,214,244,.34)';
+        ctx.lineWidth = 1.2;
+        ctx.strokeRect(x, y, size, size);
+
+        // 提示时从拼块指向目标，便于在触屏上快速理解。
+        const hintPiece = pieces.find(piece => piece.id === hintPieceId);
+        const hintTarget = targets[hintTargetId];
+        if (hintPiece && hintTarget && now < hintUntil) {
+          ctx.beginPath();
+          ctx.moveTo(hintPiece.x, hintPiece.y);
+          ctx.lineTo(hintTarget.center.x, hintTarget.center.y);
+          ctx.setLineDash([4, 7]);
+          ctx.strokeStyle = rgba(hintTarget.color, .35);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        const dividerY = y + size + 23;
+        ctx.beginPath(); ctx.moveTo(16, dividerY); ctx.lineTo(view.w - 16, dividerY);
+        ctx.strokeStyle = 'rgba(119,148,211,.1)'; ctx.stroke();
+        ctx.font = '9px -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(102,121,160,.65)';
+        ctx.fillText('拼 块 区', view.w / 2, dividerY + 13);
+        ctx.restore();
+      }
+
+      function drawPiece(piece, now) {
+        const points = worldPoints(piece);
+        const xs = points.map(point => point.x), ys = points.map(point => point.y);
+        const minX = Math.min(...xs), maxX = Math.max(...xs);
+        const minY = Math.min(...ys), maxY = Math.max(...ys);
+        const selected = selectedId === piece.id && state.mode === 'playing';
+        const snapped = piece.snappedTarget !== null;
+
+        ctx.save();
+        if (state.mode === 'ready') ctx.globalAlpha = .72;
+        const gradient = ctx.createLinearGradient(minX, minY, maxX, maxY);
+        gradient.addColorStop(0, rgba(piece.color, .96));
+        gradient.addColorStop(.55, rgba(piece.color, .72));
+        gradient.addColorStop(1, rgba(piece.color, .43));
+        tracePolygon(points);
+        ctx.fillStyle = gradient;
+        ctx.shadowColor = piece.color;
+        ctx.shadowBlur = selected ? 24 : snapped ? 15 + Math.sin(now / 240) * 3 : 8;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = selected ? 'rgba(244,253,255,.95)' : rgba(piece.color, .95);
+        ctx.lineWidth = selected ? 2.1 : 1.15;
+        ctx.stroke();
+
+        // 内描边制造玻璃质感。
+        const inner = points.map(point => ({ x: piece.x + (point.x - piece.x) * .86, y: piece.y + (point.y - piece.y) * .86 }));
+        tracePolygon(inner);
+        ctx.strokeStyle = 'rgba(255,255,255,.16)';
+        ctx.lineWidth = .8;
+        ctx.stroke();
+
+        if (selected) {
+          const radius = Math.max(...points.map(point => Math.hypot(point.x - piece.x, point.y - piece.y))) + 7;
+          ctx.beginPath(); ctx.arc(piece.x, piece.y, radius, 0, Math.PI * 2);
+          ctx.setLineDash([3, 6]);
+          ctx.lineDashOffset = -now / 90;
+          ctx.strokeStyle = 'rgba(191,244,255,.34)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.setLineDash([]);
+          points.forEach(point => {
+            ctx.beginPath(); ctx.arc(point.x, point.y, 2.2, 0, Math.PI * 2);
+            ctx.fillStyle = '#e9fdff'; ctx.fill();
+          });
+        }
+        ctx.restore();
+      }
+
+      function draw(now) {
+        ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+        ctx.clearRect(0, 0, view.w, view.h);
+        drawBackground();
+        drawTarget(now);
+        pieces.slice().sort((a, b) => a.z - b.z).forEach(piece => drawPiece(piece, now));
+      }
+
+      // ---------- 命中测试、吸附与计分 ----------
+      function pointInPolygon(point, polygon) {
+        let inside = false;
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+          const a = polygon[i], b = polygon[j];
+          const crosses = (a.y > point.y) !== (b.y > point.y) &&
+            point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x;
+          if (crosses) inside = !inside;
+        }
+        return inside;
+      }
+
+      function hitPiece(point) {
+        return pieces.slice().sort((a, b) => b.z - a.z).find(piece => pointInPolygon(point, worldPoints(piece))) || null;
+      }
+
+      function selectedPiece() { return pieces.find(piece => piece.id === selectedId) || null; }
+      function placedCount() { return pieces.filter(piece => piece.snappedTarget !== null).length; }
+      function liveScore() { return Math.max(0, placedCount() * 100 - state.hints * 50); }
+
+      function angleDistance(a, b, period) {
+        const difference = ((a - b) % period + period) % period;
+        return Math.min(difference, period - difference);
+      }
+
+      function trySnap(piece) {
+        if (!piece || state.mode !== 'playing') return false;
+        let bestMatch = null;
+        let bestCost = Infinity;
+        targets.forEach(target => {
+          if (target.kind !== piece.kind) return;
+          if (pieces.some(other => other !== piece && other.snappedTarget === target.id)) return;
+          if (piece.kind === 'para' && piece.mirrored) return;
+          const period = piece.kind === 'square' ? 90 : piece.kind === 'para' ? 180 : 360;
+          // 同形拼块可以互换，但要补偿它们各自在标准解法中的初始朝向。
+          const desiredAngle = target.orientation - piece.orientation;
+          const distance = Math.hypot(piece.x - target.center.x, piece.y - target.center.y);
+          const angle = angleDistance(piece.rotation, desiredAngle, period);
+          if (distance <= Math.max(18, targetBox.unit * .48) && angle <= SNAP_ANGLE) {
+            const cost = distance + angle * targetBox.unit * .02;
+            if (cost < bestCost) { bestCost = cost; bestMatch = { target, period, desiredAngle }; }
+          }
+        });
+        if (!bestMatch) return false;
+
+        piece.x = bestMatch.target.center.x;
+        piece.y = bestMatch.target.center.y;
+        piece.rotation = bestMatch.desiredAngle;
+        piece.snappedTarget = bestMatch.target.id;
+        updateHUD();
+        announce(`${piece.name}已归位，已完成${placedCount()}块`);
+        showToast(`${piece.name} · 归位 +100`);
+        if (placedCount() === pieces.length) {
+          state.mode = 'celebrating';
+          selectedId = null;
+          const session = state.session;
+          clearTimeout(winTimer);
+          winTimer = window.setTimeout(() => {
+            if (session === state.session && state.mode === 'celebrating') endGame(true);
+          }, 650);
+        }
+        return true;
+      }
+
+      function selectPiece(piece) {
+        selectedId = piece.id;
+        piece.z = ++zCounter;
+      }
+
+      function rotateSelected(delta, fromGesture = false) {
+        if (state.mode !== 'playing') return;
+        const piece = selectedPiece();
+        if (!piece) { showToast('先点选一块拼块'); return; }
+        piece.snappedTarget = null;
+        piece.rotation += delta;
+        clampPiece(piece);
+        if (!fromGesture) { state.moves++; trySnap(piece); }
+        updateHUD();
+      }
+
+      function flipSelected() {
+        if (state.mode !== 'playing') return;
+        const piece = selectedPiece();
+        if (!piece) { showToast('先点选平行四边形'); return; }
+        if (piece.kind !== 'para') { showToast('只有绿色平行四边形需要翻面'); return; }
+        piece.snappedTarget = null;
+        piece.mirrored = !piece.mirrored;
+        state.moves++;
+        clampPiece(piece);
+        trySnap(piece);
+        updateHUD();
+      }
+
+      function useHint() {
+        if (state.mode !== 'playing') return;
+        let piece = selectedPiece();
+        if (!piece || piece.snappedTarget !== null) piece = pieces.find(item => item.snappedTarget === null);
+        if (!piece) return;
+        selectPiece(piece);
+        const target = targets.find(item => item.kind === piece.kind && !pieces.some(other => other !== piece && other.snappedTarget === item.id));
+        if (!target) return;
+        state.hints++;
+        hintPieceId = piece.id;
+        hintTargetId = target.id;
+        hintUntil = performance.now() + 3200;
+        showToast('发光轮廓是目标位置 · 提示 -50');
+        announce(`已显示${piece.name}的目标位置`);
+        updateHUD();
+      }
+
+      // ---------- 单指拖动、双击和双指旋转 ----------
+      function eventPoint(event) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      }
+
+      function normalizedDelta(angle) {
+        return ((angle + 180) % 360 + 360) % 360 - 180;
+      }
+
+      function beginTwist() {
+        if (!drag || activePointers.size < 2) return;
+        const ids = [...activePointers.keys()].slice(0, 2);
+        const a = activePointers.get(ids[0]), b = activePointers.get(ids[1]);
+        const piece = pieces.find(item => item.id === drag.pieceId);
+        if (!piece) return;
+        const angle = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+        twist = {
+          ids, pieceId: piece.id, lastAngle: angle, totalRotation: 0,
+          startRotation: piece.rotation, startCenter: { x: piece.x, y: piece.y },
+          startMid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, moved: false
+        };
+        lastTap.time = 0;
+      }
+
+      canvas.addEventListener('pointerdown', event => {
+        if (state.mode !== 'playing') return;
+        event.preventDefault();
+        canvas.focus({ preventScroll: true });
+        const point = eventPoint(event);
+        const countBefore = activePointers.size;
+        activePointers.set(event.pointerId, { ...point, startX: point.x, startY: point.y });
+        try { canvas.setPointerCapture(event.pointerId); } catch (_) { /* 老浏览器无需捕获也能拖动 */ }
+
+        if (countBefore === 0) {
+          const piece = hitPiece(point);
+          if (!piece) { selectedId = null; drag = null; return; }
+          selectPiece(piece);
+          piece.snappedTarget = null;
+          drag = { pointerId: event.pointerId, pieceId: piece.id, offsetX: point.x - piece.x, offsetY: point.y - piece.y, moved: false };
+          const now = performance.now();
+          if (lastTap.id === piece.id && now - lastTap.time < 320 && Math.hypot(point.x - lastTap.x, point.y - lastTap.y) < 28) {
+            rotateSelected(45, true);
+            drag.moved = true;
+            lastTap.time = 0;
+          } else {
+            lastTap = { time: now, id: piece.id, x: point.x, y: point.y };
+          }
+        } else if (countBefore === 1 && drag) {
+          beginTwist();
+        }
+      }, { passive: false });
+
+      canvas.addEventListener('pointermove', event => {
+        if (!activePointers.has(event.pointerId)) return;
+        event.preventDefault();
+        const point = eventPoint(event);
+        activePointers.set(event.pointerId, { ...activePointers.get(event.pointerId), ...point });
+        if (state.mode !== 'playing') return;
+
+        if (twist && activePointers.size >= 2) {
+          const a = activePointers.get(twist.ids[0]), b = activePointers.get(twist.ids[1]);
+          const piece = pieces.find(item => item.id === twist.pieceId);
+          if (!a || !b || !piece) return;
+          const angle = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+          twist.totalRotation += normalizedDelta(angle - twist.lastAngle);
+          twist.lastAngle = angle;
+          piece.rotation = twist.startRotation + twist.totalRotation;
+          const midX = (a.x + b.x) / 2, midY = (a.y + b.y) / 2;
+          piece.x = twist.startCenter.x + midX - twist.startMid.x;
+          piece.y = twist.startCenter.y + midY - twist.startMid.y;
+          piece.snappedTarget = null;
+          twist.moved = true;
+          if (drag) drag.moved = true;
+          clampPiece(piece);
+        } else if (drag && drag.pointerId === event.pointerId) {
+          const piece = pieces.find(item => item.id === drag.pieceId);
+          if (!piece) return;
+          piece.x = point.x - drag.offsetX;
+          piece.y = point.y - drag.offsetY;
+          const start = activePointers.get(event.pointerId);
+          if (Math.hypot(point.x - start.startX, point.y - start.startY) > 4) {
+            drag.moved = true;
+            piece.snappedTarget = null;
+          }
+          clampPiece(piece);
+        }
+      }, { passive: false });
+
+      function finishPointer(event) {
+        if (!activePointers.has(event.pointerId)) return;
+        event.preventDefault();
+        activePointers.delete(event.pointerId);
+
+        if (twist) {
+          const piece = pieces.find(item => item.id === twist.pieceId);
+          if (activePointers.size < 2) {
+            if (piece && state.mode === 'playing') {
+              // 松手时吸附到 15°，兼顾自由旋转与精确归位。
+              piece.rotation = Math.round(piece.rotation / 15) * 15;
+              clampPiece(piece);
+              if (twist.moved) state.moves++;
+              trySnap(piece);
+            }
+            twist = null;
+            if (activePointers.size === 1 && drag && piece) {
+              const [remainingId] = activePointers.keys();
+              const remaining = activePointers.get(remainingId);
+              drag.pointerId = remainingId;
+              drag.offsetX = remaining.x - piece.x;
+              drag.offsetY = remaining.y - piece.y;
+              drag.moved = true;
+            }
+          }
+        } else if (drag && drag.pointerId === event.pointerId) {
+          const piece = pieces.find(item => item.id === drag.pieceId);
+          if (activePointers.size === 0) {
+            if (piece && state.mode === 'playing') {
+              if (drag.moved) state.moves++;
+              trySnap(piece);
+            }
+            drag = null;
+          }
+        }
+        if (activePointers.size === 0) { drag = null; twist = null; }
+        updateHUD();
+      }
+
+      canvas.addEventListener('pointerup', finishPointer, { passive: false });
+      canvas.addEventListener('pointercancel', finishPointer, { passive: false });
+      canvas.addEventListener('contextmenu', event => event.preventDefault());
+      canvas.addEventListener('wheel', event => {
+        if (state.mode !== 'playing') return;
+        event.preventDefault();
+        rotateSelected(event.deltaY > 0 ? 45 : -45);
+      }, { passive: false });
+
+      // ---------- 开始、暂停、结算与重开 ----------
+      function formatTime(seconds) {
+        const safe = Math.max(0, Math.ceil(seconds));
+        return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, '0')}`;
+      }
+
+      function updateHUD() {
+        const shownScore = state.mode === 'won' || state.mode === 'lost' ? state.score : liveScore();
+        ui.score.textContent = shownScore.toLocaleString('zh-CN');
+        ui.best.textContent = state.best.toLocaleString('zh-CN');
+        ui.time.textContent = formatTime(state.timeLeft);
+        ui.timeBar.style.width = `${Math.max(0, state.timeLeft / GAME_SECONDS * 100)}%`;
+        ui.timeCard.classList.toggle('danger', state.timeLeft <= 30 && state.mode === 'playing');
+      }
+
+      function announce(message) { ui.live.textContent = message; }
+
+      function showToast(message) {
+        clearTimeout(toastTimer);
+        ui.toast.textContent = message;
+        ui.toast.classList.add('show');
+        toastTimer = window.setTimeout(() => ui.toast.classList.remove('show'), 1750);
+      }
+
+      function configureModal({ icon, kicker, title, text, primary, onPrimary, secondary, onSecondary, gestures = false, stats = false }) {
+        ui.modalIcon.textContent = icon;
+        ui.modalKicker.textContent = kicker;
+        ui.modalTitle.textContent = title;
+        ui.modalText.textContent = text;
+        ui.primary.textContent = primary;
+        ui.primary.onclick = onPrimary;
+        ui.modalGestures.hidden = !gestures;
+        ui.resultStats.hidden = !stats;
+        ui.secondary.hidden = !secondary;
+        if (secondary) {
+          ui.secondary.textContent = secondary;
+          ui.secondary.onclick = onSecondary;
+        } else {
+          ui.secondary.onclick = null;
+        }
+        ui.confetti.replaceChildren();
+        ui.modal.classList.add('visible');
+        ui.modal.setAttribute('aria-hidden', 'false');
+        window.setTimeout(() => ui.primary.focus({ preventScroll: true }), 80);
+      }
+
+      function hideModal() {
+        ui.modal.classList.remove('visible');
+        ui.modal.setAttribute('aria-hidden', 'true');
+      }
+
+      function startGame() {
+        state.session++;
+        clearTimeout(winTimer);
+        clearTimeout(toastTimer);
+        ui.toast.classList.remove('show');
+        state.mode = 'playing';
+        state.timeLeft = GAME_SECONDS;
+        state.score = 0;
+        state.moves = 0;
+        state.hints = 0;
+        hintPieceId = null;
+        hintTargetId = null;
+        hintUntil = 0;
+        activePointers.clear();
+        drag = null;
+        twist = null;
+        lastTap.time = 0;
+        layoutPieces();
+        lastFrame = performance.now();
+        hideModal();
+        updateHUD();
+        announce('游戏开始，三分钟内完成七巧板');
+        canvas.focus({ preventScroll: true });
+      }
+
+      function pauseGame() {
+        if (state.mode !== 'playing') return;
+        state.mode = 'paused';
+        activePointers.clear();
+        drag = null;
+        twist = null;
+        configureModal({
+          icon: 'Ⅱ', kicker: '稍作停留', title: '时光暂停',
+          text: '倒计时已停止，拼块会在这里等你。', primary: '继续拼图', onPrimary: resumeGame,
+          secondary: '重新开始', onSecondary: startGame
+        });
+        announce('游戏已暂停');
+      }
+
+      function resumeGame() {
+        if (state.mode !== 'paused') return;
+        state.mode = 'playing';
+        lastFrame = performance.now();
+        hideModal();
+        canvas.focus({ preventScroll: true });
+        announce('继续游戏');
+      }
+
+      function endGame(won) {
+        if (state.mode === 'won' || state.mode === 'lost') return;
+        clearTimeout(winTimer);
+        activePointers.clear();
+        drag = null;
+        twist = null;
+        selectedId = null;
+        state.score = won
+          ? Math.max(0, liveScore() + 500 + Math.ceil(state.timeLeft) * 10 - state.moves * 2)
+          : liveScore();
+        state.mode = won ? 'won' : 'lost';
+        if (state.score > state.best) {
+          state.best = state.score;
+          saveBest();
+        }
+        updateHUD();
+
+        ui.resultScore.textContent = state.score.toLocaleString('zh-CN');
+        ui.resultMoves.textContent = String(state.moves);
+        ui.resultTime.textContent = formatTime(won ? state.timeLeft : GAME_SECONDS - state.timeLeft);
+        ui.resultTimeLabel.textContent = won ? '剩余时间' : '本局用时';
+        configureModal({
+          icon: won ? '✦' : '⌛',
+          kicker: won ? '七块归一 · 挑战完成' : '别灰心 · 再试一次',
+          title: won ? '七巧归位！' : '时间到',
+          text: won ? `你用 ${state.moves} 步点亮了完整方阵，几何与灵感在此相遇。` : `本次已归位 ${placedCount()} / 7 块。观察轮廓，再来一次一定会更好！`,
+          primary: won ? '再拼一次' : '重新挑战', onPrimary: startGame, stats: true
+        });
+        if (won) launchConfetti();
+        announce(won ? `挑战成功，本局得分${state.score}` : `游戏结束，本局得分${state.score}`);
+      }
+
+      function launchConfetti() {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const colors = ['#48e7ff', '#a777ff', '#ff68a7', '#ffd166', '#65edae'];
+        for (let i = 0; i < 32; i++) {
+          const bit = document.createElement('i');
+          bit.className = 'confetti-piece';
+          bit.style.setProperty('--x', `${Math.random() * 100}%`);
+          bit.style.setProperty('--c', colors[i % colors.length]);
+          bit.style.setProperty('--d', `${1.8 + Math.random() * 1.8}s`);
+          bit.style.setProperty('--delay', `${Math.random() * .5}s`);
+          bit.style.setProperty('--drift', `${-70 + Math.random() * 140}px`);
+          ui.confetti.appendChild(bit);
+        }
+      }
+
+      // ---------- 按钮与键盘 ----------
+      $('pauseButton').addEventListener('click', pauseGame);
+      $('leftButton').addEventListener('click', () => rotateSelected(-45));
+      $('rightButton').addEventListener('click', () => rotateSelected(45));
+      $('flipButton').addEventListener('click', flipSelected);
+      $('hintButton').addEventListener('click', useHint);
+      $('restartButton').addEventListener('click', () => {
+        if (state.mode === 'ready') startGame();
+        else startGame();
+      });
+
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && state.mode === 'playing') { event.preventDefault(); pauseGame(); return; }
+        if (event.code === 'Space' && (state.mode === 'playing' || state.mode === 'paused')) {
+          event.preventDefault();
+          state.mode === 'playing' ? pauseGame() : resumeGame();
+          return;
+        }
+        if (state.mode !== 'playing' || ui.modal.classList.contains('visible')) return;
+        const piece = selectedPiece();
+        const key = event.key.toLowerCase();
+        if (['arrowup','arrowdown','arrowleft','arrowright','q','e','f','h'].includes(key)) event.preventDefault();
+        if (key === 'h') { useHint(); return; }
+        if (key === 'f') { flipSelected(); return; }
+        if (key === 'q') { rotateSelected(-15); return; }
+        if (key === 'e') { rotateSelected(15); return; }
+        if (!piece || !key.startsWith('arrow')) {
+          if (key.startsWith('arrow')) showToast('先点选一块拼块');
+          return;
+        }
+        const distance = event.shiftKey ? 1 : 5;
+        piece.snappedTarget = null;
+        if (key === 'arrowup') piece.y -= distance;
+        if (key === 'arrowdown') piece.y += distance;
+        if (key === 'arrowleft') piece.x -= distance;
+        if (key === 'arrowright') piece.x += distance;
+        clampPiece(piece);
+        state.moves++;
+        trySnap(piece);
+        updateHUD();
+      });
+
+      // 禁止双击缩放、双指页面缩放和橡皮筋滚动。
+      document.addEventListener('dblclick', event => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', event => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturechange', event => event.preventDefault(), { passive: false });
+      document.addEventListener('touchmove', event => event.preventDefault(), { passive: false });
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state.mode === 'playing') pauseGame();
+      });
+
+      // ---------- 动画主循环与初始化 ----------
+      function frame(now) {
+        const delta = Math.max(0, (now - lastFrame) / 1000);
+        lastFrame = now;
+        if (state.mode === 'playing') {
+          state.timeLeft -= delta;
+          if (state.timeLeft <= 0) {
+            state.timeLeft = 0;
+            endGame(false);
+          }
+          updateHUD();
+        }
+        draw(now);
+        requestAnimationFrame(frame);
+      }
+
+      createPieces();
+      resizeCanvas();
+      updateHUD();
+      configureModal({
+        icon: '七', kicker: '东方几何 · 霓虹挑战', title: '七巧成诗',
+        text: '在三分钟内，将七块霓虹拼块拖入上方轮廓，复原经典方阵。',
+        primary: '开始挑战', onPrimary: startGame, gestures: true
+      });
+      if ('ResizeObserver' in window) new ResizeObserver(resizeCanvas).observe(canvas);
+      else window.addEventListener('resize', resizeCanvas);
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>

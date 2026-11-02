@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080a18">
+  <meta name="color-scheme" content="dark">
+  <title>霓虹找不同 · Odd One Out</title>
+  <style>
+    /* ---------- 基础与霓虹背景 ---------- */
+    :root {
+      color-scheme: dark;
+      --bg: #070914;
+      --panel: rgba(18, 22, 43, .72);
+      --line: rgba(151, 166, 255, .14);
+      --text: #f5f7ff;
+      --muted: #8f98b8;
+      --cyan: #55f6e8;
+      --purple: #a98bff;
+      --pink: #ff6fcf;
+      --danger: #ff6584;
+      --cols: 3;
+      --gap: 9px;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 8% 8%, rgba(76, 80, 255, .14), transparent 34%),
+        var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 12% 4%, rgba(118, 91, 255, .24), transparent 34%),
+        radial-gradient(circle at 94% 84%, rgba(27, 225, 211, .14), transparent 34%),
+        linear-gradient(rgba(132, 146, 255, .025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(132, 146, 255, .025) 1px, transparent 1px);
+      background-size: auto, auto, 32px 32px, 32px 32px;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      width: 260px;
+      height: 260px;
+      right: -130px;
+      top: 12%;
+      border: 1px solid rgba(85, 246, 232, .08);
+      border-radius: 50%;
+      box-shadow: 0 0 80px rgba(85, 246, 232, .05), inset 0 0 80px rgba(85, 246, 232, .04);
+      pointer-events: none;
+    }
+
+    button {
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    /* ---------- 页面骨架 ---------- */
+    .app {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: min(100%, 540px);
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 48px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border: 1px solid rgba(85, 246, 232, .32);
+      border-radius: 14px;
+      color: var(--cyan);
+      background: linear-gradient(145deg, rgba(85, 246, 232, .12), rgba(169, 139, 255, .1));
+      box-shadow: inset 0 0 16px rgba(85, 246, 232, .06), 0 0 24px rgba(85, 246, 232, .08);
+      font-size: 27px;
+      line-height: 1;
+    }
+
+    .brand-copy h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 750;
+      letter-spacing: .08em;
+    }
+
+    .brand-copy p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 650;
+      letter-spacing: .24em;
+    }
+
+    .header-tag {
+      padding: 6px 10px;
+      border: 1px solid rgba(169, 139, 255, .18);
+      border-radius: 999px;
+      color: #b9abdff5;
+      background: rgba(169, 139, 255, .07);
+      font-size: 10px;
+      letter-spacing: .08em;
+    }
+
+    /* ---------- 分数与关卡信息 ---------- */
+    .stats {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr .85fr;
+      min-height: 66px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(24, 29, 55, .82), rgba(13, 16, 34, .72));
+      box-shadow: 0 12px 36px rgba(0, 0, 0, .16), inset 0 1px rgba(255, 255, 255, .025);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .stat {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 10px 16px;
+    }
+
+    .stat + .stat::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 17px;
+      bottom: 17px;
+      width: 1px;
+      background: var(--line);
+    }
+
+    .stat-label {
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: .1em;
+    }
+
+    .stat-value {
+      font-size: 21px;
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.1;
+    }
+
+    .stat:first-child .stat-value {
+      color: var(--cyan);
+      text-shadow: 0 0 18px rgba(85, 246, 232, .25);
+    }
+
+    .combo-value {
+      color: #c8b9ff;
+      transition: color .2s, text-shadow .2s;
+    }
+
+    .combo-value.hot {
+      color: var(--pink);
+      text-shadow: 0 0 16px rgba(255, 111, 207, .5);
+    }
+
+    .game-meta {
+      display: grid;
+      gap: 9px;
+    }
+
+    .level-line {
+      display: flex;
+      align-items: center;
+      min-height: 28px;
+    }
+
+    .level-copy {
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+      white-space: nowrap;
+    }
+
+    .level-copy span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .level-copy strong {
+      font-size: 16px;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: .04em;
+    }
+
+    .difficulty {
+      margin-left: 10px;
+      padding: 4px 8px;
+      border: 1px solid rgba(85, 246, 232, .15);
+      border-radius: 7px;
+      color: var(--cyan);
+      background: rgba(85, 246, 232, .06);
+      font-size: 9px;
+      letter-spacing: .12em;
+    }
+
+    .pause-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-width: 74px;
+      min-height: 38px;
+      margin-left: auto;
+      padding: 7px 12px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      color: #c6cde5;
+      background: rgba(23, 27, 49, .72);
+      font-size: 11px;
+      transition: border-color .2s, background .2s, transform .15s;
+    }
+
+    .pause-btn:active {
+      transform: scale(.96);
+    }
+
+    .pause-btn:disabled {
+      cursor: default;
+      opacity: .38;
+    }
+
+    .pause-icon {
+      color: var(--purple);
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: -2px;
+    }
+
+    .timer {
+      display: grid;
+      grid-template-columns: 54px 1fr;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .time-value {
+      color: #dce2fa;
+      font-size: 15px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+
+    .time-value small {
+      margin-left: 2px;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 500;
+    }
+
+    .time-track {
+      height: 7px;
+      overflow: hidden;
+      border-radius: 99px;
+      background: rgba(137, 151, 205, .1);
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, .28);
+    }
+
+    .time-bar {
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--purple), var(--cyan));
+      box-shadow: 0 0 12px rgba(85, 246, 232, .45);
+      transform-origin: left center;
+      will-change: transform;
+    }
+
+    .timer.urgent .time-value {
+      color: var(--danger);
+      animation: timePulse .65s ease-in-out infinite alternate;
+    }
+
+    .timer.urgent .time-bar {
+      background: linear-gradient(90deg, #ff9b6a, var(--danger));
+      box-shadow: 0 0 12px rgba(255, 101, 132, .5);
+    }
+
+    /* ---------- Emoji 棋盘 ---------- */
+    .board-area {
+      position: relative;
+      display: grid;
+      place-items: center;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .board-card {
+      position: relative;
+      width: min(100%, calc(100vh - 340px), 470px);
+      width: min(100%, calc(100dvh - 340px), 470px);
+      min-width: 210px;
+      padding: 10px;
+      border: 1px solid rgba(142, 156, 231, .16);
+      border-radius: 23px;
+      background: linear-gradient(145deg, rgba(25, 30, 57, .86), rgba(11, 14, 29, .9));
+      box-shadow: 0 22px 55px rgba(0, 0, 0, .28), inset 0 1px rgba(255, 255, 255, .035), 0 0 45px rgba(107, 87, 210, .05);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .board-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 28px;
+      padding: 0 3px 8px;
+      color: var(--muted);
+      font-size: 9px;
+      letter-spacing: .08em;
+    }
+
+    .board-heading strong {
+      color: #c7cee7;
+      font-size: 10px;
+      font-weight: 550;
+    }
+
+    .one-tip {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .one-tip::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+      gap: var(--gap);
+      width: 100%;
+      aspect-ratio: 1;
+      padding: 1px;
+    }
+
+    .board[data-cols="3"] { --gap: 10px; }
+    .board[data-cols="4"] { --gap: 9px; }
+    .board[data-cols="5"] { --gap: 8px; }
+    .board[data-cols="6"] { --gap: 7px; }
+    .board[data-cols="7"] { --gap: 6px; }
+    .board[data-cols="8"] { --gap: 5px; }
+
+    .cell {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      min-height: 0;
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid rgba(151, 166, 255, .1);
+      border-radius: clamp(8px, 2.8vw, 15px);
+      background: linear-gradient(145deg, rgba(43, 49, 83, .68), rgba(24, 28, 53, .7));
+      box-shadow: inset 0 1px rgba(255, 255, 255, .035), 0 3px 9px rgba(0, 0, 0, .12);
+      line-height: 1;
+      transition: transform .14s ease, border-color .18s, background .18s, opacity .2s, filter .2s;
+    }
+
+    .cell::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: radial-gradient(circle at 50% 15%, rgba(255, 255, 255, .06), transparent 55%);
+      pointer-events: none;
+    }
+
+    .cell:hover {
+      border-color: rgba(85, 246, 232, .25);
+      background: linear-gradient(145deg, rgba(49, 58, 94, .76), rgba(26, 32, 59, .78));
+    }
+
+    .cell:active {
+      transform: scale(.91);
+    }
+
+    .board[data-cols="3"] .cell { font-size: clamp(40px, 14vw, 68px); }
+    .board[data-cols="4"] .cell { font-size: clamp(32px, 11vw, 56px); }
+    .board[data-cols="5"] .cell { font-size: clamp(27px, 9vw, 47px); }
+    .board[data-cols="6"] .cell { font-size: clamp(23px, 7.5vw, 40px); }
+    .board[data-cols="7"] .cell { font-size: clamp(20px, 6.4vw, 34px); }
+    .board[data-cols="8"] .cell { font-size: clamp(17px, 5.5vw, 29px); }
+
+    .cell.is-wrong {
+      border-color: rgba(255, 101, 132, .8);
+      background: rgba(255, 101, 132, .15);
+      animation: wrongPulse .3s ease;
+    }
+
+    .cell.is-correct {
+      z-index: 2;
+      border-color: var(--cyan);
+      background: rgba(85, 246, 232, .17);
+      box-shadow: 0 0 24px rgba(85, 246, 232, .32), inset 0 0 16px rgba(85, 246, 232, .12);
+      animation: correctPop .45s cubic-bezier(.2, .9, .25, 1.25);
+    }
+
+    .board.solved .cell:not(.is-correct) {
+      opacity: .28;
+      filter: saturate(.5);
+    }
+
+    .board.shake {
+      animation: boardShake .3s ease;
+    }
+
+    .toast {
+      position: absolute;
+      z-index: 5;
+      left: 50%;
+      top: 50%;
+      max-width: 90%;
+      padding: 9px 15px;
+      border: 1px solid rgba(85, 246, 232, .25);
+      border-radius: 999px;
+      color: #d9fffa;
+      background: rgba(10, 24, 32, .9);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, .25), 0 0 20px rgba(85, 246, 232, .08);
+      font-size: 12px;
+      font-weight: 650;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, -35%) scale(.94);
+      transition: opacity .18s, transform .18s;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .toast.error {
+      border-color: rgba(255, 101, 132, .35);
+      color: #ffdbe3;
+      background: rgba(39, 15, 28, .92);
+    }
+
+    .fx-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      overflow: hidden;
+      border-radius: inherit;
+      pointer-events: none;
+    }
+
+    .particle {
+      position: absolute;
+      color: var(--particle-color, var(--cyan));
+      font-size: 13px;
+      text-shadow: 0 0 8px currentColor;
+      animation: particleFly .65s ease-out forwards;
+    }
+
+    .footer {
+      color: rgba(143, 152, 184, .62);
+      font-size: 9px;
+      letter-spacing: .08em;
+      text-align: center;
+    }
+
+    .footer kbd {
+      padding: 1px 4px;
+      border: 1px solid rgba(143, 152, 184, .2);
+      border-radius: 4px;
+      font: inherit;
+    }
+
+    /* ---------- 开始、暂停与结算弹窗 ---------- */
+    .modal {
+      width: min(calc(100% - 32px), 410px);
+      max-height: calc(100dvh - 32px);
+      margin: auto;
+      padding: 0;
+      overflow: visible;
+      border: 0;
+      color: var(--text);
+      background: transparent;
+    }
+
+    .modal::backdrop {
+      background: rgba(3, 5, 14, .72);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .modal[open] .modal-card {
+      animation: modalIn .28s cubic-bezier(.2, .8, .2, 1);
+    }
+
+    .modal-card {
+      position: relative;
+      padding: 28px 25px 24px;
+      overflow: hidden;
+      border: 1px solid rgba(153, 166, 240, .22);
+      border-radius: 26px;
+      background:
+        radial-gradient(circle at 50% 0, rgba(118, 91, 255, .16), transparent 42%),
+        linear-gradient(150deg, rgba(27, 32, 60, .98), rgba(11, 14, 29, .98));
+      box-shadow: 0 28px 80px rgba(0, 0, 0, .48), inset 0 1px rgba(255, 255, 255, .05);
+      text-align: center;
+    }
+
+    .modal-icon {
+      display: grid;
+      place-items: center;
+      width: 68px;
+      height: 68px;
+      margin: 0 auto 17px;
+      border: 1px solid rgba(85, 246, 232, .22);
+      border-radius: 22px;
+      background: linear-gradient(145deg, rgba(85, 246, 232, .1), rgba(169, 139, 255, .1));
+      box-shadow: 0 0 28px rgba(85, 246, 232, .08);
+      font-size: 33px;
+    }
+
+    .modal-eyebrow {
+      margin-bottom: 8px;
+      color: var(--cyan);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+    }
+
+    .modal h2 {
+      margin: 0;
+      font-size: 26px;
+      letter-spacing: .04em;
+    }
+
+    .modal-desc {
+      margin: 12px auto 19px;
+      color: #a7b0ce;
+      font-size: 12px;
+      line-height: 1.85;
+    }
+
+    .rules {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .rule-chip {
+      padding: 6px 9px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      color: #b9c1dd;
+      background: rgba(255, 255, 255, .025);
+      font-size: 10px;
+    }
+
+    .record-badge {
+      display: inline-block;
+      margin: -4px 0 16px;
+      padding: 5px 10px;
+      border: 1px solid rgba(255, 210, 98, .25);
+      border-radius: 999px;
+      color: #ffe09a;
+      background: rgba(255, 210, 98, .07);
+      font-size: 10px;
+    }
+
+    .result-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      margin: 0 0 20px;
+      padding: 14px 4px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: rgba(5, 8, 20, .28);
+    }
+
+    .result-item {
+      display: grid;
+      gap: 5px;
+    }
+
+    .result-item + .result-item {
+      border-left: 1px solid var(--line);
+    }
+
+    .result-item span {
+      color: var(--muted);
+      font-size: 9px;
+    }
+
+    .result-item strong {
+      color: #edf0ff;
+      font-size: 19px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .result-item:first-child strong {
+      color: var(--cyan);
+    }
+
+    .modal-actions {
+      display: grid;
+      gap: 9px;
+    }
+
+    .primary-btn,
+    .secondary-btn {
+      width: 100%;
+      min-height: 48px;
+      border-radius: 14px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      transition: transform .15s, filter .15s;
+    }
+
+    .primary-btn {
+      color: #071b1d;
+      background: linear-gradient(105deg, #72f7e7, #8ed8f5 55%, #b5a0ff);
+      box-shadow: 0 9px 24px rgba(85, 246, 232, .16), inset 0 1px rgba(255, 255, 255, .5);
+    }
+
+    .secondary-btn {
+      border: 1px solid var(--line);
+      color: #b4bdd9;
+      background: rgba(255, 255, 255, .035);
+    }
+
+    .primary-btn:active,
+    .secondary-btn:active {
+      transform: scale(.98);
+      filter: brightness(.92);
+    }
+
+    .noscript {
+      position: fixed;
+      z-index: 20;
+      inset: 20px;
+      display: grid;
+      place-items: center;
+      border-radius: 20px;
+      background: #11162a;
+      text-align: center;
+    }
+
+    /* ---------- 小屏与横屏适配 ---------- */
+    @media (max-width: 360px) {
+      .app { padding-left: 10px; padding-right: 10px; }
+      .stat { padding-left: 12px; padding-right: 12px; }
+      .board-card { min-width: 200px; }
+      .header-tag { display: none; }
+    }
+
+    @media (max-height: 620px) {
+      .app { gap: 8px; padding-top: max(9px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+      .header, .footer { display: none; }
+      .stats { min-height: 54px; }
+      .stat { padding-top: 7px; padding-bottom: 7px; }
+      .stat-value { font-size: 18px; }
+      .game-meta { gap: 4px; }
+      .level-line { min-height: 26px; }
+      .pause-btn { min-height: 34px; }
+      .board-card { width: min(100%, calc(100vh - 210px), 410px); width: min(100%, calc(100dvh - 210px), 410px); padding: 8px; }
+      .board-heading { min-height: 23px; padding-bottom: 6px; }
+      .modal-card { padding-top: 20px; padding-bottom: 18px; }
+      .modal-icon { width: 52px; height: 52px; margin-bottom: 10px; font-size: 27px; }
+      .modal h2 { font-size: 22px; }
+      .modal-desc { margin-top: 8px; margin-bottom: 12px; line-height: 1.6; }
+      .rules { margin-bottom: 13px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
+    }
+
+    @keyframes correctPop {
+      0% { transform: scale(.86); }
+      55% { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes wrongPulse {
+      50% { transform: scale(.9); }
+    }
+
+    @keyframes boardShake {
+      20% { transform: translateX(-5px); }
+      40% { transform: translateX(5px); }
+      60% { transform: translateX(-3px); }
+      80% { transform: translateX(3px); }
+    }
+
+    @keyframes particleFly {
+      from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      to { opacity: 0; transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(.3) rotate(100deg); }
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: translateY(12px) scale(.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes timePulse {
+      to { opacity: .55; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="霓虹找不同游戏">
+    <header class="header">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">◎</div>
+        <div class="brand-copy">
+          <h1>霓虹找不同</h1>
+          <p>ODD ONE OUT</p>
+        </div>
+      </div>
+      <span class="header-tag">12 关眼力挑战</span>
+    </header>
+
+    <section class="stats" aria-label="游戏数据">
+      <div class="stat">
+        <span class="stat-label">当前得分</span>
+        <strong class="stat-value" id="scoreValue">0</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">最高分</span>
+        <strong class="stat-value" id="bestValue">0</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">连续答对</span>
+        <strong class="stat-value combo-value" id="comboValue">×0</strong>
+      </div>
+    </section>
+
+    <section class="game-meta" aria-label="关卡和倒计时">
+      <div class="level-line">
+        <div class="level-copy">
+          <span>关卡</span>
+          <strong><span id="levelValue">01</span><span> / 12</span></strong>
+        </div>
+        <span class="difficulty" id="difficultyValue">热身</span>
+        <button class="pause-btn" id="pauseBtn" type="button" aria-label="暂停游戏" disabled>
+          <span class="pause-icon" aria-hidden="true">Ⅱ</span>
+          <span>暂停</span>
+        </button>
+      </div>
+      <div class="timer" id="timer">
+        <div class="time-value"><span id="timeValue">10.0</span><small>秒</small></div>
+        <div class="time-track" aria-hidden="true"><div class="time-bar" id="timeBar"></div></div>
+      </div>
+    </section>
+
+    <section class="board-area" aria-label="游戏区域">
+      <div class="board-card" id="boardCard">
+        <div class="board-heading">
+          <strong>观察 · 锁定 · 点击</strong>
+          <span class="one-tip">不同仅有 1 个</span>
+        </div>
+        <div class="board" id="board" data-cols="3" role="group" aria-label="Emoji 棋盘，方向键移动，回车选择"></div>
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+        <div class="fx-layer" id="fxLayer" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <footer class="footer">点击不同表情 <span aria-hidden="true">·</span> 键盘方向键移动 <kbd>P</kbd> 暂停</footer>
+  </main>
+
+  <dialog class="modal" id="gameModal" aria-labelledby="modalTitle" aria-describedby="modalDesc">
+    <div class="modal-card">
+      <div class="modal-icon" id="modalIcon" aria-hidden="true">🔍</div>
+      <div class="modal-eyebrow" id="modalEyebrow">12 关限时挑战</div>
+      <h2 id="modalTitle">找出唯一的不同</h2>
+      <p class="modal-desc" id="modalDesc">在一堆 emoji 中，点击与众不同的那一个。<br>答对进入下一关，点错会扣除 2 秒！</p>
+      <div class="rules" id="rules">
+        <span class="rule-chip">⏱ 每关限时</span>
+        <span class="rule-chip">🔥 连击加分</span>
+        <span class="rule-chip">🏆 刷新纪录</span>
+      </div>
+      <div class="record-badge" id="recordBadge" hidden>✦ 新纪录诞生！</div>
+      <div class="result-stats" id="resultStats" hidden>
+        <div class="result-item"><span>本局得分</span><strong id="resultScore">0</strong></div>
+        <div class="result-item"><span>最高连击</span><strong id="resultCombo">0</strong></div>
+        <div class="result-item"><span>历史最高</span><strong id="resultBest">0</strong></div>
+      </div>
+      <div class="modal-actions">
+        <button class="primary-btn" id="modalPrimary" type="button" autofocus>开始挑战</button>
+        <button class="secondary-btn" id="modalSecondary" type="button" hidden>重新开始</button>
+      </div>
+    </div>
+  </dialog>
+
+  <noscript><div class="noscript">请启用 JavaScript 后开始游戏。</div></noscript>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // ---------- 常量与 DOM ----------
+      const TOTAL_LEVELS = 12;
+      const STORAGE_KEY = 'neonOddOneOut.bestScore.v1';
+      const LEVEL_TIMES = [10, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16];
+      const PAIR_POOLS = {
+        easy: [
+          ['🍎', '🍏'], ['🐶', '🐱'], ['🌻', '🌹'],
+          ['🚗', '🚕'], ['🍊', '🍋'], ['⚽', '🏀']
+        ],
+        medium: [
+          ['😀', '😃'], ['😺', '😸'], ['🌕', '🌑'],
+          ['🍓', '🍒'], ['💜', '💙'], ['🐵', '🙈']
+        ],
+        hard: [
+          ['😄', '😁'], ['😙', '😚'], ['😐', '😑'],
+          ['😮', '😯'], ['😃', '😄'], ['😆', '😁'], ['😕', '🙁']
+        ]
+      };
+
+      const $ = (id) => document.getElementById(id);
+      const board = $('board');
+      const boardCard = $('boardCard');
+      const pauseBtn = $('pauseBtn');
+      const timer = $('timer');
+      const timeValue = $('timeValue');
+      const timeBar = $('timeBar');
+      const scoreValue = $('scoreValue');
+      const bestValue = $('bestValue');
+      const comboValue = $('comboValue');
+      const levelValue = $('levelValue');
+      const difficultyValue = $('difficultyValue');
+      const toast = $('toast');
+      const fxLayer = $('fxLayer');
+      const modal = $('gameModal');
+      const modalIcon = $('modalIcon');
+      const modalEyebrow = $('modalEyebrow');
+      const modalTitle = $('modalTitle');
+      const modalDesc = $('modalDesc');
+      const modalPrimary = $('modalPrimary');
+      const modalSecondary = $('modalSecondary');
+      const resultStats = $('resultStats');
+      const rules = $('rules');
+      const recordBadge = $('recordBadge');
+
+      // ---------- 游戏状态 ----------
+      let state = 'idle'; // idle / playing / transition / paused / over / won
+      let score = 0;
+      let best = loadBest();
+      let bestAtStart = best;
+      let combo = 0;
+      let maxCombo = 0;
+      let level = 1;
+      let oddIndex = 0;
+      let focusIndex = 0;
+      let currentColumns = 3;
+      let currentDuration = LEVEL_TIMES[0];
+      let levelEndsAt = 0;
+      let remainingMs = currentDuration * 1000;
+      let lastPair = null;
+      let inputLocked = true;
+      let runId = 0;
+      let toastTimer = 0;
+      let modalAction = 'start';
+      let keyboardMode = false;
+
+      // ---------- 本地最高分（隐私模式下存储失败也不影响游戏） ----------
+      function loadBest() {
+        try {
+          const saved = Number.parseInt(localStorage.getItem(STORAGE_KEY), 10);
+          return Number.isFinite(saved) && saved > 0 ? saved : 0;
+        } catch (error) {
+          return 0;
+        }
+      }
+
+      function saveBest() {
+        try {
+          localStorage.setItem(STORAGE_KEY, String(best));
+        } catch (error) {
+          // 无法写入时保留本次会话中的最高分。
+        }
+      }
+
+      function formatScore(value) {
+        return value.toLocaleString('zh-CN');
+      }
+
+      function updateStats() {
+        if (score > best) {
+          best = score;
+          saveBest();
+        }
+        scoreValue.textContent = formatScore(score);
+        bestValue.textContent = formatScore(best);
+        comboValue.textContent = `×${combo}`;
+        comboValue.classList.toggle('hot', combo >= 3);
+      }
+
+      // ---------- 关卡生成 ----------
+      function getColumns(currentLevel) {
+        if (currentLevel <= 2) return 3;
+        if (currentLevel <= 4) return 4;
+        if (currentLevel <= 6) return 5;
+        if (currentLevel <= 8) return 6;
+        if (currentLevel <= 10) return 7;
+        return 8;
+      }
+
+      function getDifficulty(currentLevel) {
+        if (currentLevel <= 2) return '热身';
+        if (currentLevel <= 4) return '简单';
+        if (currentLevel <= 6) return '专注';
+        if (currentLevel <= 9) return '进阶';
+        return '大师';
+      }
+
+      function choosePair(currentLevel) {
+        let pool;
+        if (currentLevel <= 2) pool = PAIR_POOLS.easy;
+        else if (currentLevel <= 4) pool = [...PAIR_POOLS.easy, ...PAIR_POOLS.medium];
+        else if (currentLevel <= 7) pool = PAIR_POOLS.medium;
+        else pool = [...PAIR_POOLS.medium, ...PAIR_POOLS.hard];
+
+        let pair = pool[Math.floor(Math.random() * pool.length)];
+        // 尽量避免相邻两关使用同一组表情。
+        for (let tries = 0; pair === lastPair && tries < 8; tries += 1) {
+          pair = pool[Math.floor(Math.random() * pool.length)];
+        }
+        lastPair = pair;
+        return pair;
+      }
+
+      function renderBoard(columns, pair, differentIndex) {
+        currentColumns = columns;
+        oddIndex = differentIndex;
+        focusIndex = 0;
+        board.dataset.cols = String(columns);
+        board.style.setProperty('--cols', columns);
+        board.classList.remove('solved', 'shake');
+        board.replaceChildren();
+
+        const fragment = document.createDocumentFragment();
+        const total = columns * columns;
+        for (let index = 0; index < total; index += 1) {
+          const cell = document.createElement('button');
+          const row = Math.floor(index / columns) + 1;
+          const column = (index % columns) + 1;
+          cell.type = 'button';
+          cell.className = 'cell';
+          cell.dataset.index = String(index);
+          cell.tabIndex = index === 0 ? 0 : -1;
+          cell.textContent = index === differentIndex ? pair[1] : pair[0];
+          cell.setAttribute('aria-label', `第 ${row} 行第 ${column} 列：${cell.textContent}`);
+          fragment.appendChild(cell);
+        }
+        board.appendChild(fragment);
+      }
+
+      function buildLevel() {
+        state = 'playing';
+        inputLocked = false;
+        currentColumns = getColumns(level);
+        currentDuration = LEVEL_TIMES[level - 1];
+        remainingMs = currentDuration * 1000;
+        levelEndsAt = performance.now() + remainingMs;
+        pauseBtn.disabled = false;
+        levelValue.textContent = String(level).padStart(2, '0');
+        difficultyValue.textContent = getDifficulty(level);
+
+        const total = currentColumns * currentColumns;
+        renderBoard(currentColumns, choosePair(level), Math.floor(Math.random() * total));
+        updateTimer(remainingMs);
+
+        // 键盘玩家过关后直接保持棋盘焦点，触屏玩家不会被强制聚焦。
+        if (keyboardMode) {
+          requestAnimationFrame(() => focusCell(0));
+        }
+      }
+
+      function showPreview() {
+        currentDuration = LEVEL_TIMES[0];
+        remainingMs = currentDuration * 1000;
+        renderBoard(3, PAIR_POOLS.easy[0], 6);
+        updateTimer(remainingMs);
+        updateStats();
+      }
+
+      // ---------- 倒计时 ----------
+      function updateTimer(milliseconds) {
+        const safeMs = Math.max(0, milliseconds);
+        const text = (safeMs / 1000).toFixed(1);
+        if (timeValue.textContent !== text) timeValue.textContent = text;
+        const ratio = Math.min(1, safeMs / (currentDuration * 1000));
+        timeBar.style.transform = `scaleX(${ratio})`;
+        timer.classList.toggle('urgent', safeMs > 0 && safeMs <= 3000);
+      }
+
+      function animationFrame(now) {
+        if (state === 'playing') {
+          remainingMs = Math.max(0, levelEndsAt - now);
+          updateTimer(remainingMs);
+          if (remainingMs <= 0) endGame(false);
+        }
+        requestAnimationFrame(animationFrame);
+      }
+
+      // ---------- 点击判题与计分 ----------
+      function selectCell(index, cell) {
+        if (state !== 'playing' || inputLocked) return;
+        setFocusIndex(index, false);
+
+        if (index === oddIndex) {
+          handleCorrect(cell);
+        } else {
+          handleWrong(cell);
+        }
+      }
+
+      function handleCorrect(cell) {
+        inputLocked = true;
+        state = 'transition';
+        pauseBtn.disabled = true;
+        remainingMs = Math.max(0, levelEndsAt - performance.now());
+
+        combo += 1;
+        maxCombo = Math.max(maxCombo, combo);
+        const secondsLeft = Math.floor(remainingMs / 1000);
+        const comboBonus = Math.min(combo - 1, 10) * 25;
+        const gain = 100 + level * 20 + secondsLeft * 10 + comboBonus;
+        score += gain;
+        updateStats();
+
+        cell.classList.add('is-correct');
+        board.classList.add('solved');
+        showToast(combo >= 3 ? `漂亮！${combo} 连击 · +${gain}` : `找到了！+${gain}`);
+        burstParticles(cell);
+
+        const thisRun = runId;
+        const delay = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 100 : 480;
+        window.setTimeout(() => {
+          if (thisRun !== runId || state !== 'transition') return;
+          if (level >= TOTAL_LEVELS) {
+            endGame(true);
+          } else {
+            level += 1;
+            buildLevel();
+            if (document.hidden) pauseGame(true);
+          }
+        }, delay);
+      }
+
+      function handleWrong(cell) {
+        inputLocked = true;
+        combo = 0;
+        score = Math.max(0, score - 25);
+        levelEndsAt -= 2000;
+        remainingMs = Math.max(0, levelEndsAt - performance.now());
+        updateStats();
+        updateTimer(remainingMs);
+        cell.classList.add('is-wrong');
+        board.classList.remove('shake');
+        void board.offsetWidth; // 重新触发摇摆动画。
+        board.classList.add('shake');
+        showToast('不是这个 · −2 秒 · −25 分', true);
+
+        if (remainingMs <= 0) {
+          endGame(false);
+          return;
+        }
+
+        const thisRun = runId;
+        window.setTimeout(() => {
+          if (thisRun !== runId) return;
+          cell.classList.remove('is-wrong');
+          board.classList.remove('shake');
+          if (state === 'playing') inputLocked = false;
+        }, 320);
+      }
+
+      function showToast(message, isError = false) {
+        window.clearTimeout(toastTimer);
+        toast.textContent = message;
+        toast.classList.toggle('error', isError);
+        toast.classList.add('show');
+        toastTimer = window.setTimeout(() => toast.classList.remove('show'), isError ? 900 : 650);
+      }
+
+      function burstParticles(cell) {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const cardRect = boardCard.getBoundingClientRect();
+        const cellRect = cell.getBoundingClientRect();
+        const x = cellRect.left + cellRect.width / 2 - cardRect.left;
+        const y = cellRect.top + cellRect.height / 2 - cardRect.top;
+
+        for (let index = 0; index < 12; index += 1) {
+          const angle = (Math.PI * 2 * index) / 12;
+          const distance = 42 + Math.random() * 45;
+          const particle = document.createElement('span');
+          particle.className = 'particle';
+          particle.textContent = index % 3 === 0 ? '✦' : '●';
+          particle.style.left = `${x}px`;
+          particle.style.top = `${y}px`;
+          particle.style.setProperty('--tx', `${Math.cos(angle) * distance}px`);
+          particle.style.setProperty('--ty', `${Math.sin(angle) * distance}px`);
+          particle.style.setProperty('--particle-color', index % 2 ? '#55f6e8' : '#b59bff');
+          fxLayer.appendChild(particle);
+          window.setTimeout(() => particle.remove(), 700);
+        }
+      }
+
+      // ---------- 开始、暂停与结算 ----------
+      function startGame() {
+        runId += 1;
+        window.clearTimeout(toastTimer);
+        toast.classList.remove('show');
+        fxLayer.replaceChildren();
+        closeModal();
+        score = 0;
+        combo = 0;
+        maxCombo = 0;
+        level = 1;
+        lastPair = null;
+        bestAtStart = best;
+        recordBadge.hidden = true;
+        updateStats();
+        buildLevel();
+      }
+
+      function pauseGame(automatic = false) {
+        if (state !== 'playing') return;
+        remainingMs = Math.max(0, levelEndsAt - performance.now());
+        if (remainingMs <= 0) {
+          endGame(false);
+          return;
+        }
+        state = 'paused';
+        inputLocked = true;
+        updateTimer(remainingMs);
+        openModal({
+          action: 'resume',
+          icon: '⏸',
+          eyebrow: automatic ? '已为你自动暂停' : '倒计时已暂停',
+          title: '稍作休息',
+          description: automatic ? '离开页面时游戏会自动暂停，准备好再继续。' : '喘口气，时间已经停住。准备好后继续寻找不同！',
+          primary: '继续游戏',
+          secondary: '重新开始',
+          showResults: false,
+          showRules: false
+        });
+      }
+
+      function resumeGame() {
+        if (state !== 'paused') return;
+        closeModal();
+        state = 'playing';
+        inputLocked = false;
+        levelEndsAt = performance.now() + remainingMs;
+        if (keyboardMode) requestAnimationFrame(() => focusCell(focusIndex));
+      }
+
+      function endGame(won) {
+        if (state === 'over' || state === 'won') return;
+        runId += 1;
+        state = won ? 'won' : 'over';
+        inputLocked = true;
+        pauseBtn.disabled = true;
+        if (!won) {
+          remainingMs = 0;
+          updateTimer(0);
+        }
+        updateStats();
+        window.clearTimeout(toastTimer);
+        toast.classList.remove('show');
+
+        $('resultScore').textContent = formatScore(score);
+        $('resultCombo').textContent = String(maxCombo);
+        $('resultBest').textContent = formatScore(best);
+        recordBadge.hidden = !(score > 0 && score > bestAtStart);
+
+        openModal({
+          action: 'restart',
+          icon: won ? '🏆' : '⏰',
+          eyebrow: won ? '全部关卡完成' : `挑战止步于第 ${level} 关`,
+          title: won ? '火眼金睛！' : '时间到！',
+          description: won ? '12 关全部破解，你的观察力简直不可思议。要再刷新一次纪录吗？' : '差一点就抓住了！保持专注，下一局一定能走得更远。',
+          primary: '再玩一次',
+          secondary: '',
+          showResults: true,
+          showRules: false
+        });
+      }
+
+      function openModal(options) {
+        modalAction = options.action;
+        modalIcon.textContent = options.icon;
+        modalEyebrow.textContent = options.eyebrow;
+        modalTitle.textContent = options.title;
+        modalDesc.textContent = options.description;
+        modalPrimary.textContent = options.primary;
+        modalSecondary.textContent = options.secondary;
+        modalSecondary.hidden = !options.secondary;
+        resultStats.hidden = !options.showResults;
+        rules.hidden = !options.showRules;
+        if (!modal.open) {
+          if (typeof modal.showModal === 'function') modal.showModal();
+          else modal.setAttribute('open', '');
+        }
+        requestAnimationFrame(() => modalPrimary.focus({ preventScroll: true }));
+      }
+
+      function closeModal() {
+        if (!modal.open) return;
+        if (typeof modal.close === 'function') modal.close();
+        else modal.removeAttribute('open');
+      }
+
+      // ---------- 键盘焦点管理 ----------
+      function setFocusIndex(index, shouldFocus = true) {
+        const cells = board.querySelectorAll('.cell');
+        if (!cells.length) return;
+        focusIndex = Math.max(0, Math.min(index, cells.length - 1));
+        cells.forEach((item, itemIndex) => {
+          item.tabIndex = itemIndex === focusIndex ? 0 : -1;
+        });
+        if (shouldFocus) cells[focusIndex].focus({ preventScroll: true });
+      }
+
+      function focusCell(index) {
+        setFocusIndex(index, true);
+      }
+
+      function handleGameKey(event) {
+        if (event.key.toLowerCase() === 'p' && (state === 'playing' || state === 'paused')) {
+          event.preventDefault();
+          if (state === 'playing') pauseGame();
+          else resumeGame();
+          return;
+        }
+        if (state !== 'playing') return;
+
+        const total = currentColumns * currentColumns;
+        const row = Math.floor(focusIndex / currentColumns);
+        const column = focusIndex % currentColumns;
+        let nextIndex = focusIndex;
+
+        switch (event.key) {
+          case 'ArrowLeft':
+            nextIndex = row * currentColumns + Math.max(0, column - 1);
+            break;
+          case 'ArrowRight':
+            nextIndex = row * currentColumns + Math.min(currentColumns - 1, column + 1);
+            break;
+          case 'ArrowUp':
+            nextIndex = Math.max(0, row - 1) * currentColumns + column;
+            break;
+          case 'ArrowDown':
+            nextIndex = Math.min(currentColumns - 1, row + 1) * currentColumns + column;
+            break;
+          case 'Home':
+            nextIndex = 0;
+            break;
+          case 'End':
+            nextIndex = total - 1;
+            break;
+          case 'Enter':
+          case ' ': {
+            const active = document.activeElement;
+            // 原生按钮自行处理回车和空格，避免重复触发。
+            if (active && active.matches('button')) return;
+            event.preventDefault();
+            const cell = board.querySelector(`[data-index="${focusIndex}"]`);
+            if (cell) selectCell(focusIndex, cell);
+            return;
+          }
+          default:
+            return;
+        }
+        event.preventDefault();
+        focusCell(nextIndex);
+      }
+
+      // ---------- 事件绑定 ----------
+      board.addEventListener('click', (event) => {
+        const cell = event.target.closest('.cell');
+        if (!cell || !board.contains(cell)) return;
+        selectCell(Number(cell.dataset.index), cell);
+      });
+
+      pauseBtn.addEventListener('click', () => {
+        if (state === 'playing') pauseGame();
+        else if (state === 'paused') resumeGame();
+      });
+
+      modalPrimary.addEventListener('click', () => {
+        if (modalAction === 'resume') resumeGame();
+        else startGame();
+      });
+
+      modalSecondary.addEventListener('click', () => {
+        if (state === 'paused') startGame();
+      });
+
+      // 暂停时 Esc 可继续；开始和结算弹窗不可被 Esc 绕过。
+      modal.addEventListener('cancel', (event) => {
+        event.preventDefault();
+        if (state === 'paused') resumeGame();
+      });
+
+      document.addEventListener('keydown', (event) => {
+        keyboardMode = true;
+        handleGameKey(event);
+      });
+      document.addEventListener('pointerdown', () => { keyboardMode = false; }, { passive: true });
+
+      // 切到后台时自动暂停，避免玩家因页面不可见而损失时间。
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state === 'playing') pauseGame(true);
+      });
+
+      // 禁止双击缩放、双指缩放手势与橡皮筋滚动。
+      document.addEventListener('dblclick', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('touchmove', (event) => event.preventDefault(), { passive: false });
+      board.addEventListener('contextmenu', (event) => event.preventDefault());
+
+      // ---------- 初始化 ----------
+      showPreview();
+      openModal({
+        action: 'start',
+        icon: '🔍',
+        eyebrow: '12 关限时挑战',
+        title: '找出唯一的不同',
+        description: '在一堆 emoji 中，点击与众不同的那一个。答对进入下一关，点错会扣除 2 秒！',
+        primary: '开始挑战',
+        secondary: '',
+        showResults: false,
+        showRules: true
+      });
+      requestAnimationFrame(animationFrame);
+    })();
+  </script>
+</body>
+</html>

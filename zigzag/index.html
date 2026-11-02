@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070914">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>霓虹折线 · ZigZag</title>
+  <style>
+    /* ---------- 基础与移动端适配 ---------- */
+    :root {
+      color-scheme: dark;
+      --cyan: #54efff;
+      --violet: #9b7bff;
+      --pink: #ff68d7;
+      --mint: #78ffd6;
+      --ink: #070914;
+      --muted: #8992ad;
+      --glass: rgba(15, 20, 42, 0.68);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      background: var(--ink);
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      color: #f5f7ff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    button {
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 4px;
+    }
+
+    #game {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      isolation: isolate;
+      touch-action: none;
+      background: #070914;
+    }
+
+    #gameCanvas {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    /* 暗角让霓虹主体更集中，不拦截触摸 */
+    .vignette {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background:
+        linear-gradient(180deg, rgba(4, 5, 15, 0.42) 0%, transparent 25%, transparent 70%, rgba(3, 5, 14, 0.58) 100%),
+        radial-gradient(ellipse at center, transparent 48%, rgba(1, 2, 10, 0.46) 100%);
+    }
+
+    /* ---------- 顶部 HUD ---------- */
+    .topbar {
+      position: absolute;
+      z-index: 3;
+      top: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: calc(env(safe-area-inset-top, 0px) + 17px) 18px 0;
+      pointer-events: none;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .brand-mark {
+      position: relative;
+      width: 35px;
+      height: 35px;
+      border: 1px solid rgba(84, 239, 255, 0.34);
+      border-radius: 11px;
+      background: linear-gradient(145deg, rgba(84, 239, 255, 0.12), rgba(155, 123, 255, 0.1));
+      box-shadow: inset 0 0 15px rgba(84, 239, 255, 0.07), 0 0 20px rgba(84, 239, 255, 0.07);
+    }
+
+    .brand-mark::before,
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      width: 15px;
+      height: 3px;
+      border-radius: 4px;
+      background: var(--cyan);
+      box-shadow: 0 0 8px rgba(84, 239, 255, 0.8);
+      transform-origin: left center;
+    }
+
+    .brand-mark::before {
+      left: 9px;
+      top: 12px;
+      transform: rotate(35deg);
+    }
+
+    .brand-mark::after {
+      left: 21px;
+      top: 20px;
+      background: var(--violet);
+      transform: rotate(125deg);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 750;
+      line-height: 1.1;
+      letter-spacing: 3px;
+    }
+
+    .brand p {
+      margin: 5px 0 0;
+      color: #68738f;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 3.2px;
+    }
+
+    .icon-button {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border: 1px solid rgba(154, 169, 218, 0.18);
+      border-radius: 14px;
+      background: rgba(16, 21, 43, 0.66);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      pointer-events: auto;
+      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease, opacity 160ms ease;
+    }
+
+    .icon-button:active {
+      transform: scale(0.92);
+      background: rgba(40, 48, 82, 0.78);
+    }
+
+    .icon-button:disabled {
+      opacity: 0.36;
+      cursor: default;
+    }
+
+    .icon-button svg {
+      width: 18px;
+      height: 18px;
+      fill: #b8c4e5;
+    }
+
+    .scoreboard {
+      position: absolute;
+      z-index: 3;
+      top: calc(env(safe-area-inset-top, 0px) + 82px);
+      left: 50%;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      width: calc(100% - 36px);
+      max-width: 420px;
+      padding: 13px 8px 12px;
+      border: 1px solid rgba(137, 155, 208, 0.13);
+      border-radius: 19px;
+      background: linear-gradient(120deg, rgba(17, 23, 47, 0.72), rgba(12, 16, 36, 0.52));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 12px 35px rgba(0, 0, 0, 0.12);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .stat {
+      position: relative;
+      text-align: center;
+    }
+
+    .stat + .stat::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 6px;
+      bottom: 6px;
+      width: 1px;
+      background: linear-gradient(transparent, rgba(131, 149, 196, 0.2), transparent);
+    }
+
+    .stat-label {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+    }
+
+    .stat strong {
+      display: inline-block;
+      min-width: 34px;
+      font-size: 26px;
+      font-weight: 750;
+      line-height: 1.15;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #score {
+      color: #f7fbff;
+      text-shadow: 0 0 18px rgba(84, 239, 255, 0.25);
+    }
+
+    #best {
+      color: #b8a8ff;
+    }
+
+    .target-value {
+      color: #7d89a6;
+    }
+
+    .stat strong.pop {
+      animation: score-pop 180ms ease-out;
+    }
+
+    @keyframes score-pop {
+      50% { transform: scale(1.24); color: var(--cyan); }
+    }
+
+    .progress-track {
+      position: absolute;
+      z-index: 3;
+      top: calc(env(safe-area-inset-top, 0px) + 157px);
+      left: 50%;
+      width: calc(100% - 70px);
+      max-width: 354px;
+      height: 2px;
+      overflow: hidden;
+      border-radius: 2px;
+      background: rgba(130, 146, 190, 0.12);
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    #progressBar {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--violet), var(--cyan));
+      box-shadow: 0 0 10px var(--cyan);
+      transition: width 180ms ease-out;
+    }
+
+    /* ---------- 底部操作提示 ---------- */
+    .bottom-ui {
+      position: absolute;
+      z-index: 3;
+      left: 50%;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 13px;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .direction-badge {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 12px;
+      border: 1px solid rgba(84, 239, 255, 0.13);
+      border-radius: 999px;
+      color: #a6b3d0;
+      background: rgba(11, 16, 34, 0.46);
+      font-size: 10px;
+      letter-spacing: 1px;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    #directionArrow {
+      color: var(--cyan);
+      font-size: 16px;
+      line-height: 1;
+      text-shadow: 0 0 9px rgba(84, 239, 255, 0.8);
+    }
+
+    .gesture-hint {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      white-space: nowrap;
+      color: #77839f;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 1.5px;
+    }
+
+    .finger {
+      position: relative;
+      width: 17px;
+      height: 17px;
+      border: 1px solid rgba(84, 239, 255, 0.45);
+      border-radius: 50%;
+      animation: tap-pulse 2s ease-out infinite;
+    }
+
+    .finger::after {
+      content: "";
+      position: absolute;
+      inset: 5px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 7px var(--cyan);
+    }
+
+    @keyframes tap-pulse {
+      0%, 35% { box-shadow: 0 0 0 0 rgba(84, 239, 255, 0.24); }
+      75%, 100% { box-shadow: 0 0 0 8px rgba(84, 239, 255, 0); }
+    }
+
+    /* ---------- 开始、暂停与结算弹窗 ---------- */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      display: grid;
+      place-items: center;
+      padding: calc(env(safe-area-inset-top, 0px) + 24px) 20px calc(env(safe-area-inset-bottom, 0px) + 24px);
+      visibility: hidden;
+      opacity: 0;
+      background: rgba(4, 6, 16, 0.48);
+      backdrop-filter: blur(0);
+      -webkit-backdrop-filter: blur(0);
+      pointer-events: none;
+      transition: opacity 220ms ease, visibility 220ms ease, backdrop-filter 220ms ease;
+    }
+
+    .overlay.visible {
+      visibility: visible;
+      opacity: 1;
+      backdrop-filter: blur(9px);
+      -webkit-backdrop-filter: blur(9px);
+      pointer-events: auto;
+    }
+
+    .modal {
+      position: relative;
+      width: min(100%, 382px);
+      overflow: hidden;
+      padding: 31px 27px 25px;
+      border: 1px solid rgba(132, 158, 224, 0.2);
+      border-radius: 28px;
+      text-align: center;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(83, 91, 190, 0.16), transparent 43%),
+        linear-gradient(145deg, rgba(20, 26, 53, 0.96), rgba(9, 13, 30, 0.97));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055), 0 28px 90px rgba(0, 0, 0, 0.5), 0 0 55px rgba(92, 74, 190, 0.08);
+      transform: translateY(14px) scale(0.97);
+      transition: transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .modal::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 20%;
+      right: 20%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), var(--violet), transparent);
+      box-shadow: 0 0 16px rgba(84, 239, 255, 0.5);
+    }
+
+    .overlay.visible .modal {
+      transform: translateY(0) scale(1);
+    }
+
+    .modal-symbol {
+      display: grid;
+      place-items: center;
+      width: 61px;
+      height: 61px;
+      margin: 0 auto 19px;
+      border: 1px solid rgba(84, 239, 255, 0.24);
+      border-radius: 20px;
+      color: var(--cyan);
+      background: linear-gradient(145deg, rgba(84, 239, 255, 0.1), rgba(155, 123, 255, 0.11));
+      box-shadow: inset 0 0 20px rgba(84, 239, 255, 0.06), 0 0 28px rgba(84, 239, 255, 0.07);
+      font-size: 29px;
+      font-weight: 300;
+      line-height: 1;
+      text-shadow: 0 0 14px rgba(84, 239, 255, 0.55);
+      transform: rotate(-4deg);
+    }
+
+    #modalKicker {
+      margin: 0 0 9px;
+      color: #8f80e8;
+      font-size: 9px;
+      font-weight: 750;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    #modalTitle {
+      margin: 0;
+      font-size: clamp(26px, 7vw, 32px);
+      font-weight: 800;
+      line-height: 1.25;
+      letter-spacing: 2px;
+      background: linear-gradient(110deg, #ffffff 20%, #bfefff 65%, #c0b4ff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    #modalText {
+      margin: 14px auto 0;
+      max-width: 290px;
+      color: #9aa6c2;
+      font-size: 13px;
+      line-height: 1.85;
+    }
+
+    .result-panel {
+      display: none;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      margin: 21px 0 0;
+      overflow: hidden;
+      border: 1px solid rgba(132, 153, 205, 0.12);
+      border-radius: 16px;
+      background: rgba(129, 151, 207, 0.1);
+    }
+
+    .result-panel.show {
+      display: grid;
+    }
+
+    .result-item {
+      padding: 12px 8px;
+      background: rgba(9, 13, 30, 0.72);
+    }
+
+    .result-item span {
+      display: block;
+      margin-bottom: 3px;
+      color: #717e9c;
+      font-size: 10px;
+      letter-spacing: 1px;
+    }
+
+    .result-item strong {
+      font-size: 24px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #resultScore {
+      color: var(--cyan);
+    }
+
+    #resultBest {
+      color: #b5a4ff;
+    }
+
+    .primary-button {
+      position: relative;
+      width: 100%;
+      min-height: 53px;
+      margin-top: 24px;
+      overflow: hidden;
+      border: 1px solid rgba(126, 246, 255, 0.35);
+      border-radius: 16px;
+      color: #07111c;
+      background: linear-gradient(105deg, #78f2ff, #80e4f7 42%, #ad9aff);
+      box-shadow: 0 9px 27px rgba(75, 211, 242, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+      font-size: 15px;
+      font-weight: 750;
+      letter-spacing: 2px;
+      transition: transform 140ms ease, filter 140ms ease;
+    }
+
+    .primary-button::after {
+      content: "›";
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      font-size: 25px;
+      font-weight: 400;
+      line-height: 1;
+      transform: translateY(-54%);
+    }
+
+    .primary-button:active {
+      transform: scale(0.97);
+      filter: brightness(0.9);
+    }
+
+    #modalHint {
+      margin: 14px 0 0;
+      color: #626e89;
+      font-size: 10px;
+      letter-spacing: 1.2px;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* 小屏与横屏时压缩间距，保证按钮始终可见 */
+    @media (max-height: 650px) {
+      .topbar { padding-top: calc(env(safe-area-inset-top, 0px) + 10px); }
+      .scoreboard { top: calc(env(safe-area-inset-top, 0px) + 65px); padding-block: 8px; }
+      .progress-track { top: calc(env(safe-area-inset-top, 0px) + 132px); }
+      .stat strong { font-size: 22px; }
+      .modal { padding: 22px 24px 19px; border-radius: 23px; }
+      .modal-symbol { width: 48px; height: 48px; margin-bottom: 12px; border-radius: 16px; font-size: 24px; }
+      #modalText { margin-top: 9px; line-height: 1.65; }
+      .primary-button { min-height: 47px; margin-top: 17px; }
+      .result-panel { margin-top: 14px; }
+      #modalHint { margin-top: 10px; }
+      .bottom-ui { bottom: calc(env(safe-area-inset-bottom, 0px) + 11px); gap: 8px; }
+    }
+
+    @media (min-width: 700px) {
+      .topbar { padding-inline: 30px; }
+      .scoreboard { top: calc(env(safe-area-inset-top, 0px) + 91px); }
+      .progress-track { top: calc(env(safe-area-inset-top, 0px) + 166px); }
+      .bottom-ui { bottom: 28px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main id="game" aria-label="霓虹折线之字形小游戏">
+    <canvas id="gameCanvas" aria-label="游戏区域：轻触、点击或按空格键切换方向">你的浏览器需要支持 Canvas 才能运行游戏。</canvas>
+    <div class="vignette"></div>
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <h1>霓虹折线</h1>
+          <p>NEON ZIGZAG</p>
+        </div>
+      </div>
+      <button id="pauseBtn" class="icon-button" type="button" aria-label="暂停游戏" title="暂停（P）" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="4" height="16" rx="1.5"></rect><rect x="15" y="4" width="4" height="16" rx="1.5"></rect></svg>
+      </button>
+    </header>
+
+    <section class="scoreboard" aria-label="游戏分数">
+      <div class="stat">
+        <span class="stat-label">当前得分</span>
+        <strong id="score">0</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">最高分</span>
+        <strong id="best">0</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">终点</span>
+        <strong class="target-value">100</strong>
+      </div>
+    </section>
+    <div class="progress-track" aria-hidden="true"><div id="progressBar"></div></div>
+
+    <div class="bottom-ui" aria-hidden="true">
+      <div class="direction-badge">
+        <span id="directionArrow">↘</span>
+        <span id="directionText">向右下</span>
+      </div>
+      <div class="gesture-hint">
+        <span class="finger"></span>
+        <span>轻触屏幕 · 切换方向</span>
+      </div>
+    </div>
+
+    <div id="overlay" class="overlay visible" aria-hidden="false">
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalText">
+        <div id="modalSymbol" class="modal-symbol" aria-hidden="true">⌁</div>
+        <p id="modalKicker">反应与节奏挑战</p>
+        <h2 id="modalTitle">霓虹折线</h2>
+        <p id="modalText">在转角处轻触屏幕，让光球切换方向。<br>别掉下去，抵达 100 分终点！</p>
+        <div id="resultPanel" class="result-panel">
+          <div class="result-item"><span>本局得分</span><strong id="resultScore">0</strong></div>
+          <div class="result-item"><span>历史最高</span><strong id="resultBest">0</strong></div>
+        </div>
+        <button id="primaryBtn" class="primary-button" type="button">开始游戏</button>
+        <p id="modalHint">轻触 · 鼠标点击 · 空格键</p>
+      </section>
+    </div>
+    <p id="announcer" class="sr-only" aria-live="polite"></p>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // ---------- DOM 与常量 ----------
+      const $ = (id) => document.getElementById(id);
+      const canvas = $("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const scoreEl = $("score");
+      const bestEl = $("best");
+      const progressBar = $("progressBar");
+      const pauseBtn = $("pauseBtn");
+      const primaryBtn = $("primaryBtn");
+      const overlay = $("overlay");
+      const modalSymbol = $("modalSymbol");
+      const modalKicker = $("modalKicker");
+      const modalTitle = $("modalTitle");
+      const modalText = $("modalText");
+      const modalHint = $("modalHint");
+      const resultPanel = $("resultPanel");
+      const resultScore = $("resultScore");
+      const resultBest = $("resultBest");
+      const directionArrow = $("directionArrow");
+      const directionText = $("directionText");
+      const announcer = $("announcer");
+
+      const TARGET_SCORE = 100;
+      const STORAGE_KEY = "neon-zigzag-best-v1";
+      const TAU = Math.PI * 2;
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+      const view = { width: 0, height: 0, dpr: 1, tileW: 64, tileH: 32 };
+      let backgroundGradient;
+      let stars = [];
+      let path = [];
+      let tileLookup = new Map();
+      let player;
+      let camera = { x: 0, y: 0 };
+      let state = "ready"; // ready / playing / paused / falling / over / won
+      let score = 0;
+      let best = loadBest();
+      let particles = [];
+      let trail = [];
+      let trailClock = 0;
+      let shake = 0;
+      let flash = 0;
+      let lastTime = performance.now();
+
+      // ---------- 本地最高分 ----------
+      function loadBest() {
+        try {
+          const saved = Number.parseInt(localStorage.getItem(STORAGE_KEY), 10);
+          return Number.isFinite(saved) && saved >= 0 ? saved : 0;
+        } catch (error) {
+          return 0; // 隐私模式下存储不可用时仍可正常游戏
+        }
+      }
+
+      function saveBest() {
+        try {
+          localStorage.setItem(STORAGE_KEY, String(best));
+        } catch (error) {
+          // 存储失败不打断游戏
+        }
+      }
+
+      // ---------- 路径与游戏状态 ----------
+      function buildPath() {
+        path = [{ x: 0, y: 0 }];
+        tileLookup = new Map([["0,0", 0]]);
+        let axis = Math.random() < 0.5 ? "x" : "y";
+        let segment = 0;
+
+        // 每段直行后强制转向，形成连续且可通关的之字路
+        while (path.length <= TARGET_SCORE + 28) {
+          let length = segment === 0 ? 4 : randomInt(2, 5);
+          if (segment > 7 && Math.random() < 0.2) length = 1;
+
+          for (let i = 0; i < length; i += 1) {
+            const previous = path[path.length - 1];
+            const next = {
+              x: previous.x + (axis === "x" ? 1 : 0),
+              y: previous.y + (axis === "y" ? 1 : 0)
+            };
+            path.push(next);
+            tileLookup.set(`${next.x},${next.y}`, path.length - 1);
+          }
+          axis = axis === "x" ? "y" : "x";
+          segment += 1;
+        }
+      }
+
+      function resetGame(autoStart = false) {
+        buildPath();
+        const firstStep = path[1];
+        player = {
+          x: 0,
+          y: 0,
+          axis: firstStep.x === 1 ? "x" : "y",
+          height: 0,
+          verticalSpeed: 0,
+          fallTime: 0,
+          moveSpeed: 2.65,
+          maxIndex: 0
+        };
+        camera = { x: 0, y: 0 };
+        score = 0;
+        particles = [];
+        trail = [];
+        trailClock = 0;
+        shake = 0;
+        flash = 0;
+        state = autoStart ? "playing" : "ready";
+        updateScoreUI();
+        updateDirectionUI();
+        pauseBtn.disabled = !autoStart;
+        pauseBtn.setAttribute("aria-label", "暂停游戏");
+        lastTime = performance.now();
+
+        if (autoStart) {
+          hideModal();
+          announcer.textContent = "游戏开始";
+        } else {
+          showModal("ready");
+        }
+      }
+
+      function updateScoreUI() {
+        scoreEl.textContent = score;
+        bestEl.textContent = best;
+        resultScore.textContent = score;
+        resultBest.textContent = best;
+        progressBar.style.width = `${clamp(score / TARGET_SCORE * 100, 0, 100)}%`;
+      }
+
+      function updateDirectionUI() {
+        const movingX = player.axis === "x";
+        directionArrow.textContent = movingX ? "↘" : "↙";
+        directionText.textContent = movingX ? "向右下" : "向左下";
+      }
+
+      function toggleDirection() {
+        if (state !== "playing") return;
+        player.axis = player.axis === "x" ? "y" : "x";
+        updateDirectionUI();
+        flash = 0.1;
+        spawnBurst(8, ["#54efff", "#9b7bff"]);
+      }
+
+      function pauseGame() {
+        if (state !== "playing") return;
+        state = "paused";
+        pauseBtn.disabled = true;
+        pauseBtn.setAttribute("aria-label", "继续游戏");
+        showModal("paused");
+        announcer.textContent = "游戏已暂停";
+      }
+
+      function resumeGame() {
+        if (state !== "paused") return;
+        state = "playing";
+        pauseBtn.disabled = false;
+        pauseBtn.setAttribute("aria-label", "暂停游戏");
+        hideModal();
+        lastTime = performance.now();
+        announcer.textContent = "继续游戏";
+      }
+
+      function finishGame(won) {
+        saveBest();
+        updateScoreUI();
+        state = won ? "won" : "over";
+        pauseBtn.disabled = true;
+        if (won) {
+          spawnCelebration();
+          announcer.textContent = `挑战成功，得分 ${score}`;
+        } else {
+          announcer.textContent = `游戏结束，得分 ${score}`;
+        }
+        showModal(state);
+      }
+
+      // ---------- 中文弹窗 ----------
+      function showModal(type) {
+        resultPanel.classList.toggle("show", type === "over" || type === "won");
+
+        const content = {
+          ready: {
+            symbol: "⌁",
+            kicker: "反应与节奏挑战",
+            title: "霓虹折线",
+            text: "在转角处轻触屏幕，让光球切换方向。<br>别掉下去，抵达 100 分终点！",
+            button: "开始游戏",
+            hint: "轻触 · 鼠标点击 · 空格键"
+          },
+          paused: {
+            symbol: "Ⅱ",
+            kicker: "稍作停留",
+            title: "游戏已暂停",
+            text: "霓虹之路会在这里等你。<br>准备好后继续前进。",
+            button: "继续游戏",
+            hint: "按 P 或 Esc 也可以继续"
+          },
+          over: {
+            symbol: "↓",
+            kicker: "光球坠入虚空",
+            title: "再试一次！",
+            text: "留意前方的转角，在方块中央轻触。<br>节奏比速度更重要。",
+            button: "重新开始",
+            hint: "按空格或 R 快速重开"
+          },
+          won: {
+            symbol: "✦",
+            kicker: "终点已抵达",
+            title: "霓虹征服者！",
+            text: "漂亮的节奏，完美的路线。<br>你已成功抵达 100 分终点。",
+            button: "再玩一次",
+            hint: "挑战一条全新的之字路"
+          }
+        }[type];
+
+        modalSymbol.textContent = content.symbol;
+        modalKicker.textContent = content.kicker;
+        modalTitle.textContent = content.title;
+        modalText.innerHTML = content.text;
+        primaryBtn.textContent = content.button;
+        modalHint.textContent = content.hint;
+        resultScore.textContent = score;
+        resultBest.textContent = best;
+        overlay.classList.add("visible");
+        overlay.setAttribute("aria-hidden", "false");
+      }
+
+      function hideModal() {
+        overlay.classList.remove("visible");
+        overlay.setAttribute("aria-hidden", "true");
+      }
+
+      // ---------- 自适应画布 ----------
+      function resizeCanvas() {
+        view.width = window.innerWidth;
+        view.height = window.innerHeight;
+        view.dpr = Math.min(window.devicePixelRatio || 1, 2);
+        view.tileW = clamp(view.width * 0.17, 54, 78);
+        view.tileH = view.tileW * 0.5;
+
+        canvas.width = Math.round(view.width * view.dpr);
+        canvas.height = Math.round(view.height * view.dpr);
+        ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+
+        backgroundGradient = ctx.createLinearGradient(0, 0, 0, view.height);
+        backgroundGradient.addColorStop(0, "#090b1b");
+        backgroundGradient.addColorStop(0.48, "#080b19");
+        backgroundGradient.addColorStop(1, "#040711");
+
+        // 星星在调整尺寸时重建，避免每帧随机闪烁
+        const count = clamp(Math.floor(view.width * view.height / 14500), 24, 75);
+        stars = Array.from({ length: count }, () => ({
+          x: Math.random() * view.width,
+          y: Math.random() * view.height,
+          radius: Math.random() * 1.15 + 0.25,
+          alpha: Math.random() * 0.35 + 0.08,
+          phase: Math.random() * TAU
+        }));
+      }
+
+      function project(x, y, height = 0) {
+        return {
+          x: view.width * 0.5 + ((x - camera.x) - (y - camera.y)) * view.tileW * 0.5,
+          y: view.height * 0.36 + ((x - camera.x) + (y - camera.y)) * view.tileH * 0.5 - height * view.tileH
+        };
+      }
+
+      // ---------- 粒子与拖尾 ----------
+      function spawnBurst(count, colors, celebration = false) {
+        const origin = player ? project(player.x, player.y) : { x: view.width / 2, y: view.height / 2 };
+        for (let i = 0; i < count; i += 1) {
+          const angle = Math.random() * TAU;
+          const speed = celebration ? 45 + Math.random() * 130 : 25 + Math.random() * 65;
+          particles.push({
+            x: celebration ? Math.random() * view.width : origin.x,
+            y: celebration ? view.height * (0.18 + Math.random() * 0.28) : origin.y - 15,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - (celebration ? 25 : 0),
+            life: celebration ? 1.4 + Math.random() : 0.35 + Math.random() * 0.25,
+            maxLife: celebration ? 2.4 : 0.6,
+            size: 1 + Math.random() * 2.2,
+            color: colors[Math.floor(Math.random() * colors.length)]
+          });
+        }
+      }
+
+      function spawnCelebration() {
+        spawnBurst(85, ["#54efff", "#9b7bff", "#ff68d7", "#78ffd6", "#ffffff"], true);
+      }
+
+      function updateEffects(dt) {
+        for (const particle of particles) {
+          particle.x += particle.vx * dt;
+          particle.y += particle.vy * dt;
+          particle.vy += 45 * dt;
+          particle.vx *= Math.pow(0.96, dt * 60);
+          particle.life -= dt;
+        }
+        particles = particles.filter((particle) => particle.life > 0);
+
+        for (const point of trail) point.life -= dt;
+        trail = trail.filter((point) => point.life > 0);
+        shake = Math.max(0, shake - dt * 20);
+        flash = Math.max(0, flash - dt);
+      }
+
+      // ---------- 游戏循环与碰撞 ----------
+      function update(dt) {
+        if (state === "playing") {
+          const speed = Math.min(4.35, 2.65 + score * 0.017);
+          player.moveSpeed = speed;
+          player.x += (player.axis === "x" ? 1 : 0) * speed * dt;
+          player.y += (player.axis === "y" ? 1 : 0) * speed * dt;
+
+          trailClock += dt;
+          if (trailClock >= 0.035) {
+            trailClock = 0;
+            trail.push({ x: player.x, y: player.y, life: 0.34, maxLife: 0.34 });
+          }
+
+          const cellX = Math.round(player.x);
+          const cellY = Math.round(player.y);
+          const pathIndex = tileLookup.get(`${cellX},${cellY}`);
+
+          if (pathIndex === undefined) {
+            // 离开所有方块后进入自由坠落，不再接受转向
+            state = "falling";
+            player.verticalSpeed = 0;
+            player.fallTime = 0;
+            shake = 7;
+            pauseBtn.disabled = true;
+          } else {
+            if (pathIndex > player.maxIndex) {
+              player.maxIndex = pathIndex;
+              score = pathIndex;
+              if (score > best) {
+                best = score;
+                saveBest();
+              }
+              updateScoreUI();
+              scoreEl.classList.remove("pop");
+              void scoreEl.offsetWidth;
+              scoreEl.classList.add("pop");
+              if (score % 5 === 0) spawnBurst(12, ["#54efff", "#78ffd6"]);
+              if (score >= TARGET_SCORE) {
+                finishGame(true);
+                return;
+              }
+            }
+          }
+        } else if (state === "falling") {
+          player.x += (player.axis === "x" ? 1 : 0) * player.moveSpeed * 0.6 * dt;
+          player.y += (player.axis === "y" ? 1 : 0) * player.moveSpeed * 0.6 * dt;
+          player.verticalSpeed -= 15 * dt;
+          player.height += player.verticalSpeed * dt;
+          player.fallTime += dt;
+          if (player.fallTime >= 0.82) finishGame(false);
+        }
+
+        // 平滑跟随让前方路线始终保持在屏幕下半部
+        if (state !== "paused") {
+          const follow = 1 - Math.exp(-dt * 7.5);
+          camera.x += (player.x - camera.x) * follow;
+          camera.y += (player.y - camera.y) * follow;
+        }
+        updateEffects(dt);
+      }
+
+      function drawBackground(time) {
+        ctx.fillStyle = backgroundGradient;
+        ctx.fillRect(0, 0, view.width, view.height);
+
+        // 大面积柔光与远景星点
+        const violetGlow = ctx.createRadialGradient(
+          view.width * 0.15, view.height * 0.28, 0,
+          view.width * 0.15, view.height * 0.28, view.width * 0.75
+        );
+        violetGlow.addColorStop(0, "rgba(105, 72, 210, 0.11)");
+        violetGlow.addColorStop(1, "rgba(105, 72, 210, 0)");
+        ctx.fillStyle = violetGlow;
+        ctx.fillRect(0, 0, view.width, view.height);
+
+        const cyanGlow = ctx.createRadialGradient(
+          view.width * 0.9, view.height * 0.72, 0,
+          view.width * 0.9, view.height * 0.72, view.width * 0.65
+        );
+        cyanGlow.addColorStop(0, "rgba(37, 194, 220, 0.065)");
+        cyanGlow.addColorStop(1, "rgba(37, 194, 220, 0)");
+        ctx.fillStyle = cyanGlow;
+        ctx.fillRect(0, 0, view.width, view.height);
+
+        for (const star of stars) {
+          const alpha = star.alpha * (0.72 + Math.sin(time * 0.8 + star.phase) * 0.28);
+          ctx.fillStyle = `rgba(173, 196, 255, ${alpha})`;
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, star.radius, 0, TAU);
+          ctx.fill();
+        }
+
+        // 极低对比度的透视斜线，增强空间感
+        ctx.strokeStyle = "rgba(120, 133, 206, 0.033)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = -view.height; x < view.width + view.height; x += 72) {
+          ctx.moveTo(x, view.height);
+          ctx.lineTo(x + view.height * 0.55, view.height * 0.43);
+          ctx.moveTo(x, view.height * 0.43);
+          ctx.lineTo(x + view.height * 0.55, view.height);
+        }
+        ctx.stroke();
+      }
+
+      function diamondPath(x, y, halfW, halfH) {
+        ctx.beginPath();
+        ctx.moveTo(x, y - halfH);
+        ctx.lineTo(x + halfW, y);
+        ctx.lineTo(x, y + halfH);
+        ctx.lineTo(x - halfW, y);
+        ctx.closePath();
+      }
+
+      function drawTile(tile, index) {
+        const p = project(tile.x, tile.y);
+        const margin = view.tileW;
+        if (p.x < -margin || p.x > view.width + margin || p.y < -80 || p.y > view.height + 80) return;
+
+        const halfW = view.tileW * 0.455;
+        const halfH = view.tileH * 0.455;
+        const depth = Math.max(7, view.tileW * 0.12);
+        const passed = index <= score;
+        const near = index > score && index <= score + 4;
+        const isFinish = index === TARGET_SCORE;
+        const isStart = index === 0;
+
+        // 两个侧面构成悬浮方块的厚度
+        ctx.fillStyle = isFinish ? "#103c3c" : "#0a172b";
+        ctx.beginPath();
+        ctx.moveTo(p.x - halfW, p.y);
+        ctx.lineTo(p.x, p.y + halfH);
+        ctx.lineTo(p.x, p.y + halfH + depth);
+        ctx.lineTo(p.x - halfW, p.y + depth);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = isFinish ? "#0c3238" : "#091326";
+        ctx.beginPath();
+        ctx.moveTo(p.x + halfW, p.y);
+        ctx.lineTo(p.x, p.y + halfH);
+        ctx.lineTo(p.x, p.y + halfH + depth);
+        ctx.lineTo(p.x + halfW, p.y + depth);
+        ctx.closePath();
+        ctx.fill();
+
+        const topGradient = ctx.createLinearGradient(p.x, p.y - halfH, p.x, p.y + halfH);
+        if (isFinish) {
+          topGradient.addColorStop(0, "#1d6158");
+          topGradient.addColorStop(1, "#10313a");
+        } else if (passed) {
+          topGradient.addColorStop(0, "#173c50");
+          topGradient.addColorStop(1, "#121c38");
+        } else if (near) {
+          topGradient.addColorStop(0, "#1b3151");
+          topGradient.addColorStop(1, "#171b39");
+        } else {
+          topGradient.addColorStop(0, "#141d36");
+          topGradient.addColorStop(1, "#0d1429");
+        }
+
+        ctx.save();
+        if (near || isFinish) {
+          ctx.shadowColor = isFinish ? "rgba(120,255,214,0.5)" : "rgba(84,239,255,0.25)";
+          ctx.shadowBlur = isFinish ? 22 : 10;
+        }
+        diamondPath(p.x, p.y, halfW, halfH);
+        ctx.fillStyle = topGradient;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = isFinish
+          ? "rgba(120,255,214,0.9)"
+          : `rgba(92, 214, 255, ${near ? 0.48 : passed ? 0.28 : 0.17})`;
+        ctx.lineWidth = isFinish ? 1.5 : 1;
+        ctx.stroke();
+        ctx.restore();
+
+        // 起点、检查点和终点拥有不同的霓虹标记
+        if (isStart || isFinish || index % 10 === 0) {
+          const color = isFinish ? "#78ffd6" : isStart ? "#9b7bff" : "#54efff";
+          ctx.save();
+          ctx.strokeStyle = color;
+          ctx.fillStyle = color;
+          ctx.shadowColor = color;
+          ctx.shadowBlur = 12;
+          ctx.globalAlpha = isFinish ? 0.9 : 0.55;
+          ctx.beginPath();
+          ctx.ellipse(p.x, p.y - 1, halfW * 0.25, halfH * 0.25, 0, 0, TAU);
+          if (isFinish) {
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.globalAlpha = 0.18;
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y - 5);
+            ctx.lineTo(p.x, p.y - 75);
+            ctx.stroke();
+          } else {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 1.8, 0, TAU);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+      }
+
+      function drawPath() {
+        for (let i = 0; i < path.length; i += 1) drawTile(path[i], i);
+      }
+
+      function drawTrail() {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        for (const point of trail) {
+          const p = project(point.x, point.y);
+          const alpha = point.life / point.maxLife;
+          ctx.globalAlpha = alpha * 0.2;
+          ctx.fillStyle = "#54efff";
+          ctx.beginPath();
+          ctx.arc(p.x, p.y - view.tileW * 0.19, 2.2 * alpha + 0.5, 0, TAU);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function drawBall(time) {
+        const ground = project(player.x, player.y);
+        const p = project(player.x, player.y, player.height);
+        const radius = clamp(view.tileW * 0.145, 8, 11);
+        const bob = state === "ready" ? Math.sin(time * 3) * 2.5 : Math.sin(time * 8) * 0.8;
+        const centerY = p.y - radius - 6 + bob;
+        const fallAlpha = state === "falling" ? clamp(1 - player.fallTime * 0.55, 0, 1) : 1;
+
+        // 地面阴影随坠落快速变淡
+        if (player.height > -1.2) {
+          ctx.save();
+          ctx.globalAlpha = clamp(0.28 + player.height * 0.18, 0, 0.28);
+          ctx.fillStyle = "#00040d";
+          ctx.beginPath();
+          ctx.ellipse(ground.x, ground.y + 3, radius * 1.25, radius * 0.48, 0, 0, TAU);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        ctx.save();
+        ctx.globalAlpha = fallAlpha;
+        ctx.globalCompositeOperation = "lighter";
+        const aura = ctx.createRadialGradient(p.x, centerY, 0, p.x, centerY, radius * 3.2);
+        aura.addColorStop(0, "rgba(84,239,255,0.34)");
+        aura.addColorStop(0.35, "rgba(103,154,255,0.13)");
+        aura.addColorStop(1, "rgba(103,104,255,0)");
+        ctx.fillStyle = aura;
+        ctx.beginPath();
+        ctx.arc(p.x, centerY, radius * 3.2, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.save();
+        ctx.globalAlpha = fallAlpha;
+        const ballGradient = ctx.createRadialGradient(
+          p.x - radius * 0.35, centerY - radius * 0.45, radius * 0.1,
+          p.x, centerY, radius * 1.15
+        );
+        ballGradient.addColorStop(0, "#ffffff");
+        ballGradient.addColorStop(0.25, "#b7fbff");
+        ballGradient.addColorStop(0.62, "#54dfef");
+        ballGradient.addColorStop(1, "#7666e8");
+        ctx.fillStyle = ballGradient;
+        ctx.shadowColor = "#54efff";
+        ctx.shadowBlur = 16;
+        ctx.beginPath();
+        ctx.arc(p.x, centerY, radius, 0, TAU);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "rgba(255,255,255,0.8)";
+        ctx.beginPath();
+        ctx.arc(p.x - radius * 0.3, centerY - radius * 0.34, radius * 0.2, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawParticles() {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        for (const particle of particles) {
+          const alpha = clamp(particle.life / particle.maxLife, 0, 1);
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = particle.color;
+          ctx.shadowColor = particle.color;
+          ctx.shadowBlur = 6;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size * alpha + 0.3, 0, TAU);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function render(time) {
+        ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+        ctx.clearRect(0, 0, view.width, view.height);
+        drawBackground(time);
+
+        ctx.save();
+        if (shake > 0) {
+          ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+        }
+        drawPath();
+        drawTrail();
+        drawBall(time);
+        drawParticles();
+        ctx.restore();
+
+        if (flash > 0) {
+          ctx.fillStyle = `rgba(84,239,255,${flash * 0.12})`;
+          ctx.fillRect(0, 0, view.width, view.height);
+        }
+      }
+
+      function loop(now) {
+        const dt = clamp((now - lastTime) / 1000, 0, 0.033);
+        lastTime = now;
+        if (state !== "paused") update(dt);
+        render(now / 1000);
+        requestAnimationFrame(loop);
+      }
+
+      // ---------- 触屏、鼠标与键盘控制 ----------
+      canvas.addEventListener("pointerdown", (event) => {
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        event.preventDefault();
+        toggleDirection();
+      });
+
+      pauseBtn.addEventListener("click", pauseGame);
+      primaryBtn.addEventListener("click", () => {
+        if (state === "paused") resumeGame();
+        else resetGame(true);
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.repeat) return;
+        const isButton = event.target instanceof Element && event.target.closest("button");
+        if (isButton && (event.code === "Space" || event.code === "Enter")) return;
+
+        if (["Space", "ArrowLeft", "ArrowRight", "ArrowUp"].includes(event.code)) {
+          event.preventDefault();
+          if (state === "playing") toggleDirection();
+          else if (state === "paused") resumeGame();
+          else if (["ready", "over", "won"].includes(state)) resetGame(true);
+        } else if (event.code === "KeyP" || event.code === "Escape") {
+          event.preventDefault();
+          if (state === "playing") pauseGame();
+          else if (state === "paused") resumeGame();
+        } else if (event.code === "KeyR") {
+          event.preventDefault();
+          resetGame(true);
+        }
+      });
+
+      // 禁止移动端滚动、双击缩放与长按菜单
+      document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("dblclick", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
+      $("game").addEventListener("contextmenu", (event) => event.preventDefault());
+
+      // 切到后台时自动暂停，返回后由玩家主动继续
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && state === "playing") pauseGame();
+      });
+      window.addEventListener("resize", resizeCanvas, { passive: true });
+
+      bestEl.textContent = best;
+      resizeCanvas();
+      resetGame(false);
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>

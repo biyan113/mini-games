@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070b17">
+  <title>霓虹推杆 · 一杆进洞</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070b17;
+      --panel: rgba(15, 23, 42, .78);
+      --line: rgba(148, 163, 184, .14);
+      --text: #f3f7ff;
+      --muted: #8290aa;
+      --cyan: #43f5d4;
+      --blue: #55b9ff;
+      --pink: #f472ff;
+      --yellow: #ffe083;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      position: fixed;
+      inset: 0;
+      touch-action: none;
+      overscroll-behavior: none;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 0%, rgba(51, 102, 181, .18), transparent 36%),
+        radial-gradient(circle at 90% 100%, rgba(118, 43, 143, .14), transparent 38%),
+        var(--bg);
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button { font: inherit; color: inherit; touch-action: none; }
+    button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+    [hidden] { display: none !important; }
+
+    #app {
+      width: 100%;
+      max-width: 520px;
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: calc(12px + env(safe-area-inset-top)) 14px calc(12px + env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+    }
+
+    .topbar { display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto; }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(67, 245, 212, .28);
+      border-radius: 13px;
+      background: linear-gradient(145deg, rgba(67, 245, 212, .12), rgba(85, 185, 255, .04));
+      box-shadow: inset 0 0 18px rgba(67, 245, 212, .06), 0 0 22px rgba(67, 245, 212, .06);
+    }
+    .brand-mark svg { width: 23px; height: 23px; }
+    .brand h1 { margin: 0; font-size: 16px; line-height: 1.15; letter-spacing: .14em; font-weight: 800; }
+    .brand p { margin: 4px 0 0; color: var(--cyan); font-size: 9px; letter-spacing: .25em; font-weight: 700; }
+
+    .icon-button, .restart-button {
+      border: 1px solid var(--line);
+      background: rgba(15, 23, 42, .72);
+      cursor: pointer;
+      transition: border-color .18s, background .18s, transform .18s;
+    }
+    .icon-button:active, .restart-button:active, .modal-button:active { transform: scale(.96); }
+    .icon-button:hover, .restart-button:hover { border-color: rgba(67, 245, 212, .42); background: rgba(25, 38, 59, .9); }
+    .icon-button {
+      height: 38px;
+      padding: 0 13px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: #b7c3d8;
+      font-size: 12px;
+    }
+    .pause-icon { display: flex; gap: 3px; }
+    .pause-icon i { display: block; width: 3px; height: 12px; border-radius: 2px; background: var(--cyan); }
+
+    .scoreboard {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: .85fr .85fr 1.15fr 1.15fr;
+      padding: 10px 6px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: linear-gradient(110deg, rgba(19, 29, 49, .9), rgba(12, 20, 37, .72));
+      box-shadow: 0 12px 35px rgba(0, 0, 0, .16);
+    }
+    .stat { min-width: 0; padding: 0 9px; border-right: 1px solid var(--line); }
+    .stat:last-child { border-right: 0; }
+    .stat-label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 10px; letter-spacing: .1em; }
+    .stat-value { display: block; overflow: hidden; font-size: 19px; line-height: 1; font-weight: 750; font-variant-numeric: tabular-nums; text-overflow: ellipsis; }
+    .stat-value small { margin-left: 2px; color: #64728c; font-size: 11px; font-weight: 600; }
+    .stat.score .stat-value { color: var(--cyan); text-shadow: 0 0 16px rgba(67, 245, 212, .28); }
+    .stat.best .stat-value { color: var(--yellow); }
+
+    #stage {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid rgba(104, 154, 173, .2);
+      border-radius: 23px;
+      background: #09121e;
+      box-shadow: 0 22px 55px rgba(0, 0, 0, .35), inset 0 0 35px rgba(67, 245, 212, .025);
+      isolation: isolate;
+    }
+    #gameCanvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+
+    .hole-tag {
+      position: absolute;
+      top: 13px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 6px 12px;
+      border: 1px solid rgba(129, 224, 210, .16);
+      border-radius: 999px;
+      color: #b8c9d7;
+      background: rgba(6, 14, 26, .7);
+      backdrop-filter: blur(8px);
+      font-size: 10px;
+      font-weight: 650;
+      letter-spacing: .12em;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    .power-panel {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 11px;
+      border: 1px solid rgba(141, 166, 190, .12);
+      border-radius: 12px;
+      background: rgba(5, 13, 25, .7);
+      backdrop-filter: blur(8px);
+      pointer-events: none;
+    }
+    .power-label, #powerText { color: #8d9bb1; font-size: 9px; font-weight: 700; letter-spacing: .1em; }
+    #powerText { width: 30px; color: var(--cyan); text-align: right; font-variant-numeric: tabular-nums; }
+    .power-track { flex: 1; height: 4px; overflow: hidden; border-radius: 4px; background: rgba(148, 163, 184, .13); }
+    #powerFill {
+      width: 55%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cyan), var(--blue) 65%, var(--pink));
+      box-shadow: 0 0 10px rgba(67, 245, 212, .5);
+      transition: width .06s linear;
+    }
+
+    #toast {
+      position: absolute;
+      top: 24%;
+      left: 50%;
+      width: max-content;
+      max-width: 88%;
+      padding: 13px 22px;
+      border: 1px solid rgba(67, 245, 212, .28);
+      border-radius: 17px;
+      background: rgba(7, 17, 30, .88);
+      box-shadow: 0 0 40px rgba(67, 245, 212, .12);
+      backdrop-filter: blur(12px);
+      text-align: center;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, 12px) scale(.94);
+      transition: opacity .22s, transform .22s;
+    }
+    #toast.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    #toast strong { display: block; color: var(--cyan); font-size: 20px; letter-spacing: .08em; }
+    #toast span { display: block; margin-top: 5px; color: #aebdd0; font-size: 11px; }
+
+    .footer { flex: 0 0 auto; }
+    .gesture-help { display: flex; justify-content: center; align-items: center; gap: 11px; min-height: 39px; }
+    .gesture-icon { position: relative; width: 29px; height: 29px; flex: 0 0 auto; }
+    .gesture-ball { position: absolute; top: 1px; right: 1px; width: 10px; height: 10px; border-radius: 50%; background: #e9ffff; box-shadow: 0 0 10px var(--cyan); }
+    .gesture-line { position: absolute; top: 13px; left: 6px; width: 19px; border-top: 1px dashed rgba(67, 245, 212, .65); transform: rotate(-42deg); }
+    .gesture-finger { position: absolute; bottom: 0; left: 0; color: var(--cyan); font-size: 17px; }
+    .help-copy strong { display: block; font-size: 12px; font-weight: 650; letter-spacing: .03em; }
+    .help-copy span { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .footer-row { display: flex; align-items: center; justify-content: space-between; margin-top: 7px; }
+    #statusText { color: #63718a; font-size: 10px; letter-spacing: .04em; }
+    .restart-button { padding: 6px 11px; border-radius: 9px; color: #9ba9bf; font-size: 10px; }
+    .desktop-help { display: none; margin-top: 6px; color: #536078; text-align: center; font-size: 9px; }
+
+    .modal {
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      padding-top: calc(24px + env(safe-area-inset-top));
+      padding-bottom: calc(24px + env(safe-area-inset-bottom));
+      background: rgba(3, 7, 16, .72);
+      backdrop-filter: blur(12px);
+      animation: fade-in .2s ease-out;
+    }
+    .modal-card {
+      width: min(100%, 360px);
+      padding: 29px 24px 23px;
+      border: 1px solid rgba(93, 223, 206, .22);
+      border-radius: 25px;
+      background: linear-gradient(150deg, rgba(21, 34, 54, .98), rgba(9, 16, 31, .98));
+      box-shadow: 0 28px 80px rgba(0, 0, 0, .5), 0 0 55px rgba(67, 245, 212, .07);
+      text-align: center;
+      animation: card-in .28s ease-out;
+    }
+    .modal-symbol {
+      width: 62px;
+      height: 62px;
+      margin: 0 auto 18px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(67, 245, 212, .26);
+      border-radius: 21px;
+      color: var(--cyan);
+      background: rgba(67, 245, 212, .07);
+      box-shadow: 0 0 30px rgba(67, 245, 212, .09);
+      font-size: 29px;
+    }
+    #modalEyebrow { color: var(--cyan); font-size: 10px; font-weight: 750; letter-spacing: .24em; }
+    #modalTitle { margin: 9px 0 8px; font-size: 27px; letter-spacing: .05em; }
+    #modalDescription { margin: 0 auto; max-width: 260px; color: #91a1b8; font-size: 12px; line-height: 1.7; }
+    .modal-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 22px 0; }
+    .modal-stat { padding: 12px; border: 1px solid var(--line); border-radius: 13px; background: rgba(4, 11, 23, .35); }
+    .modal-stat span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 9px; letter-spacing: .12em; }
+    .modal-stat strong { font-size: 21px; font-variant-numeric: tabular-nums; }
+    .modal-stat:last-child strong { color: var(--yellow); }
+    .modal-actions { display: grid; gap: 9px; }
+    .modal-button { width: 100%; min-height: 46px; border-radius: 13px; cursor: pointer; font-size: 13px; font-weight: 700; letter-spacing: .06em; transition: transform .15s, filter .15s; }
+    .modal-button.primary { border: 0; color: #04211f; background: linear-gradient(100deg, #43f5d4, #65d9ef); box-shadow: 0 8px 25px rgba(67, 245, 212, .18); }
+    .modal-button.primary:hover { filter: brightness(1.08); }
+    .modal-button.secondary { border: 1px solid var(--line); color: #98a7bc; background: transparent; }
+
+    @keyframes fade-in { from { opacity: 0; } }
+    @keyframes card-in { from { opacity: 0; transform: translateY(12px) scale(.97); } }
+
+    @media (pointer: fine) and (min-height: 700px) { .desktop-help { display: block; } }
+    @media (max-height: 700px) {
+      #app { gap: 8px; padding-top: calc(8px + env(safe-area-inset-top)); padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+      .brand-mark { width: 34px; height: 34px; }
+      .scoreboard { padding-top: 8px; padding-bottom: 8px; }
+      .gesture-help { min-height: 32px; }
+      .footer-row { margin-top: 4px; }
+    }
+    @media (max-height: 560px) {
+      .brand p, .help-copy span, .hole-tag { display: none; }
+      .scoreboard { padding: 6px; }
+      .stat-label { margin-bottom: 2px; }
+      .stat-value { font-size: 16px; }
+      .gesture-help { min-height: 25px; }
+    }
+    @media (min-width: 600px) { #app { padding-left: 20px; padding-right: 20px; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M7 20V4m0 1 10 3-10 3" stroke="#43f5d4" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 20h9" stroke="#55b9ff" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </div>
+        <div><h1>霓虹推杆</h1><p>NEON PUTT</p></div>
+      </div>
+      <button id="pauseBtn" class="icon-button" type="button" aria-label="暂停游戏">
+        <span class="pause-icon" aria-hidden="true"><i></i><i></i></span><span>暂停</span>
+      </button>
+    </header>
+
+    <section class="scoreboard" aria-label="游戏计分板">
+      <div class="stat"><span class="stat-label">洞号</span><strong class="stat-value"><span id="holeValue">1</span><small>/ 6</small></strong></div>
+      <div class="stat"><span class="stat-label">总杆数</span><strong id="strokesValue" class="stat-value">0</strong></div>
+      <div class="stat score"><span class="stat-label">得分</span><strong id="scoreValue" class="stat-value">0000</strong></div>
+      <div class="stat best"><span class="stat-label">最高分</span><strong id="bestValue" class="stat-value">0000</strong></div>
+    </section>
+
+    <main id="stage">
+      <canvas id="gameCanvas" role="img" aria-label="高尔夫推杆球场。按住球向后拖拽，松手击球。"></canvas>
+      <div id="holeTag" class="hole-tag">第 1 洞 · 一杆挑战</div>
+      <div id="toast" role="status" aria-live="polite"><strong id="toastTitle"></strong><span id="toastSubtitle"></span></div>
+      <div class="power-panel" aria-hidden="true">
+        <span class="power-label">力度</span>
+        <div class="power-track"><div id="powerFill"></div></div>
+        <span id="powerText">55%</span>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="gesture-help">
+        <div class="gesture-icon" aria-hidden="true"><i class="gesture-line"></i><i class="gesture-ball"></i><span class="gesture-finger">☝</span></div>
+        <div class="help-copy"><strong>按住球，向后拖拽</strong><span>松手推杆 · 拖得越远，力度越大</span></div>
+      </div>
+      <div class="footer-row"><span id="statusText">本洞还可击球 3 次</span><button id="restartBtn" class="restart-button" type="button">↻ 重新开始</button></div>
+      <div class="desktop-help">键盘：← → 调方向 · ↑ ↓ 调力度 · 空格击球 · P 暂停</div>
+    </footer>
+  </div>
+
+  <div id="gameModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
+    <div class="modal-card">
+      <div id="modalSymbol" class="modal-symbol" aria-hidden="true">Ⅱ</div>
+      <div id="modalEyebrow">TAKE A BREATH</div>
+      <h2 id="modalTitle">挑战暂停</h2>
+      <p id="modalDescription">球场已为你定格，准备好后继续。</p>
+      <div class="modal-stats">
+        <div class="modal-stat"><span>当前得分</span><strong id="modalScore">0</strong></div>
+        <div class="modal-stat"><span>历史最高</span><strong id="modalBest">0</strong></div>
+      </div>
+      <div class="modal-actions">
+        <button id="modalPrimary" class="modal-button primary" type="button">继续游戏</button>
+        <button id="modalRestart" class="modal-button secondary" type="button">重新开始</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // 固定逻辑坐标让不同屏幕上的球场和手感保持一致。
+      const WORLD = { width: 400, height: 600 };
+      const BALL_RADIUS = 7;
+      const MAX_DRAG = 135;
+      const STORAGE_KEY = 'neon-putt-high-score-v1';
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      const stage = document.getElementById('stage');
+      const ui = Object.fromEntries([
+        'holeValue', 'strokesValue', 'scoreValue', 'bestValue', 'holeTag', 'statusText',
+        'powerFill', 'powerText', 'toast', 'toastTitle', 'toastSubtitle', 'pauseBtn',
+        'restartBtn', 'gameModal', 'modalSymbol', 'modalEyebrow', 'modalTitle',
+        'modalDescription', 'modalScore', 'modalBest', 'modalPrimary', 'modalRestart'
+      ].map(id => [id, document.getElementById(id)]));
+
+      // 六洞均为小范围推杆场：沙地减速，霓虹墙与球柱会反弹。
+      const levels = [
+        {
+          name: '初见星光', start: [200, 500], hole: [200, 125], walls: [], bumpers: [],
+          sands: [{ x: 302, y: 330, rx: 45, ry: 68, rot: -.28 }]
+        },
+        {
+          name: '蓝调弧线', start: [92, 505], hole: [310, 120],
+          walls: [{ x: 175, y: 315, w: 130, h: 15 }], bumpers: [],
+          sands: [{ x: 95, y: 260, rx: 45, ry: 60, rot: .35 }]
+        },
+        {
+          name: '霓虹之门', start: [306, 510], hole: [93, 112],
+          walls: [{ x: 190, y: 265, w: 18, h: 180 }],
+          bumpers: [{ x: 295, y: 225, r: 18 }],
+          sands: [{ x: 91, y: 380, rx: 48, ry: 55, rot: -.2 }]
+        },
+        {
+          name: '交错光轨', start: [95, 510], hole: [302, 105],
+          walls: [{ x: 55, y: 350, w: 220, h: 15 }, { x: 145, y: 205, w: 200, h: 15 }],
+          bumpers: [], sands: [{ x: 310, y: 440, rx: 48, ry: 43, rot: .25 }]
+        },
+        {
+          name: '星海回旋', start: [200, 515], hole: [200, 100], walls: [],
+          bumpers: [{ x: 145, y: 330, r: 24 }, { x: 260, y: 260, r: 22 }, { x: 112, y: 190, r: 16 }],
+          sands: [{ x: 300, y: 415, rx: 52, ry: 52, rot: 0 }]
+        },
+        {
+          name: '终极一杆', start: [78, 515], hole: [320, 95],
+          walls: [{ x: 45, y: 385, w: 235, h: 14 }, { x: 150, y: 215, w: 205, h: 14 }],
+          bumpers: [{ x: 105, y: 270, r: 19 }, { x: 300, y: 320, r: 17 }],
+          sands: [{ x: 310, y: 480, rx: 45, ry: 48, rot: -.35 }]
+        }
+      ];
+
+      const ball = { x: 200, y: 500, vx: 0, vy: 0, trail: [] };
+      const view = { width: 1, height: 1, scale: 1, ox: 0, oy: 0, dpr: 1 };
+      const state = {
+        hole: 0, score: 0, best: loadBest(), totalStrokes: 0, holeStrokes: 0,
+        phase: 'ready', paused: false, ended: false, dragging: false,
+        pointerId: null, dragPoint: { x: 0, y: 0 }, aimAngle: -Math.PI / 2,
+        power: .55, transition: 0, collisionCooldown: 0
+      };
+      let particles = [];
+      let lastTime = 0;
+
+      // 装饰点使用确定性位置，避免每帧闪烁。
+      const ambientDots = Array.from({ length: 42 }, (_, i) => ({
+        x: 25 + ((i * 83) % 350), y: 28 + ((i * 137) % 540),
+        r: .45 + (i % 3) * .35, phase: i * .71
+      }));
+
+      function loadBest() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10);
+          return Number.isFinite(value) && value > 0 ? value : 0;
+        } catch (_) { return 0; }
+      }
+
+      function saveBest() {
+        try { localStorage.setItem(STORAGE_KEY, String(state.best)); } catch (_) { /* 隐私模式下仍可正常游戏 */ }
+      }
+
+      function formatScore(value) { return String(value).padStart(4, '0'); }
+      function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+      function distance(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
+
+      function roundedRect(x, y, width, height, radius) {
+        const r = Math.min(radius, width / 2, height / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + width, y, x + width, y + height, r);
+        ctx.arcTo(x + width, y + height, x, y + height, r);
+        ctx.arcTo(x, y + height, x, y, r);
+        ctx.arcTo(x, y, x + width, y, r);
+        ctx.closePath();
+      }
+
+      function updateHUD() {
+        ui.holeValue.textContent = state.hole + 1;
+        ui.strokesValue.textContent = state.totalStrokes;
+        ui.scoreValue.textContent = formatScore(state.score);
+        ui.bestValue.textContent = formatScore(state.best);
+        ui.holeTag.textContent = `第 ${state.hole + 1} 洞 · ${levels[state.hole].name}`;
+        const left = Math.max(0, 3 - state.holeStrokes);
+        ui.statusText.textContent = state.phase === 'rolling' ? '球滚动中…' : `本洞还可击球 ${left} 次`;
+        updatePower();
+      }
+
+      function updatePower() {
+        const percent = Math.round(state.power * 100);
+        ui.powerFill.style.width = `${percent}%`;
+        ui.powerText.textContent = `${percent}%`;
+      }
+
+      function aimAtHole() {
+        const hole = levels[state.hole].hole;
+        state.aimAngle = Math.atan2(hole[1] - ball.y, hole[0] - ball.x);
+        state.power = .55;
+      }
+
+      function loadLevel() {
+        const level = levels[state.hole];
+        ball.x = level.start[0];
+        ball.y = level.start[1];
+        ball.vx = 0;
+        ball.vy = 0;
+        ball.trail = [];
+        particles = [];
+        state.holeStrokes = 0;
+        state.phase = 'ready';
+        state.dragging = false;
+        state.pointerId = null;
+        aimAtHole();
+        hideToast();
+        updateHUD();
+      }
+
+      function restartGame() {
+        state.hole = 0;
+        state.score = 0;
+        state.totalStrokes = 0;
+        state.paused = false;
+        state.ended = false;
+        ui.gameModal.hidden = true;
+        loadLevel();
+      }
+
+      function showToast(title, subtitle) {
+        ui.toastTitle.textContent = title;
+        ui.toastSubtitle.textContent = subtitle;
+        ui.toast.classList.add('show');
+      }
+      function hideToast() { ui.toast.classList.remove('show'); }
+
+      function updateBest() {
+        if (state.score > state.best) {
+          state.best = state.score;
+          saveBest();
+        }
+      }
+
+      function showModal(type) {
+        const isPause = type === 'pause';
+        const isWin = type === 'win';
+        ui.modalSymbol.textContent = isPause ? 'Ⅱ' : (isWin ? '🏆' : '⛳');
+        ui.modalEyebrow.textContent = isPause ? 'TAKE A BREATH' : (isWin ? 'COURSE CLEARED' : 'CHALLENGE OVER');
+        ui.modalTitle.textContent = isPause ? '挑战暂停' : (isWin ? '全场制霸！' : '挑战结束');
+        ui.modalDescription.textContent = isPause
+          ? '球场已为你定格，准备好后继续。'
+          : (isWin ? `六洞完成，共用了 ${state.totalStrokes} 杆。夜色因你闪耀！` : '本洞三次机会已用完。调整角度与力度，再挑战一次吧！');
+        ui.modalScore.textContent = state.score;
+        ui.modalBest.textContent = state.best;
+        ui.modalPrimary.textContent = isPause ? '继续游戏' : '再玩一次';
+        ui.modalRestart.hidden = !isPause;
+        ui.gameModal.hidden = false;
+        requestAnimationFrame(() => ui.modalPrimary.focus({ preventScroll: true }));
+      }
+
+      function setPaused(value) {
+        if (state.ended) return;
+        state.paused = value;
+        if (value) {
+          state.dragging = false;
+          state.pointerId = null;
+          if (state.phase === 'aiming') state.phase = 'ready';
+          showModal('pause');
+        } else {
+          ui.gameModal.hidden = true;
+          lastTime = performance.now();
+        }
+      }
+
+      function endGame(won) {
+        state.ended = true;
+        state.phase = won ? 'won' : 'over';
+        state.dragging = false;
+        updateBest();
+        updateHUD();
+        hideToast();
+        showModal(won ? 'win' : 'over');
+      }
+
+      function shoot() {
+        if ((state.phase !== 'ready' && state.phase !== 'aiming') || state.paused || state.ended) return;
+        if (state.power < .08) { state.phase = 'ready'; return; }
+        const speed = 135 + state.power * 535;
+        ball.vx = Math.cos(state.aimAngle) * speed;
+        ball.vy = Math.sin(state.aimAngle) * speed;
+        ball.trail = [];
+        state.holeStrokes += 1;
+        state.totalStrokes += 1;
+        state.phase = 'rolling';
+        state.dragging = false;
+        state.pointerId = null;
+        if (navigator.vibrate) navigator.vibrate(8);
+        updateHUD();
+      }
+
+      function sinkBall() {
+        const hole = levels[state.hole].hole;
+        ball.x = hole[0];
+        ball.y = hole[1];
+        ball.vx = 0;
+        ball.vy = 0;
+        ball.trail = [];
+        state.phase = 'sunk';
+        state.transition = 1.65;
+        const points = [1000, 600, 300][state.holeStrokes - 1];
+        state.score += points;
+        updateBest();
+        burst(ball.x, ball.y, 46, true);
+        showToast(state.holeStrokes === 1 ? '一杆进洞！' : '漂亮进洞！', `+ ${points} 分 · ${levels[state.hole].name}`);
+        if (navigator.vibrate) navigator.vibrate([18, 35, 28]);
+        updateHUD();
+      }
+
+      function stopBall() {
+        ball.vx = 0;
+        ball.vy = 0;
+        if (state.holeStrokes >= 3) {
+          state.phase = 'failed';
+          state.transition = .8;
+          showToast('机会用完', '这一洞就差一点');
+        } else {
+          state.phase = 'ready';
+          aimAtHole();
+        }
+        updateHUD();
+      }
+
+      function burst(x, y, count, celebration = false, nx = 0, ny = 0) {
+        const colors = celebration ? ['#43f5d4', '#55b9ff', '#f472ff', '#ffe083'] : ['#43f5d4', '#b9fff2'];
+        for (let i = 0; i < count; i += 1) {
+          const angle = celebration ? Math.random() * Math.PI * 2 : Math.atan2(ny, nx) + (Math.random() - .5) * 1.8;
+          const speed = celebration ? 45 + Math.random() * 170 : 35 + Math.random() * 75;
+          particles.push({
+            x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+            life: celebration ? .7 + Math.random() * .8 : .22 + Math.random() * .2,
+            maxLife: celebration ? 1.5 : .42, size: 1.5 + Math.random() * 2.8,
+            color: colors[i % colors.length], gravity: celebration ? 90 : 0
+          });
+        }
+      }
+
+      function collideBounds() {
+        const left = 20 + BALL_RADIUS, right = WORLD.width - 20 - BALL_RADIUS;
+        const top = 20 + BALL_RADIUS, bottom = WORLD.height - 20 - BALL_RADIUS;
+        let nx = 0, ny = 0;
+        if (ball.x < left) { ball.x = left; nx = 1; }
+        else if (ball.x > right) { ball.x = right; nx = -1; }
+        if (ball.y < top) { ball.y = top; ny = 1; }
+        else if (ball.y > bottom) { ball.y = bottom; ny = -1; }
+        if (nx) ball.vx = Math.abs(ball.vx) * nx * .76;
+        if (ny) ball.vy = Math.abs(ball.vy) * ny * .76;
+        if (nx || ny) collisionEffect(ball.x, ball.y, nx, ny);
+      }
+
+      function collideWall(wall) {
+        const closestX = clamp(ball.x, wall.x, wall.x + wall.w);
+        const closestY = clamp(ball.y, wall.y, wall.y + wall.h);
+        let dx = ball.x - closestX, dy = ball.y - closestY;
+        let dist = Math.hypot(dx, dy);
+        if (dist >= BALL_RADIUS) return;
+
+        // 球心进入墙体时，选择最近的边把球推出，避免卡住。
+        if (dist < .001) {
+          const sides = [
+            { d: Math.abs(ball.x - wall.x), nx: -1, ny: 0 },
+            { d: Math.abs(wall.x + wall.w - ball.x), nx: 1, ny: 0 },
+            { d: Math.abs(ball.y - wall.y), nx: 0, ny: -1 },
+            { d: Math.abs(wall.y + wall.h - ball.y), nx: 0, ny: 1 }
+          ].sort((a, b) => a.d - b.d);
+          dx = sides[0].nx; dy = sides[0].ny; dist = 1;
+          ball.x += dx * (BALL_RADIUS + sides[0].d + .2);
+          ball.y += dy * (BALL_RADIUS + sides[0].d + .2);
+        } else {
+          const push = BALL_RADIUS - dist + .15;
+          ball.x += dx / dist * push;
+          ball.y += dy / dist * push;
+        }
+        const nx = dx / dist, ny = dy / dist;
+        const dot = ball.vx * nx + ball.vy * ny;
+        if (dot < 0) {
+          ball.vx -= 1.78 * dot * nx;
+          ball.vy -= 1.78 * dot * ny;
+          collisionEffect(ball.x, ball.y, nx, ny);
+        }
+      }
+
+      function collideBumper(bumper) {
+        let dx = ball.x - bumper.x, dy = ball.y - bumper.y;
+        let dist = Math.hypot(dx, dy);
+        const minDist = BALL_RADIUS + bumper.r;
+        if (dist >= minDist) return;
+        if (dist < .001) { dx = 1; dy = 0; dist = 1; }
+        const nx = dx / dist, ny = dy / dist;
+        ball.x = bumper.x + nx * (minDist + .2);
+        ball.y = bumper.y + ny * (minDist + .2);
+        const dot = ball.vx * nx + ball.vy * ny;
+        if (dot < 0) {
+          ball.vx -= 1.88 * dot * nx;
+          ball.vy -= 1.88 * dot * ny;
+          collisionEffect(ball.x, ball.y, nx, ny);
+        }
+      }
+
+      function collisionEffect(x, y, nx, ny) {
+        if (state.collisionCooldown > 0) return;
+        state.collisionCooldown = .055;
+        burst(x, y, 5, false, nx, ny);
+      }
+
+      function inSand(x, y, sand) {
+        const cos = Math.cos(-sand.rot), sin = Math.sin(-sand.rot);
+        const dx = x - sand.x, dy = y - sand.y;
+        const px = dx * cos - dy * sin, py = dx * sin + dy * cos;
+        return (px * px) / (sand.rx * sand.rx) + (py * py) / (sand.ry * sand.ry) < 1;
+      }
+
+      function update(dt) {
+        state.collisionCooldown = Math.max(0, state.collisionCooldown - dt);
+        particles.forEach(p => {
+          p.life -= dt; p.vy += p.gravity * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+          p.vx *= Math.pow(.985, dt * 60);
+        });
+        particles = particles.filter(p => p.life > 0);
+
+        if (state.phase === 'sunk' || state.phase === 'failed') {
+          state.transition -= dt;
+          if (state.transition <= 0) {
+            if (state.phase === 'failed') endGame(false);
+            else if (state.hole === levels.length - 1) endGame(true);
+            else { state.hole += 1; loadLevel(); }
+          }
+          return;
+        }
+        if (state.phase !== 'rolling') return;
+
+        const level = levels[state.hole];
+        const initialSpeed = Math.hypot(ball.vx, ball.vy);
+        const steps = clamp(Math.ceil(initialSpeed * dt / 4), 1, 10);
+        const step = dt / steps;
+
+        // 小步长积分防止高速球穿过球洞或障碍。
+        for (let i = 0; i < steps && state.phase === 'rolling'; i += 1) {
+          let speed = Math.hypot(ball.vx, ball.vy);
+          const sandy = level.sands.some(sand => inSand(ball.x, ball.y, sand));
+          const nextSpeed = Math.max(0, speed - (sandy ? 245 : 96) * step);
+          if (speed > 0) {
+            ball.vx *= nextSpeed / speed;
+            ball.vy *= nextSpeed / speed;
+          }
+          ball.x += ball.vx * step;
+          ball.y += ball.vy * step;
+          collideBounds();
+          level.walls.forEach(collideWall);
+          level.bumpers.forEach(collideBumper);
+
+          const hx = level.hole[0], hy = level.hole[1];
+          const holeDistance = distance(ball.x, ball.y, hx, hy);
+          speed = Math.hypot(ball.vx, ball.vy);
+          // 靠近洞口的慢球会轻微被吸引，提升触屏操作容错。
+          if (holeDistance < 27 && speed < 155 && holeDistance > 1) {
+            ball.vx += (hx - ball.x) / holeDistance * 75 * step;
+            ball.vy += (hy - ball.y) / holeDistance * 75 * step;
+          }
+          if (holeDistance < 12 && speed < 330) { sinkBall(); break; }
+        }
+
+        if (state.phase === 'rolling') {
+          ball.trail.unshift({ x: ball.x, y: ball.y });
+          if (ball.trail.length > 15) ball.trail.pop();
+          if (Math.hypot(ball.vx, ball.vy) < 10) stopBall();
+        }
+      }
+
+      function drawCourse(time) {
+        const gradient = ctx.createLinearGradient(0, 0, WORLD.width, WORLD.height);
+        gradient.addColorStop(0, '#102d35');
+        gradient.addColorStop(.48, '#0b252e');
+        gradient.addColorStop(1, '#111b31');
+        roundedRect(12, 12, 376, 576, 27);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        ctx.save();
+        roundedRect(12, 12, 376, 576, 27);
+        ctx.clip();
+
+        // 细微网格与等高线营造夜间科技球场质感。
+        ctx.lineWidth = .6;
+        ctx.strokeStyle = 'rgba(108, 224, 206, .045)';
+        for (let x = 30; x < 390; x += 28) { ctx.beginPath(); ctx.moveTo(x, 15); ctx.lineTo(x, 585); ctx.stroke(); }
+        for (let y = 30; y < 590; y += 28) { ctx.beginPath(); ctx.moveTo(15, y); ctx.lineTo(385, y); ctx.stroke(); }
+        ctx.strokeStyle = 'rgba(85, 185, 255, .05)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 3; i += 1) {
+          ctx.beginPath();
+          ctx.ellipse(200, 310, 120 + i * 42, 185 + i * 34, -.18, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ambientDots.forEach(dot => {
+          ctx.globalAlpha = .18 + Math.sin(time * .0015 + dot.phase) * .09;
+          ctx.fillStyle = '#8affdf';
+          ctx.beginPath(); ctx.arc(dot.x, dot.y, dot.r, 0, Math.PI * 2); ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+        ctx.restore();
+
+        roundedRect(12, 12, 376, 576, 27);
+        ctx.strokeStyle = 'rgba(92, 240, 211, .24)';
+        ctx.lineWidth = 1.2;
+        ctx.shadowColor = '#43f5d4'; ctx.shadowBlur = 10; ctx.stroke(); ctx.shadowBlur = 0;
+        ctx.strokeStyle = 'rgba(85, 185, 255, .28)';
+        ctx.lineWidth = 2;
+        [[30, 48, 30, 29, 49, 29], [370, 48, 370, 29, 351, 29], [30, 552, 30, 571, 49, 571], [370, 552, 370, 571, 351, 571]].forEach(points => {
+          ctx.beginPath(); ctx.moveTo(points[0], points[1]); ctx.lineTo(points[2], points[3]); ctx.lineTo(points[4], points[5]); ctx.stroke();
+        });
+      }
+
+      function drawSand(sand) {
+        ctx.save();
+        ctx.translate(sand.x, sand.y); ctx.rotate(sand.rot);
+        const gradient = ctx.createRadialGradient(0, 0, 4, 0, 0, sand.rx);
+        gradient.addColorStop(0, 'rgba(154, 125, 105, .28)');
+        gradient.addColorStop(1, 'rgba(118, 91, 99, .12)');
+        ctx.fillStyle = gradient;
+        ctx.beginPath(); ctx.ellipse(0, 0, sand.rx, sand.ry, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(244, 190, 157, .16)'; ctx.setLineDash([2, 5]); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(255, 218, 176, .18)';
+        for (let i = 0; i < 14; i += 1) {
+          const a = i * 2.4, r = (i % 5) / 6;
+          ctx.beginPath(); ctx.arc(Math.cos(a) * sand.rx * r, Math.sin(a) * sand.ry * r, .8, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function drawHole(level, time) {
+        const [x, y] = level.hole;
+        ctx.save();
+        const glow = .5 + Math.sin(time * .003) * .15;
+        ctx.strokeStyle = `rgba(67, 245, 212, ${glow})`;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(x, y, 17 + Math.sin(time * .003) * 2, 0, Math.PI * 2); ctx.stroke();
+        const cup = ctx.createRadialGradient(x - 2, y - 2, 1, x, y, 12);
+        cup.addColorStop(0, '#02050b'); cup.addColorStop(.75, '#030810'); cup.addColorStop(1, '#1e5a59');
+        ctx.fillStyle = cup; ctx.beginPath(); ctx.ellipse(x, y, 12, 9, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(175, 255, 235, .45)'; ctx.stroke();
+        ctx.shadowColor = '#43f5d4'; ctx.shadowBlur = 8;
+        ctx.strokeStyle = '#b8fff1'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x, y - 2); ctx.lineTo(x, y - 45); ctx.stroke();
+        ctx.fillStyle = '#43f5d4';
+        ctx.beginPath(); ctx.moveTo(x + 1, y - 44); ctx.lineTo(x + 25, y - 37); ctx.lineTo(x + 1, y - 29); ctx.closePath(); ctx.fill();
+        ctx.shadowBlur = 0; ctx.restore();
+      }
+
+      function drawObstacles(level) {
+        level.walls.forEach(wall => {
+          ctx.save();
+          roundedRect(wall.x, wall.y, wall.w, wall.h, 6);
+          const gradient = ctx.createLinearGradient(wall.x, wall.y, wall.x + wall.w, wall.y + wall.h);
+          gradient.addColorStop(0, '#25455d'); gradient.addColorStop(1, '#172b49');
+          ctx.fillStyle = gradient; ctx.shadowColor = '#55b9ff'; ctx.shadowBlur = 12; ctx.fill();
+          ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(104, 204, 255, .7)'; ctx.lineWidth = 1; ctx.stroke();
+          roundedRect(wall.x + 3, wall.y + 3, wall.w - 6, Math.max(2, wall.h - 6), 3);
+          ctx.strokeStyle = 'rgba(197, 237, 255, .12)'; ctx.stroke(); ctx.restore();
+        });
+        level.bumpers.forEach(bumper => {
+          ctx.save();
+          const gradient = ctx.createRadialGradient(bumper.x - 5, bumper.y - 6, 2, bumper.x, bumper.y, bumper.r);
+          gradient.addColorStop(0, '#b987ff'); gradient.addColorStop(.25, '#563b82'); gradient.addColorStop(1, '#151b39');
+          ctx.fillStyle = gradient; ctx.shadowColor = '#c178ff'; ctx.shadowBlur = 17;
+          ctx.beginPath(); ctx.arc(bumper.x, bumper.y, bumper.r, 0, Math.PI * 2); ctx.fill();
+          ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(224, 183, 255, .7)'; ctx.lineWidth = 1.2; ctx.stroke();
+          ctx.beginPath(); ctx.arc(bumper.x, bumper.y, bumper.r - 5, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(244, 114, 255, .25)'; ctx.stroke();
+          ctx.restore();
+        });
+      }
+
+      function drawAim() {
+        if ((state.phase !== 'ready' && state.phase !== 'aiming') || state.paused || state.ended) return;
+        const length = 45 + state.power * 95;
+        const dx = Math.cos(state.aimAngle), dy = Math.sin(state.aimAngle);
+        ctx.save();
+        ctx.strokeStyle = state.dragging ? 'rgba(67, 245, 212, .75)' : 'rgba(156, 232, 219, .28)';
+        ctx.lineWidth = 1.5; ctx.setLineDash([3, 8]);
+        ctx.beginPath(); ctx.moveTo(ball.x + dx * 13, ball.y + dy * 13); ctx.lineTo(ball.x + dx * length, ball.y + dy * length); ctx.stroke();
+        ctx.setLineDash([]);
+        const tx = ball.x + dx * length, ty = ball.y + dy * length;
+        ctx.fillStyle = state.dragging ? '#43f5d4' : 'rgba(156, 232, 219, .4)';
+        ctx.beginPath();
+        ctx.moveTo(tx + dx * 7, ty + dy * 7);
+        ctx.lineTo(tx - dx * 5 - dy * 5, ty - dy * 5 + dx * 5);
+        ctx.lineTo(tx - dx * 5 + dy * 5, ty - dy * 5 - dx * 5);
+        ctx.closePath(); ctx.fill();
+
+        if (state.dragging) {
+          ctx.strokeStyle = 'rgba(244, 114, 255, .65)'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(ball.x, ball.y); ctx.lineTo(state.dragPoint.x, state.dragPoint.y); ctx.stroke();
+          ctx.fillStyle = 'rgba(244, 114, 255, .14)'; ctx.strokeStyle = '#f472ff';
+          ctx.beginPath(); ctx.arc(state.dragPoint.x, state.dragPoint.y, 11, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawBall() {
+        if (state.phase === 'won' || state.phase === 'over') return;
+        ball.trail.forEach((point, index) => {
+          const alpha = (1 - index / ball.trail.length) * .2;
+          ctx.fillStyle = `rgba(122, 255, 231, ${alpha})`;
+          ctx.beginPath(); ctx.arc(point.x, point.y, BALL_RADIUS * (1 - index / 22), 0, Math.PI * 2); ctx.fill();
+        });
+        let radius = BALL_RADIUS;
+        if (state.phase === 'sunk') radius *= clamp(state.transition / 1.65, .15, 1);
+        ctx.save();
+        ctx.shadowColor = '#a6fff1'; ctx.shadowBlur = 17;
+        const gradient = ctx.createRadialGradient(ball.x - 2.5, ball.y - 3, .5, ball.x, ball.y, radius);
+        gradient.addColorStop(0, '#ffffff'); gradient.addColorStop(.48, '#e4fff9'); gradient.addColorStop(1, '#68cbbb');
+        ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(ball.x, ball.y, radius, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0; ctx.fillStyle = 'rgba(40, 115, 110, .22)';
+        ctx.beginPath(); ctx.arc(ball.x + 2, ball.y + 1, Math.max(.6, radius * .12), 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+
+      function drawParticles() {
+        particles.forEach(p => {
+          ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
+          ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 7;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+        });
+        ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+      }
+
+      function render(time) {
+        ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+        ctx.fillStyle = '#07111e'; ctx.fillRect(0, 0, view.width, view.height);
+        ctx.translate(view.ox, view.oy); ctx.scale(view.scale, view.scale);
+        drawCourse(time);
+        const level = levels[state.hole];
+        level.sands.forEach(drawSand);
+        drawHole(level, time);
+        drawObstacles(level);
+        drawAim();
+        drawBall();
+        drawParticles();
+      }
+
+      function frame(time) {
+        const dt = lastTime ? Math.min((time - lastTime) / 1000, .034) : 0;
+        lastTime = time;
+        if (!state.paused && !state.ended) update(dt);
+        render(time);
+        requestAnimationFrame(frame);
+      }
+
+      function resizeCanvas() {
+        const rect = stage.getBoundingClientRect();
+        view.width = Math.max(1, rect.width);
+        view.height = Math.max(1, rect.height);
+        view.dpr = Math.min(window.devicePixelRatio || 1, 2);
+        view.scale = Math.min(view.width / WORLD.width, view.height / WORLD.height);
+        view.ox = (view.width - WORLD.width * view.scale) / 2;
+        view.oy = (view.height - WORLD.height * view.scale) / 2;
+        canvas.width = Math.round(view.width * view.dpr);
+        canvas.height = Math.round(view.height * view.dpr);
+      }
+
+      function pointerPosition(event) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: (event.clientX - rect.left - view.ox) / view.scale,
+          y: (event.clientY - rect.top - view.oy) / view.scale
+        };
+      }
+
+      function updateAim(point) {
+        state.dragPoint = point;
+        const dx = ball.x - point.x, dy = ball.y - point.y;
+        const length = Math.hypot(dx, dy);
+        if (length > 2) state.aimAngle = Math.atan2(dy, dx);
+        state.power = clamp(length / MAX_DRAG, 0, 1);
+        updatePower();
+      }
+
+      canvas.addEventListener('pointerdown', event => {
+        if (state.paused || state.ended || state.phase !== 'ready' || state.dragging) return;
+        const point = pointerPosition(event);
+        if (distance(point.x, point.y, ball.x, ball.y) > 46) return;
+        event.preventDefault();
+        state.dragging = true;
+        state.phase = 'aiming';
+        state.pointerId = event.pointerId;
+        canvas.setPointerCapture(event.pointerId);
+        updateAim(point);
+      });
+
+      canvas.addEventListener('pointermove', event => {
+        if (!state.dragging || event.pointerId !== state.pointerId) return;
+        event.preventDefault();
+        updateAim(pointerPosition(event));
+      });
+
+      canvas.addEventListener('pointerup', event => {
+        if (!state.dragging || event.pointerId !== state.pointerId) return;
+        event.preventDefault();
+        updateAim(pointerPosition(event));
+        if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+        state.dragging = false;
+        state.pointerId = null;
+        shoot();
+      });
+
+      canvas.addEventListener('pointercancel', event => {
+        if (event.pointerId !== state.pointerId) return;
+        state.dragging = false; state.pointerId = null; state.phase = 'ready';
+        state.power = .55; updatePower();
+      });
+      canvas.addEventListener('contextmenu', event => event.preventDefault());
+
+      window.addEventListener('keydown', event => {
+        const key = event.key.toLowerCase();
+        if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown', ' '].includes(key)) event.preventDefault();
+        if (key === 'p' || key === 'escape') { setPaused(!state.paused); return; }
+        if (key === 'r') { restartGame(); return; }
+        if (state.ended && (key === 'enter' || key === ' ')) { restartGame(); return; }
+        if (state.paused || state.ended || state.phase !== 'ready') return;
+        if (key === 'arrowleft') state.aimAngle -= .075;
+        else if (key === 'arrowright') state.aimAngle += .075;
+        else if (key === 'arrowup') state.power = clamp(state.power + .05, .08, 1);
+        else if (key === 'arrowdown') state.power = clamp(state.power - .05, .08, 1);
+        else if (key === ' ' && !event.repeat) shoot();
+        updatePower();
+      });
+
+      ui.pauseBtn.addEventListener('click', () => setPaused(!state.paused));
+      ui.restartBtn.addEventListener('click', restartGame);
+      ui.modalPrimary.addEventListener('click', () => state.paused ? setPaused(false) : restartGame());
+      ui.modalRestart.addEventListener('click', restartGame);
+
+      // 阻止 iOS 双击缩放、双指缩放及橡皮筋滚动。
+      document.addEventListener('dblclick', event => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', event => event.preventDefault(), { passive: false });
+      document.addEventListener('touchmove', event => event.preventDefault(), { passive: false });
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && !state.paused && !state.ended) setPaused(true);
+      });
+
+      if ('ResizeObserver' in window) new ResizeObserver(resizeCanvas).observe(stage);
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
+      loadLevel();
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>

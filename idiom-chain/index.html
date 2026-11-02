@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070a18">
+  <title>成语接龙 · 霓虹挑战</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070a18;
+      --panel: rgba(17, 23, 46, .78);
+      --panel-strong: #11172e;
+      --line: rgba(142, 163, 255, .16);
+      --text: #f4f6ff;
+      --muted: #8e98bb;
+      --cyan: #63f3e5;
+      --purple: #a78bfa;
+      --pink: #ff73bf;
+      --danger: #ff6f91;
+      --timer-ring: 163.36;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+    }
+
+    body {
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 5%, rgba(91, 72, 196, .25), transparent 34%),
+        radial-gradient(circle at 95% 82%, rgba(24, 187, 184, .15), transparent 35%),
+        var(--bg);
+      display: flex;
+      justify-content: center;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* 细腻网格只作背景，不响应触摸 */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .2;
+      background-image:
+        linear-gradient(rgba(126, 144, 214, .09) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(126, 144, 214, .09) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: linear-gradient(to bottom, black, transparent 80%);
+    }
+
+    button { font: inherit; color: inherit; border: 0; cursor: pointer; }
+    button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+    button:disabled { cursor: default; }
+    [hidden] { display: none !important; }
+
+    .app {
+      position: relative;
+      width: 100%;
+      max-width: 520px;
+      height: 100vh;
+      height: 100dvh;
+      padding: max(12px, env(safe-area-inset-top)) 16px max(12px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      isolation: isolate;
+    }
+
+    .app::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      width: 220px;
+      height: 220px;
+      left: 50%;
+      top: 24%;
+      transform: translateX(-50%);
+      background: rgba(103, 80, 223, .12);
+      filter: blur(70px);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .topbar { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .logo {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(99, 243, 229, .35);
+      border-radius: 13px;
+      color: var(--cyan);
+      background: linear-gradient(145deg, rgba(99, 243, 229, .13), rgba(167, 139, 250, .09));
+      box-shadow: inset 0 0 15px rgba(99, 243, 229, .06), 0 0 22px rgba(99, 243, 229, .08);
+      font-size: 22px;
+      font-weight: 800;
+    }
+    .brand { min-width: 0; flex: 1; }
+    .brand h1 { margin: 0; font-size: 19px; line-height: 1.25; letter-spacing: 2px; }
+    .brand p { margin: 3px 0 0; color: var(--muted); font-size: 9px; letter-spacing: 2.6px; }
+    .icon-button {
+      min-width: 58px;
+      height: 38px;
+      padding: 0 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: rgba(20, 27, 52, .78);
+      color: #cbd2ef;
+      font-size: 12px;
+    }
+    .icon-button:active { transform: scale(.96); background: rgba(40, 48, 82, .9); }
+    .icon-button:disabled { opacity: .4; }
+    .pause-icon { width: 10px; height: 12px; border-left: 3px solid currentColor; border-right: 3px solid currentColor; }
+
+    .scorebar {
+      flex-shrink: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.35fr;
+      align-items: center;
+      padding: 9px 13px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: linear-gradient(110deg, rgba(22, 29, 56, .86), rgba(15, 21, 43, .72));
+      box-shadow: 0 8px 30px rgba(0, 0, 0, .16);
+    }
+    .stat { display: flex; flex-direction: column; gap: 1px; }
+    .stat + .stat { padding-left: 14px; border-left: 1px solid var(--line); }
+    .stat-label { color: var(--muted); font-size: 10px; letter-spacing: 1px; }
+    .stat-value { font-size: 20px; line-height: 1.2; font-weight: 750; font-variant-numeric: tabular-nums; }
+    .stat-value.score { color: var(--cyan); text-shadow: 0 0 16px rgba(99, 243, 229, .25); }
+    .stat-value.best { color: #d6c9ff; }
+    .stat-value.bump { animation: score-bump .28s ease; }
+    @keyframes score-bump { 50% { transform: scale(1.18); } }
+
+    .round-stat { align-items: stretch; gap: 5px; }
+    .round-line { display: flex; justify-content: space-between; align-items: center; }
+    .round-line strong { font-size: 12px; font-weight: 650; color: #dfe4ff; }
+    .progress-track { height: 5px; background: rgba(129, 142, 192, .14); border-radius: 9px; overflow: hidden; }
+    .progress-fill {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--purple), var(--cyan));
+      box-shadow: 0 0 10px rgba(99, 243, 229, .45);
+      transition: width .4s ease;
+    }
+
+    .game-main { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+    .arena {
+      position: relative;
+      flex: 1;
+      min-height: 185px;
+      padding: 13px 15px 11px;
+      border: 1px solid rgba(143, 132, 238, .2);
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at 50% 58%, rgba(116, 86, 216, .13), transparent 55%),
+        linear-gradient(150deg, rgba(20, 27, 54, .9), rgba(11, 16, 36, .84));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .025), 0 16px 40px rgba(0, 0, 0, .16);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .arena::after {
+      content: "";
+      position: absolute;
+      width: 120px;
+      height: 1px;
+      left: calc(50% - 60px);
+      top: 49%;
+      background: linear-gradient(90deg, transparent, rgba(99, 243, 229, .26), transparent);
+    }
+    .ai-row { display: flex; align-items: center; gap: 9px; z-index: 1; }
+    .ai-avatar {
+      position: relative;
+      width: 32px;
+      height: 32px;
+      border-radius: 11px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, #8a6de0, #4a3995);
+      box-shadow: 0 0 18px rgba(167, 139, 250, .22);
+      font-size: 16px;
+    }
+    .ai-avatar::after {
+      content: "";
+      position: absolute;
+      width: 7px;
+      height: 7px;
+      right: -2px;
+      bottom: -2px;
+      border-radius: 50%;
+      background: var(--cyan);
+      border: 2px solid #121831;
+    }
+    .ai-copy { min-width: 0; }
+    .ai-name { font-size: 11px; font-weight: 650; color: #d9d2ff; }
+    .ai-message { margin-top: 2px; color: var(--muted); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+    .turn-badge {
+      margin-left: auto;
+      padding: 4px 8px;
+      border: 1px solid rgba(99, 243, 229, .18);
+      border-radius: 20px;
+      color: var(--cyan);
+      background: rgba(99, 243, 229, .06);
+      font-size: 9px;
+      white-space: nowrap;
+    }
+    .turn-badge.ai { color: #c5b5ff; border-color: rgba(167, 139, 250, .22); background: rgba(167, 139, 250, .08); }
+
+    .current-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 85px; }
+    .current-label { color: var(--muted); font-size: 10px; letter-spacing: .5px; margin-bottom: 7px; }
+    .current-label b { color: var(--cyan); font-size: 12px; font-weight: 650; }
+    .current-idiom { display: flex; gap: clamp(6px, 2.2vw, 11px); }
+    .current-char {
+      width: clamp(40px, 11.5vw, 55px);
+      height: clamp(45px, 12.5vw, 59px);
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(161, 171, 222, .17);
+      border-radius: 12px;
+      background: linear-gradient(150deg, rgba(41, 48, 82, .75), rgba(24, 29, 57, .78));
+      font-family: "STKaiti", "KaiTi", "PingFang SC", serif;
+      font-size: clamp(24px, 7vw, 33px);
+      font-weight: 700;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+      animation: char-in .35s both;
+    }
+    .current-char:nth-child(2) { animation-delay: .04s; }
+    .current-char:nth-child(3) { animation-delay: .08s; }
+    .current-char:nth-child(4) { animation-delay: .12s; }
+    .current-char.tail {
+      color: var(--cyan);
+      border-color: rgba(99, 243, 229, .42);
+      background: linear-gradient(150deg, rgba(40, 102, 109, .42), rgba(21, 52, 66, .5));
+      box-shadow: 0 0 22px rgba(99, 243, 229, .11), inset 0 0 15px rgba(99, 243, 229, .05);
+      text-shadow: 0 0 16px rgba(99, 243, 229, .35);
+    }
+    @keyframes char-in { from { opacity: 0; transform: translateY(7px); } }
+
+    .arena-bottom { display: flex; align-items: center; justify-content: space-between; min-height: 42px; }
+    .history { flex: 1; min-width: 0; display: flex; align-items: center; gap: 5px; overflow: hidden; }
+    .history-label { color: #687393; font-size: 9px; flex-shrink: 0; }
+    .history-word { color: #9ca6c7; font-size: 10px; white-space: nowrap; }
+    .history-word.latest { color: #d9ddf3; }
+    .history-arrow { color: #515d80; font-size: 9px; }
+
+    .timer { position: relative; width: 47px; height: 47px; flex: 0 0 47px; margin-left: 8px; }
+    .timer svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .timer circle { fill: none; stroke-width: 3; }
+    .timer-track { stroke: rgba(136, 149, 198, .13); }
+    .timer-progress {
+      stroke: var(--cyan);
+      stroke-linecap: round;
+      stroke-dasharray: var(--timer-ring);
+      stroke-dashoffset: 0;
+      filter: drop-shadow(0 0 3px rgba(99, 243, 229, .5));
+      transition: stroke .2s;
+    }
+    .timer.danger .timer-progress { stroke: var(--danger); filter: drop-shadow(0 0 4px rgba(255, 111, 145, .55)); }
+    .timer.danger .timer-number { color: var(--danger); animation: timer-pulse .7s infinite; }
+    .timer.ai .timer-progress { stroke: var(--purple); animation: ring-breathe 1s infinite alternate; }
+    .timer-center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 1px; }
+    .timer-number { font-size: 14px; line-height: 1; font-weight: 750; font-variant-numeric: tabular-nums; }
+    .timer-unit { color: var(--muted); font-size: 8px; align-self: flex-end; margin-bottom: 13px; }
+    @keyframes timer-pulse { 50% { opacity: .55; } }
+    @keyframes ring-breathe { to { opacity: .3; } }
+
+    .hand-section { flex-shrink: 0; }
+    .hand-heading { display: flex; align-items: center; justify-content: space-between; margin: 0 2px 7px; }
+    .hand-title { font-size: 12px; font-weight: 650; letter-spacing: .5px; }
+    .hand-hint { color: var(--muted); font-size: 9px; }
+    .hand-hint em { color: var(--cyan); font-style: normal; }
+    .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .idiom-card {
+      position: relative;
+      min-height: 51px;
+      padding: 9px 11px;
+      border: 1px solid rgba(145, 157, 210, .17);
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(28, 36, 68, .96), rgba(18, 24, 49, .96));
+      box-shadow: 0 5px 14px rgba(0, 0, 0, .13), inset 0 1px 0 rgba(255, 255, 255, .025);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(17px, 4.8vw, 22px);
+      font-weight: 600;
+      letter-spacing: 2px;
+      touch-action: none;
+      transition: transform .16s ease, border-color .16s, background .16s, box-shadow .16s, opacity .16s;
+    }
+    .idiom-card .key {
+      position: absolute;
+      left: 8px;
+      top: 7px;
+      color: #65708f;
+      font-size: 8px;
+      font-weight: 500;
+      letter-spacing: 0;
+    }
+    .idiom-card .swipe-mark {
+      position: absolute;
+      right: 8px;
+      top: 6px;
+      color: #586381;
+      font-size: 11px;
+      opacity: 0;
+      transition: opacity .15s;
+    }
+    .idiom-card.selected {
+      border-color: var(--cyan);
+      color: #eafffc;
+      background: linear-gradient(135deg, rgba(28, 91, 98, .8), rgba(23, 51, 70, .95));
+      box-shadow: 0 0 18px rgba(99, 243, 229, .12), inset 0 0 12px rgba(99, 243, 229, .04);
+      transform: translateY(-2px);
+    }
+    .idiom-card.selected .swipe-mark { opacity: 1; color: var(--cyan); }
+    .idiom-card.dragging { transition: none; border-color: var(--cyan); opacity: .88; }
+    .idiom-card:disabled { opacity: .48; }
+    .cards.locked .idiom-card { opacity: .46; }
+    .cards.shake { animation: shake .3s ease; }
+    @keyframes shake { 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-3px); } }
+
+    .actionbar { flex-shrink: 0; padding-top: 1px; }
+    .play-button {
+      position: relative;
+      width: 100%;
+      min-height: 49px;
+      border-radius: 15px;
+      overflow: hidden;
+      background: linear-gradient(100deg, #6c58c9, #3aa9ad);
+      box-shadow: 0 8px 24px rgba(71, 156, 171, .16), inset 0 1px 0 rgba(255, 255, 255, .18);
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      transition: transform .12s, opacity .2s, filter .2s;
+    }
+    .play-button::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,.13), transparent 80%);
+      transform: translateX(-100%);
+    }
+    .play-button.ready::before { animation: shine 2.8s infinite; }
+    .play-button:active:not(:disabled) { transform: scale(.98); filter: brightness(1.12); }
+    .play-button:disabled { opacity: .38; box-shadow: none; }
+    @keyframes shine { 45%, 100% { transform: translateX(100%); } }
+    .keyboard-hint { display: none; text-align: center; color: #626d8d; font-size: 9px; margin-top: 6px; }
+
+    .toast {
+      position: fixed;
+      z-index: 30;
+      left: 50%;
+      top: max(76px, calc(env(safe-area-inset-top) + 60px));
+      transform: translate(-50%, -10px);
+      max-width: calc(100vw - 40px);
+      padding: 9px 15px;
+      border: 1px solid rgba(99, 243, 229, .25);
+      border-radius: 30px;
+      background: rgba(13, 25, 43, .94);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, .35);
+      color: var(--cyan);
+      font-size: 12px;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s, transform .2s;
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .toast.error { color: #ffadc0; border-color: rgba(255, 111, 145, .3); }
+
+    .modal {
+      position: fixed;
+      z-index: 50;
+      inset: 0;
+      padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+      display: grid;
+      place-items: center;
+      background: rgba(4, 6, 17, .78);
+      backdrop-filter: blur(13px);
+      -webkit-backdrop-filter: blur(13px);
+      animation: fade-in .2s ease;
+    }
+    .modal-card {
+      position: relative;
+      width: 100%;
+      max-width: 390px;
+      padding: 25px 22px 21px;
+      border: 1px solid rgba(157, 143, 238, .25);
+      border-radius: 25px;
+      background:
+        radial-gradient(circle at 50% 0, rgba(116, 90, 208, .16), transparent 43%),
+        linear-gradient(155deg, rgba(25, 32, 62, .98), rgba(12, 17, 37, .98));
+      box-shadow: 0 24px 80px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255,255,255,.04);
+      text-align: center;
+      animation: modal-in .28s ease;
+    }
+    @keyframes fade-in { from { opacity: 0; } }
+    @keyframes modal-in { from { opacity: 0; transform: translateY(12px) scale(.97); } }
+    .modal-emblem {
+      width: 62px;
+      height: 62px;
+      margin: 0 auto 13px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(99, 243, 229, .28);
+      border-radius: 20px;
+      color: var(--cyan);
+      background: rgba(99, 243, 229, .06);
+      box-shadow: 0 0 35px rgba(99, 243, 229, .08);
+      font-size: 30px;
+      font-weight: 800;
+    }
+    .modal-card h2 { margin: 0; font-size: 24px; letter-spacing: 2px; }
+    .modal-subtitle { margin: 7px 0 18px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .rules { display: grid; gap: 9px; text-align: left; margin-bottom: 19px; }
+    .rule { display: flex; align-items: center; gap: 11px; padding: 9px 11px; border-radius: 13px; background: rgba(113, 128, 182, .06); border: 1px solid rgba(137, 151, 205, .09); }
+    .rule-icon { width: 29px; height: 29px; flex: 0 0 29px; display: grid; place-items: center; border-radius: 9px; background: rgba(167, 139, 250, .1); color: #c5b6ff; font-size: 13px; }
+    .rule strong { display: block; font-size: 12px; margin-bottom: 2px; }
+    .rule p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .primary-button, .secondary-button {
+      width: 100%;
+      min-height: 47px;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 1px;
+    }
+    .primary-button { background: linear-gradient(100deg, #745fd2, #36aaa9); box-shadow: 0 8px 22px rgba(63, 153, 165, .15); }
+    .primary-button:active, .secondary-button:active { transform: scale(.98); }
+    .secondary-button { margin-top: 9px; color: #b9c2df; background: rgba(125, 139, 190, .08); border: 1px solid var(--line); }
+    .modal-footnote { margin: 12px 0 0; color: #66718f; font-size: 9px; }
+
+    .result-score { margin: 13px 0 16px; }
+    .result-score span { display: block; color: var(--muted); font-size: 10px; letter-spacing: 1px; }
+    .result-score strong { display: block; margin-top: 2px; color: var(--cyan); font-size: 42px; line-height: 1.2; text-shadow: 0 0 25px rgba(99, 243, 229, .2); }
+    .result-grid { display: grid; grid-template-columns: repeat(3, 1fr); margin-bottom: 18px; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .result-item + .result-item { border-left: 1px solid var(--line); }
+    .result-item span { display: block; color: var(--muted); font-size: 9px; }
+    .result-item strong { display: block; margin-top: 4px; font-size: 17px; }
+    .record-badge { display: inline-block; margin-top: 5px; padding: 3px 9px; border-radius: 12px; color: #171026; background: linear-gradient(90deg, #ffd580, #ff9fc8); font-size: 9px; font-weight: 750; }
+
+    @media (min-width: 600px) {
+      body { padding: 16px; }
+      .app { height: calc(100dvh - 32px); max-height: 900px; border: 1px solid rgba(141, 154, 209, .12); border-radius: 26px; padding: 16px 20px; background: rgba(7, 10, 24, .35); }
+      .keyboard-hint { display: block; }
+    }
+    @media (max-height: 700px) {
+      .app { gap: 7px; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+      .topbar .logo { width: 37px; height: 37px; }
+      .brand h1 { font-size: 17px; }
+      .scorebar { padding-top: 7px; padding-bottom: 7px; }
+      .stat-value { font-size: 18px; }
+      .game-main { gap: 7px; }
+      .arena { min-height: 169px; padding-top: 10px; padding-bottom: 8px; border-radius: 18px; }
+      .current-wrap { min-height: 74px; }
+      .current-label { margin-bottom: 5px; }
+      .current-char { width: clamp(37px, 10.5vw, 47px); height: clamp(41px, 11.5vw, 51px); }
+      .idiom-card { min-height: 45px; padding-top: 7px; padding-bottom: 7px; }
+      .play-button { min-height: 44px; }
+      .hand-heading { margin-bottom: 5px; }
+      .modal-card { padding-top: 18px; padding-bottom: 17px; }
+      .modal-emblem { width: 51px; height: 51px; margin-bottom: 9px; font-size: 25px; }
+      .modal-card h2 { font-size: 21px; }
+      .modal-subtitle { margin: 5px 0 12px; }
+      .rules { gap: 6px; margin-bottom: 13px; }
+      .rule { padding: 7px 10px; }
+      .modal-footnote { margin-top: 8px; }
+    }
+    @media (max-height: 580px) {
+      .brand p, .history-label, .hand-hint { display: none; }
+      .arena { min-height: 145px; }
+      .ai-avatar { width: 27px; height: 27px; }
+      .current-wrap { min-height: 65px; }
+      .current-char { height: 39px; width: 36px; font-size: 23px; }
+      .arena-bottom { min-height: 35px; }
+      .timer { transform: scale(.85); margin-right: -3px; }
+      .modal-footnote { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="topbar">
+      <div class="logo" aria-hidden="true">龙</div>
+      <div class="brand">
+        <h1>成语接龙</h1>
+        <p>NEON IDIOM CHAIN</p>
+      </div>
+      <button class="icon-button" id="pauseButton" type="button" aria-label="暂停游戏" disabled>
+        <span class="pause-icon" aria-hidden="true"></span><span>暂停</span>
+      </button>
+    </header>
+
+    <section class="scorebar" aria-label="游戏数据">
+      <div class="stat">
+        <span class="stat-label">当前得分</span>
+        <strong class="stat-value score" id="score">0</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">最高分</span>
+        <strong class="stat-value best" id="highScore">0</strong>
+      </div>
+      <div class="stat round-stat">
+        <div class="round-line"><span class="stat-label">挑战进度</span><strong><span id="round">0</span>/10</strong></div>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+    </section>
+
+    <main class="game-main">
+      <section class="arena" aria-label="接龙区">
+        <div class="ai-row">
+          <div class="ai-avatar" aria-hidden="true">✦</div>
+          <div class="ai-copy">
+            <div class="ai-name">AI 陪练 · 灵汐</div>
+            <div class="ai-message" id="aiMessage">以词会友，准备好了吗？</div>
+          </div>
+          <span class="turn-badge" id="turnBadge">等待开始</span>
+        </div>
+
+        <div class="current-wrap">
+          <div class="current-label" id="currentLabel">请接 <b>「意」</b> 字开头的成语</div>
+          <div class="current-idiom" id="currentIdiom" aria-live="polite"></div>
+        </div>
+
+        <div class="arena-bottom">
+          <div class="history" id="history" aria-label="最近接龙记录"></div>
+          <div class="timer" id="timer" aria-label="剩余时间">
+            <svg viewBox="0 0 60 60" aria-hidden="true">
+              <circle class="timer-track" cx="30" cy="30" r="26"></circle>
+              <circle class="timer-progress" id="timerProgress" cx="30" cy="30" r="26"></circle>
+            </svg>
+            <div class="timer-center"><span class="timer-number" id="timerNumber">15</span><span class="timer-unit" id="timerUnit">秒</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="hand-section" aria-label="玩家手牌">
+        <div class="hand-heading">
+          <span class="hand-title">你的手牌</span>
+          <span class="hand-hint">点选后出牌，或 <em>↑ 上滑卡牌</em></span>
+        </div>
+        <div class="cards" id="cards"></div>
+      </section>
+    </main>
+
+    <footer class="actionbar">
+      <button class="play-button" id="playButton" type="button" disabled>选择一个成语</button>
+      <div class="keyboard-hint">键盘 1–4 选择 · Enter 出牌 · P 暂停</div>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <section class="modal" id="startModal" role="dialog" aria-modal="true" aria-labelledby="startTitle">
+    <div class="modal-card">
+      <div class="modal-emblem" aria-hidden="true">龙</div>
+      <h2 id="startTitle">成语接龙</h2>
+      <p class="modal-subtitle">一字相接，妙语连珠<br>与 AI 灵汐来一场限时诗词对决</p>
+      <div class="rules">
+        <div class="rule">
+          <span class="rule-icon" aria-hidden="true">接</span>
+          <div><strong>按尾字接龙</strong><p>新成语的首字，须与上个成语的尾字相同</p></div>
+        </div>
+        <div class="rule">
+          <span class="rule-icon" aria-hidden="true">↑</span>
+          <div><strong>触屏轻松出牌</strong><p>点选手牌再点「出牌」，或直接向上滑出卡牌</p></div>
+        </div>
+        <div class="rule">
+          <span class="rule-icon" aria-hidden="true">10</span>
+          <div><strong>限时连击挑战</strong><p>每回合 15 秒，先完成 10 次接龙即获胜</p></div>
+        </div>
+      </div>
+      <button class="primary-button" id="startButton" type="button">开始挑战</button>
+      <p class="modal-footnote">内置 <span id="dictionaryCount">0</span> 条成语 · 无需联网 · 最高分本机保存</p>
+    </div>
+  </section>
+
+  <section class="modal" id="pauseModal" role="dialog" aria-modal="true" aria-labelledby="pauseTitle" hidden>
+    <div class="modal-card">
+      <div class="modal-emblem" aria-hidden="true">Ⅱ</div>
+      <h2 id="pauseTitle">稍作歇息</h2>
+      <p class="modal-subtitle" id="pauseMessage">时间与 AI 都已暂停<br>准备好了就继续接龙</p>
+      <button class="primary-button" id="resumeButton" type="button">继续游戏</button>
+      <button class="secondary-button" id="pauseRestartButton" type="button">重新开始</button>
+    </div>
+  </section>
+
+  <section class="modal" id="endModal" role="dialog" aria-modal="true" aria-labelledby="endTitle" hidden>
+    <div class="modal-card">
+      <div class="modal-emblem" id="endEmblem" aria-hidden="true">🏆</div>
+      <h2 id="endTitle">接龙成功！</h2>
+      <p class="modal-subtitle" id="endMessage"></p>
+      <div class="result-score">
+        <span>本局得分</span>
+        <strong id="finalScore">0</strong>
+        <span class="record-badge" id="recordBadge" hidden>✦ 新纪录</span>
+      </div>
+      <div class="result-grid">
+        <div class="result-item"><span>成功接龙</span><strong id="finalRounds">0</strong></div>
+        <div class="result-item"><span>最高连击</span><strong id="finalStreak">0</strong></div>
+        <div class="result-item"><span>历史最高</span><strong id="finalBest">0</strong></div>
+      </div>
+      <button class="primary-button" id="restartButton" type="button">再来一局</button>
+      <button class="secondary-button" id="homeButton" type="button">返回玩法说明</button>
+    </div>
+  </section>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // 内置词库：所有判定均在本地完成，不需要网络。
+      const IDIOMS = [...new Set([
+        "一心一意", "一意孤行", "一帆风顺", "一鸣惊人", "一石二鸟", "一丝不苟", "一如既往", "一目了然",
+        "意气风发", "意味深长", "意犹未尽", "意在言外", "意气用事", "意兴盎然",
+        "发愤图强", "发扬光大", "发号施令", "发人深省", "强词夺理", "强颜欢笑",
+        "大公无私", "大同小异", "大器晚成", "大智若愚", "大快人心", "大惊小怪",
+        "理所当然", "理直气壮", "理屈词穷", "长年累月", "长篇大论", "长驱直入",
+        "事半功倍", "事在人为", "事与愿违", "心想事成", "心平气和", "心花怒放",
+        "心旷神怡", "心口如一", "心安理得", "人山人海", "人云亦云", "人定胜天",
+        "人杰地灵", "人情世故", "海阔天空", "海纳百川", "海底捞月", "云淡风轻",
+        "云开见日", "天马行空", "天长地久", "天经地义", "天南地北", "空前绝后",
+        "空穴来风", "风和日丽", "风平浪静", "风花雪月", "风调雨顺", "风雨同舟",
+        "日新月异", "月下老人", "月白风清", "成千上万", "成败得失", "成双成对",
+        "万众一心", "万事如意", "万水千山", "万紫千红", "山高水长", "山清水秀",
+        "山穷水尽", "水到渠成", "水滴石穿", "水落石出", "水涨船高", "花好月圆",
+        "花枝招展", "花言巧语", "语重心长", "语无伦次", "语惊四座", "不可思议",
+        "不谋而合", "不拘一格", "不动声色", "不甘示弱", "生机勃勃", "生生不息",
+        "生龙活虎", "日积月累", "日理万机", "明目张胆", "明察秋毫", "明哲保身",
+        "明知故问", "光明磊落", "光彩夺目", "光天化日", "目不转睛", "目瞪口呆",
+        "目空一切", "春风得意", "春暖花开", "春华秋实", "开门见山", "开卷有益",
+        "开天辟地", "地久天长", "地大物博", "地动山摇", "玉石俱焚", "玉树临风",
+        "玉洁冰清", "金玉良言", "金榜题名", "金石为开", "金枝玉叶", "言而有信",
+        "言传身教", "言归正传", "言外之意", "名副其实", "名不虚传", "名扬四海",
+        "气宇轩昂", "气壮山河", "气吞山河", "气象万千", "千方百计", "千军万马",
+        "千山万水", "千变万化", "马到成功", "功德圆满", "功成名就", "学而不厌",
+        "学富五车", "学以致用", "用兵如神", "用心良苦", "神采奕奕", "神清气爽",
+        "神通广大", "自强不息", "自由自在", "自相矛盾", "自然而然", "然糠自照",
+        "然荻读书", "书香门第", "书不尽言", "在所不辞", "在所难免", "平心静气",
+        "平分秋色", "平易近人", "安居乐业", "安然无恙", "安步当车", "乐在其中",
+        "乐不思蜀", "乐善好施", "中流砥柱", "中庸之道", "心中有数", "道听途说",
+        "道貌岸然", "道不拾遗", "说一不二", "说长道短", "如鱼得水", "如花似玉",
+        "如愿以偿", "如日中天", "龙飞凤舞", "龙腾虎跃", "龙马精神", "虎头蛇尾",
+        "虎虎生威", "百发百中", "百花齐放", "百折不挠", "百里挑一", "放虎归山",
+        "世外桃源", "世世代代", "世态炎凉", "令人神往", "令行禁止", "笑逐颜开",
+        "私心杂念", "念念不忘", "忘乎所以", "以身作则", "以德报怨", "以卵击石",
+        "石破天惊", "惊天动地", "惊心动魄", "异想天开", "异口同声", "声东击西",
+        "声情并茂", "穷则思变", "穷途末路", "路不拾遗", "倍道而行", "行云流水",
+        "行家里手", "手到擒来", "手忙脚乱", "来日方长", "顺水推舟", "顺理成章",
+        "了如指掌", "灵机一动", "动人心弦", "弦外之音", "音容笑貌", "故步自封",
+        "故弄玄虚", "虚怀若谷", "轻而易举", "轻描淡写", "举一反三", "举世闻名",
+        "三心二意", "三言两语", "后来居上", "后发制人", "上行下效", "上善若水",
+        "静观其变", "静以修身", "对牛弹琴", "对答如流", "流光溢彩", "流芳百世",
+        "失而复得", "得心应手", "得意洋洋", "得寸进尺", "出类拔萃", "出人头地",
+        "出神入化", "穿针引线", "高枕无忧", "高瞻远瞩", "高山流水", "议论纷纷",
+        "纷至沓来", "合情合理", "格格不入", "入木三分", "入乡随俗", "分秒必争",
+        "争先恐后", "弱不禁风", "勃然大怒", "怒气冲冲", "冲锋陷阵", "息事宁人",
+        "胆大心细", "细水长流", "毫不犹豫", "身先士卒", "身体力行", "问心无愧",
+        "落叶归根", "落井下石", "根深蒂固", "固若金汤", "实事求是", "实至名归",
+        "是非分明", "益寿延年", "年少有为", "为人师表", "为民除害", "博学多才",
+        "博古通今", "才高八斗", "才思敏捷", "摇身一变", "清风明月", "清规戒律",
+        "清心寡欲", "信口开河", "信手拈来", "河东狮吼", "教学相长", "传为佳话",
+        "传宗接代", "计上心来", "计日程功", "化险为夷", "化整为零", "零敲碎打",
+        "打草惊蛇", "满载而归", "满面春风", "归心似箭", "归根结底", "就事论事",
+        "车水马龙", "苦尽甘来", "苦口婆心", "辞旧迎新", "新陈代谢", "免开尊口",
+        "口是心非", "口若悬河", "业精于勤", "勤能补拙", "勤学苦练", "施仁布德",
+        "德高望重", "重蹈覆辙", "重见天日", "数一数二", "二话不说", "二龙戏珠",
+        "短兵相接", "接二连三", "舞文弄墨", "墨守成规", "规行矩步", "步步为营",
+        "步人后尘", "跃然纸上", "威风凛凛", "威武不屈", "屈指可数", "源远流长",
+        "代代相传"
+      ])];
+
+      const TURN_SECONDS = 15;
+      const TARGET_ROUNDS = 10;
+      const STORAGE_KEY = "idiom-chain-high-score-v1";
+      const $ = (id) => document.getElementById(id);
+      const dom = {
+        score: $("score"), highScore: $("highScore"), round: $("round"), progress: $("progressFill"),
+        current: $("currentIdiom"), currentLabel: $("currentLabel"), history: $("history"),
+        cards: $("cards"), play: $("playButton"), pause: $("pauseButton"), aiMessage: $("aiMessage"),
+        turnBadge: $("turnBadge"), timer: $("timer"), timerNumber: $("timerNumber"),
+        timerUnit: $("timerUnit"), timerProgress: $("timerProgress"), toast: $("toast"),
+        startModal: $("startModal"), pauseModal: $("pauseModal"), endModal: $("endModal")
+      };
+
+      // 读取最高分时兼容隐私模式下 localStorage 不可用的情况。
+      function loadHighScore() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10);
+          return Number.isFinite(value) && value > 0 ? value : 0;
+        } catch (_) { return 0; }
+      }
+
+      function saveHighScore(value) {
+        try { localStorage.setItem(STORAGE_KEY, String(value)); } catch (_) { /* 游戏仍可正常进行 */ }
+      }
+
+      const state = {
+        status: "ready", turn: "player", current: "一心一意", used: new Set(),
+        history: [], cards: [], selected: -1, score: 0, highScore: loadHighScore(),
+        startHigh: 0, rounds: 0, streak: 0, maxStreak: 0,
+        timeLeft: TURN_SECONDS, aiDelay: 0, lastFrame: performance.now()
+      };
+
+      let toastTimer = 0;
+      let gesture = null;
+      let suppressClickUntil = 0;
+
+      const firstChar = (word) => Array.from(word)[0];
+      const lastChar = (word) => Array.from(word).at(-1);
+      const randomItem = (list) => list[Math.floor(Math.random() * list.length)];
+
+      function shuffle(list) {
+        const result = [...list];
+        for (let i = result.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [result[i], result[j]] = [result[j], result[i]];
+        }
+        return result;
+      }
+
+      // 每手最多两张可接牌，另外两张为干扰牌，并确保有解。
+      function dealCards() {
+        const tail = lastChar(state.current);
+        const available = IDIOMS.filter((word) => !state.used.has(word));
+        const valid = available.filter((word) => firstChar(word) === tail);
+        const decoys = available.filter((word) => firstChar(word) !== tail);
+        const chosen = shuffle(valid).slice(0, Math.min(2, valid.length));
+        chosen.push(...shuffle(decoys).slice(0, Math.max(0, 4 - chosen.length)));
+        state.cards = shuffle(chosen);
+        state.selected = -1;
+      }
+
+      function showToast(message, isError = false) {
+        clearTimeout(toastTimer);
+        dom.toast.textContent = message;
+        dom.toast.classList.toggle("error", isError);
+        dom.toast.classList.add("show");
+        toastTimer = window.setTimeout(() => dom.toast.classList.remove("show"), 1700);
+      }
+
+      function vibrate(pattern) {
+        if (navigator.vibrate) navigator.vibrate(pattern);
+      }
+
+      function renderCurrent() {
+        dom.current.replaceChildren();
+        const chars = Array.from(state.current);
+        chars.forEach((char, index) => {
+          const span = document.createElement("span");
+          span.className = "current-char" + (index === chars.length - 1 ? " tail" : "");
+          span.textContent = char;
+          dom.current.appendChild(span);
+        });
+        dom.currentLabel.innerHTML = `请接 <b>「${lastChar(state.current)}」</b> 字开头的成语`;
+      }
+
+      function renderHistory() {
+        dom.history.replaceChildren();
+        const label = document.createElement("span");
+        label.className = "history-label";
+        label.textContent = "词链";
+        dom.history.appendChild(label);
+        const recent = state.history.slice(-3);
+        recent.forEach((word, index) => {
+          if (index > 0) {
+            const arrow = document.createElement("span");
+            arrow.className = "history-arrow";
+            arrow.textContent = "›";
+            dom.history.appendChild(arrow);
+          }
+          const item = document.createElement("span");
+          item.className = "history-word" + (index === recent.length - 1 ? " latest" : "");
+          item.textContent = word;
+          dom.history.appendChild(item);
+        });
+      }
+
+      function renderCards() {
+        dom.cards.replaceChildren();
+        dom.cards.classList.toggle("locked", state.status !== "playing" || state.turn !== "player");
+        state.cards.forEach((word, index) => {
+          const card = document.createElement("button");
+          card.type = "button";
+          card.className = "idiom-card" + (index === state.selected ? " selected" : "");
+          card.dataset.index = String(index);
+          card.disabled = state.status !== "playing" || state.turn !== "player";
+          card.setAttribute("aria-label", `${index + 1}号牌，${word}`);
+          const key = document.createElement("span");
+          key.className = "key";
+          key.textContent = String(index + 1);
+          const text = document.createElement("span");
+          text.textContent = word;
+          const mark = document.createElement("span");
+          mark.className = "swipe-mark";
+          mark.textContent = "↑";
+          card.append(key, text, mark);
+          dom.cards.appendChild(card);
+        });
+        updatePlayButton();
+      }
+
+      function updatePlayButton() {
+        const canPlay = state.status === "playing" && state.turn === "player";
+        const word = state.cards[state.selected];
+        dom.play.disabled = !canPlay || !word;
+        dom.play.classList.toggle("ready", Boolean(canPlay && word));
+        dom.play.textContent = canPlay ? (word ? `出牌 · ${word}` : "选择一个成语") : "灵汐思考中…";
+        if (state.status === "ready") dom.play.textContent = "点击开始挑战";
+        if (state.status === "paused") dom.play.textContent = "游戏已暂停";
+        if (state.status === "ended") dom.play.textContent = "本局已结束";
+      }
+
+      function renderTimer() {
+        const isAI = state.turn === "ai" && state.status === "playing";
+        const ratio = Math.max(0, Math.min(1, state.timeLeft / TURN_SECONDS));
+        dom.timerProgress.style.strokeDashoffset = String(163.36 * (1 - ratio));
+        dom.timer.classList.toggle("danger", !isAI && state.timeLeft <= 5 && state.status === "playing");
+        dom.timer.classList.toggle("ai", isAI);
+        dom.timerNumber.textContent = isAI ? "AI" : String(Math.max(0, Math.ceil(state.timeLeft)));
+        dom.timerUnit.textContent = isAI ? "" : "秒";
+      }
+
+      function renderAll() {
+        dom.score.textContent = String(state.score);
+        dom.highScore.textContent = String(state.highScore);
+        dom.round.textContent = String(state.rounds);
+        dom.progress.style.width = `${Math.min(100, state.rounds / TARGET_ROUNDS * 100)}%`;
+        dom.pause.disabled = state.status !== "playing";
+        dom.turnBadge.classList.toggle("ai", state.turn === "ai");
+        if (state.status === "ready") {
+          dom.turnBadge.textContent = "等待开始";
+          dom.turnBadge.classList.remove("ai");
+        } else if (state.status === "ended") {
+          dom.turnBadge.textContent = "本局结束";
+        } else if (state.status === "paused") {
+          dom.turnBadge.textContent = "已暂停";
+        } else {
+          dom.turnBadge.textContent = state.turn === "player" ? "轮到你" : "AI 回合";
+        }
+        renderCurrent();
+        renderHistory();
+        renderCards();
+        renderTimer();
+      }
+
+      function startGame() {
+        clearTimeout(toastTimer);
+        dom.toast.classList.remove("show");
+        state.status = "playing";
+        state.turn = "player";
+        state.current = "一心一意";
+        state.used = new Set([state.current]);
+        state.history = [state.current];
+        state.score = 0;
+        state.startHigh = state.highScore;
+        state.rounds = 0;
+        state.streak = 0;
+        state.maxStreak = 0;
+        state.timeLeft = TURN_SECONDS;
+        state.aiDelay = 0;
+        state.lastFrame = performance.now();
+        dom.startModal.hidden = true;
+        dom.pauseModal.hidden = true;
+        dom.endModal.hidden = true;
+        dom.aiMessage.textContent = "我先出「一心一意」，该你啦！";
+        dealCards();
+        renderAll();
+      }
+
+      function goHome() {
+        state.status = "ready";
+        state.turn = "player";
+        state.current = "一心一意";
+        state.used = new Set([state.current]);
+        state.history = [state.current];
+        state.score = 0;
+        state.rounds = 0;
+        state.streak = 0;
+        state.timeLeft = TURN_SECONDS;
+        dom.endModal.hidden = true;
+        dom.startModal.hidden = false;
+        dom.aiMessage.textContent = "以词会友，准备好了吗？";
+        dealCards();
+        renderAll();
+      }
+
+      function selectCard(index) {
+        if (state.status !== "playing" || state.turn !== "player") return;
+        if (!state.cards[index]) return;
+        state.selected = index;
+        dom.cards.querySelectorAll(".idiom-card").forEach((card, cardIndex) => {
+          card.classList.toggle("selected", cardIndex === index);
+        });
+        updatePlayButton();
+      }
+
+      function playSelected() {
+        if (state.selected >= 0) playWord(state.selected);
+      }
+
+      function playWord(index) {
+        if (state.status !== "playing" || state.turn !== "player") return;
+        const word = state.cards[index];
+        if (!word) return;
+        const tail = lastChar(state.current);
+
+        if (state.used.has(word)) {
+          rejectCard("这个成语已经出现过了");
+          return;
+        }
+        if (!IDIOMS.includes(word)) {
+          rejectCard("词库里还没有这个成语");
+          return;
+        }
+        if (firstChar(word) !== tail) {
+          rejectCard(`要以「${tail}」字开头哦`);
+          return;
+        }
+
+        // 分数由基础分、剩余时间奖励与连击奖励组成。
+        state.streak += 1;
+        state.maxStreak = Math.max(state.maxStreak, state.streak);
+        const gained = 100 + Math.ceil(state.timeLeft) * 5 + (state.streak - 1) * 20;
+        state.score += gained;
+        state.rounds += 1;
+        state.current = word;
+        state.used.add(word);
+        state.history.push(word);
+        state.selected = -1;
+        if (state.score > state.highScore) {
+          state.highScore = state.score;
+          saveHighScore(state.highScore);
+        }
+        dom.aiMessage.textContent = `接得漂亮！+${gained} 分，让我想想…`;
+        vibrate(20);
+        renderAll();
+        dom.score.classList.remove("bump");
+        void dom.score.offsetWidth;
+        dom.score.classList.add("bump");
+
+        if (state.rounds >= TARGET_ROUNDS) {
+          endGame(true, "十词连珠，你完成了本场霓虹挑战！");
+          return;
+        }
+        state.turn = "ai";
+        state.aiDelay = .9 + Math.random() * .8;
+        renderAll();
+      }
+
+      function rejectCard(message) {
+        state.streak = 0;
+        state.score = Math.max(0, state.score - 30);
+        state.timeLeft = Math.max(.8, state.timeLeft - 2);
+        dom.score.textContent = String(state.score);
+        dom.cards.classList.remove("shake");
+        void dom.cards.offsetWidth;
+        dom.cards.classList.add("shake");
+        showToast(`${message} · 扣 2 秒`, true);
+        vibrate([35, 35, 35]);
+      }
+
+      function aiPlay() {
+        if (state.status !== "playing" || state.turn !== "ai") return;
+        const tail = lastChar(state.current);
+        const valid = IDIOMS.filter((word) => firstChar(word) === tail && !state.used.has(word));
+        if (!valid.length) {
+          endGame(true, "灵汐无词可接，你赢下了这场对决！");
+          return;
+        }
+
+        // AI 优先选择仍有后续接法的词，避免无意义地立刻封死词链。
+        const withContinuation = valid.filter((word) => {
+          const nextTail = lastChar(word);
+          return IDIOMS.some((next) => firstChar(next) === nextTail && !state.used.has(next) && next !== word);
+        });
+        if (!withContinuation.length) {
+          endGame(true, "这条词链已走到尽头，你守住了最后一棒！");
+          return;
+        }
+        const word = randomItem(withContinuation);
+        state.current = word;
+        state.used.add(word);
+        state.history.push(word);
+        state.turn = "player";
+        state.timeLeft = TURN_SECONDS;
+        state.selected = -1;
+        dom.aiMessage.textContent = `我接「${word}」，轮到你了！`;
+        dealCards();
+        if (!state.cards.some((item) => firstChar(item) === lastChar(state.current))) {
+          endGame(true, "词库挑战完成，已经没有可接的成语了！");
+          return;
+        }
+        renderAll();
+      }
+
+      function pauseGame(automatic = false) {
+        if (state.status !== "playing") return;
+        state.status = "paused";
+        $("pauseMessage").innerHTML = automatic ? "页面离开时已为你自动暂停<br>准备好了就继续接龙" : "时间与 AI 都已暂停<br>准备好了就继续接龙";
+        dom.pauseModal.hidden = false;
+        renderAll();
+      }
+
+      function resumeGame() {
+        if (state.status !== "paused") return;
+        state.status = "playing";
+        state.lastFrame = performance.now();
+        dom.pauseModal.hidden = true;
+        renderAll();
+      }
+
+      function endGame(won, message) {
+        if (state.status === "ended") return;
+        state.status = "ended";
+        state.selected = -1;
+        if (state.score > state.highScore) state.highScore = state.score;
+        saveHighScore(state.highScore);
+        $("endEmblem").textContent = won ? "🏆" : "⌛";
+        $("endTitle").textContent = won ? "接龙成功！" : "挑战结束";
+        $("endMessage").textContent = message;
+        $("finalScore").textContent = String(state.score);
+        $("finalRounds").textContent = String(state.rounds);
+        $("finalStreak").textContent = String(state.maxStreak);
+        $("finalBest").textContent = String(state.highScore);
+        $("recordBadge").hidden = !(state.score > state.startHigh && state.score > 0);
+        dom.endModal.hidden = false;
+        dom.aiMessage.textContent = won ? "好一场妙语连珠，期待再战！" : "别灰心，再来一局会更好！";
+        vibrate(won ? [30, 50, 30] : 80);
+        renderAll();
+        window.setTimeout(() => $("restartButton").focus(), 80);
+      }
+
+      // 使用统一动画循环计时，暂停时玩家倒计时与 AI 思考都会冻结。
+      function gameLoop(now) {
+        const delta = Math.min(.1, Math.max(0, (now - state.lastFrame) / 1000));
+        state.lastFrame = now;
+        if (state.status === "playing") {
+          if (state.turn === "player") {
+            state.timeLeft -= delta;
+            if (state.timeLeft <= 0) {
+              state.timeLeft = 0;
+              endGame(false, "时间用完了，记住尾字再接会更快哦！");
+            }
+            renderTimer();
+          } else {
+            state.aiDelay -= delta;
+            if (state.aiDelay <= 0) aiPlay();
+          }
+        }
+        requestAnimationFrame(gameLoop);
+      }
+
+      // 卡牌同时支持点选和上滑手势；鼠标拖动也可触发上滑出牌。
+      dom.cards.addEventListener("pointerdown", (event) => {
+        const card = event.target.closest(".idiom-card");
+        if (!card || card.disabled || state.turn !== "player") return;
+        gesture = { card, x: event.clientX, y: event.clientY, pointerId: event.pointerId };
+        card.setPointerCapture(event.pointerId);
+      });
+
+      dom.cards.addEventListener("pointermove", (event) => {
+        if (!gesture || event.pointerId !== gesture.pointerId) return;
+        const dy = event.clientY - gesture.y;
+        if (dy < 0) {
+          gesture.card.classList.add("dragging");
+          gesture.card.style.transform = `translateY(${Math.max(dy * .35, -32)}px)`;
+        }
+      });
+
+      function finishGesture(event, cancelled = false) {
+        if (!gesture || event.pointerId !== gesture.pointerId) return;
+        const currentGesture = gesture;
+        const dx = event.clientX - currentGesture.x;
+        const dy = event.clientY - currentGesture.y;
+        currentGesture.card.classList.remove("dragging");
+        currentGesture.card.style.transform = "";
+        gesture = null;
+        if (!cancelled && dy < -45 && Math.abs(dy) > Math.abs(dx)) {
+          suppressClickUntil = performance.now() + 450;
+          playWord(Number(currentGesture.card.dataset.index));
+        }
+      }
+      dom.cards.addEventListener("pointerup", (event) => finishGesture(event));
+      dom.cards.addEventListener("pointercancel", (event) => finishGesture(event, true));
+
+      dom.cards.addEventListener("click", (event) => {
+        if (performance.now() < suppressClickUntil) return;
+        const card = event.target.closest(".idiom-card");
+        if (card) selectCard(Number(card.dataset.index));
+      });
+
+      dom.play.addEventListener("click", playSelected);
+      dom.pause.addEventListener("click", () => pauseGame(false));
+      $("startButton").addEventListener("click", startGame);
+      $("resumeButton").addEventListener("click", resumeGame);
+      $("restartButton").addEventListener("click", startGame);
+      $("pauseRestartButton").addEventListener("click", startGame);
+      $("homeButton").addEventListener("click", goHome);
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key.toLowerCase() === "p" || event.key === "Escape") {
+          if (state.status === "playing") pauseGame(false);
+          else if (state.status === "paused") resumeGame();
+          return;
+        }
+        if (state.status !== "playing" || state.turn !== "player") return;
+        if (["1", "2", "3", "4"].includes(event.key)) selectCard(Number(event.key) - 1);
+        if (event.key === "Enter") { event.preventDefault(); playSelected(); }
+      });
+
+      // 禁止双击缩放、双指缩放和页面橡皮筋滚动。
+      document.addEventListener("dblclick", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
+      let lastTouchEnd = 0;
+      document.addEventListener("touchend", (event) => {
+        const now = performance.now();
+        if (now - lastTouchEnd < 300) event.preventDefault();
+        lastTouchEnd = now;
+      }, { passive: false });
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && state.status === "playing") pauseGame(true);
+      });
+
+      // 初始化静态数据与首屏。
+      $("dictionaryCount").textContent = String(IDIOMS.length);
+      state.used = new Set([state.current]);
+      state.history = [state.current];
+      dealCards();
+      renderAll();
+      requestAnimationFrame(gameLoop);
+    })();
+  </script>
+</body>
+</html>

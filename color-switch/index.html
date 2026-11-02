@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070914">
+  <title>色彩跳跃 · Neon Color Leap</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070914;
+      --panel: rgba(17, 22, 43, 0.78);
+      --line: rgba(255, 255, 255, 0.1);
+      --text: #f5f7ff;
+      --muted: #929ab8;
+      --cyan: #42e8ff;
+      --pink: #ff4fc8;
+      --yellow: #ffd166;
+      --violet: #9b72ff;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      background: #04050c;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: var(--text);
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      background:
+        radial-gradient(circle at 15% 15%, rgba(66, 232, 255, 0.09), transparent 32%),
+        radial-gradient(circle at 85% 85%, rgba(255, 79, 200, 0.08), transparent 34%),
+        #04050c;
+    }
+
+    button {
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    button:focus-visible,
+    canvas:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    .game-shell {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      isolation: isolate;
+      background: var(--bg);
+    }
+
+    #gameCanvas {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    .vignette {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background:
+        linear-gradient(180deg, rgba(3, 5, 15, 0.42), transparent 22%, transparent 76%, rgba(3, 5, 15, 0.58)),
+        radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.28));
+    }
+
+    .hud {
+      position: absolute;
+      z-index: 3;
+      top: max(14px, env(safe-area-inset-top));
+      left: 14px;
+      right: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .score-group,
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    .hud-card {
+      min-width: 64px;
+      height: 48px;
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: rgba(12, 16, 34, 0.68);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 28px rgba(0, 0, 0, 0.16);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .hud-card .label {
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.15;
+      letter-spacing: 0.12em;
+      writing-mode: vertical-rl;
+    }
+
+    .hud-card strong {
+      min-width: 25px;
+      font-size: 22px;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+    }
+
+    .hud-card:first-child strong {
+      color: var(--cyan);
+      text-shadow: 0 0 14px rgba(66, 232, 255, 0.5);
+    }
+
+    .icon-button {
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: rgba(12, 16, 34, 0.72);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transition: transform 120ms ease, background 120ms ease, opacity 120ms ease;
+    }
+
+    .icon-button:active {
+      transform: scale(0.92);
+      background: rgba(36, 43, 73, 0.9);
+    }
+
+    .icon-button:disabled {
+      opacity: 0.36;
+      cursor: default;
+    }
+
+    .icon-button svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+
+    .level-progress {
+      position: absolute;
+      z-index: 3;
+      top: calc(max(14px, env(safe-area-inset-top)) + 60px);
+      left: 18px;
+      right: 18px;
+      height: 3px;
+      overflow: hidden;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, 0.07);
+      pointer-events: none;
+    }
+
+    .level-progress > i {
+      display: block;
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cyan), var(--violet), var(--pink));
+      box-shadow: 0 0 12px var(--cyan);
+      transition: width 260ms ease;
+    }
+
+    .level-label {
+      position: absolute;
+      z-index: 3;
+      top: calc(max(14px, env(safe-area-inset-top)) + 71px);
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(220, 225, 248, 0.52);
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    .bottom-hud {
+      position: absolute;
+      z-index: 3;
+      left: 14px;
+      right: 14px;
+      bottom: max(16px, env(safe-area-inset-bottom));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      pointer-events: none;
+    }
+
+    .hint,
+    .color-chip {
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(9, 13, 29, 0.64);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .hint {
+      padding: 0 15px;
+      gap: 8px;
+      border-radius: 99px;
+      color: rgba(229, 233, 252, 0.72);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+    }
+
+    .tap-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 10px var(--cyan);
+      animation: tapPulse 1.6s ease-in-out infinite;
+    }
+
+    .color-chip {
+      min-width: 42px;
+      padding: 0 12px;
+      gap: 7px;
+      border-radius: 99px;
+      color: rgba(238, 241, 255, 0.82);
+      font-size: 11px;
+    }
+
+    .color-chip i {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 10px currentColor;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      display: grid;
+      place-items: center;
+      padding: max(24px, env(safe-area-inset-top)) 22px max(24px, env(safe-area-inset-bottom));
+      background: rgba(4, 6, 17, 0.64);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      animation: fadeIn 180ms ease-out;
+    }
+
+    .modal-card {
+      position: relative;
+      width: min(100%, 360px);
+      padding: 30px 25px 24px;
+      overflow: hidden;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 28px;
+      background:
+        linear-gradient(145deg, rgba(28, 34, 63, 0.94), rgba(11, 14, 31, 0.96));
+      box-shadow:
+        0 30px 80px rgba(0, 0, 0, 0.48),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 0 50px rgba(66, 232, 255, 0.05);
+      animation: cardIn 300ms cubic-bezier(0.2, 0.85, 0.25, 1.1);
+    }
+
+    .modal-card::before {
+      content: "";
+      position: absolute;
+      top: -100px;
+      left: 50%;
+      width: 230px;
+      height: 170px;
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background: rgba(66, 232, 255, 0.12);
+      filter: blur(45px);
+      pointer-events: none;
+    }
+
+    .modal-orb {
+      position: relative;
+      width: 70px;
+      height: 70px;
+      margin: 0 auto 18px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.045);
+      box-shadow: inset 0 0 22px rgba(255, 255, 255, 0.035);
+      transform: rotate(45deg);
+    }
+
+    .modal-orb > span {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 32% 28%, #fff 0 7%, var(--cyan) 25%, #1688ba 72%);
+      box-shadow: 0 0 14px var(--cyan), 0 0 34px rgba(66, 232, 255, 0.58);
+      animation: orbFloat 2.4s ease-in-out infinite;
+    }
+
+    .modal-orb.result {
+      border-radius: 50%;
+      transform: none;
+      font-size: 30px;
+      font-weight: 700;
+    }
+
+    .modal-orb.result > span {
+      width: auto;
+      height: auto;
+      display: grid;
+      place-items: center;
+      background: none;
+      box-shadow: none;
+      animation: none;
+    }
+
+    .modal-kicker {
+      position: relative;
+      margin: 0 0 8px;
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+    }
+
+    .modal-card h1,
+    .modal-card h2 {
+      position: relative;
+      margin: 0;
+      font-size: clamp(28px, 8vw, 36px);
+      line-height: 1.2;
+      letter-spacing: 0.06em;
+    }
+
+    .modal-text {
+      position: relative;
+      margin: 14px auto 20px;
+      max-width: 280px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.85;
+      white-space: pre-line;
+    }
+
+    .rules {
+      position: relative;
+      margin: 0 0 22px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+    }
+
+    .rule {
+      padding: 11px 4px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 13px;
+      background: rgba(255, 255, 255, 0.025);
+      color: #b5bdd8;
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .rule b {
+      display: block;
+      margin-bottom: 3px;
+      color: #f2f5ff;
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .result-stats {
+      position: relative;
+      margin: 2px 0 20px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .result-stat {
+      min-width: 102px;
+      padding: 12px 18px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 15px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .result-stat span {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+    }
+
+    .result-stat strong {
+      color: var(--cyan);
+      font-size: 26px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .record-badge {
+      position: relative;
+      width: max-content;
+      margin: -7px auto 16px;
+      padding: 5px 11px;
+      border: 1px solid rgba(255, 209, 102, 0.26);
+      border-radius: 99px;
+      color: var(--yellow);
+      background: rgba(255, 209, 102, 0.07);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+    }
+
+    .primary-button,
+    .secondary-button {
+      position: relative;
+      width: 100%;
+      min-height: 52px;
+      border-radius: 16px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      transition: transform 120ms ease, filter 120ms ease;
+    }
+
+    .primary-button {
+      color: #051018;
+      background: linear-gradient(110deg, #75f0ff, #42e8ff 48%, #8bf5e2);
+      box-shadow: 0 10px 28px rgba(66, 232, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    }
+
+    .primary-button:active,
+    .secondary-button:active {
+      transform: translateY(2px) scale(0.985);
+      filter: brightness(0.9);
+    }
+
+    .secondary-button {
+      margin-top: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #b9c1dc;
+      background: rgba(255, 255, 255, 0.045);
+    }
+
+    .keyboard-tip {
+      position: relative;
+      margin: 14px 0 0;
+      color: rgba(146, 154, 184, 0.58);
+      font-size: 10px;
+      letter-spacing: 0.05em;
+    }
+
+    @keyframes tapPulse {
+      0%, 100% { transform: scale(0.8); opacity: 0.55; }
+      50% { transform: scale(1.3); opacity: 1; }
+    }
+
+    @keyframes orbFloat {
+      0%, 100% { transform: rotate(-45deg) translateY(-2px); }
+      50% { transform: rotate(-45deg) translateY(4px); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(16px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @media (min-width: 540px) and (min-height: 680px) {
+      .game-shell {
+        width: min(460px, 100%);
+        height: min(880px, calc(100dvh - 28px));
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 30px;
+        box-shadow: 0 35px 100px rgba(0, 0, 0, 0.55), 0 0 70px rgba(66, 232, 255, 0.05);
+      }
+    }
+
+    @media (max-width: 350px) {
+      .hud { left: 10px; right: 10px; }
+      .hud-card { min-width: 58px; padding-inline: 9px; gap: 6px; }
+      .score-group, .controls { gap: 6px; }
+      .icon-button { width: 43px; height: 43px; }
+      .hint { padding-inline: 11px; font-size: 11px; }
+      .color-chip { padding-inline: 9px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="game-shell" id="gameShell">
+    <canvas id="gameCanvas" tabindex="0" aria-label="色彩跳跃游戏区：轻点、点击或按空格键跳跃"></canvas>
+    <div class="vignette"></div>
+
+    <header class="hud" aria-label="游戏状态">
+      <div class="score-group">
+        <div class="hud-card">
+          <span class="label">得分</span>
+          <strong id="scoreValue">00</strong>
+        </div>
+        <div class="hud-card">
+          <span class="label">最高</span>
+          <strong id="bestValue">00</strong>
+        </div>
+      </div>
+      <div class="controls">
+        <button class="icon-button" id="soundButton" type="button" aria-label="关闭音效" aria-pressed="true">
+          <svg id="soundOnIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 4V5L7 9H3zm13.5 3a3.5 3.5 0 0 0-1.5-2.87v5.74A3.5 3.5 0 0 0 16.5 12zm-1.5-7.47v2.06a6 6 0 0 1 0 10.82v2.06a8 8 0 0 0 0-14.94z"/></svg>
+          <svg id="soundOffIcon" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M3 9v6h4l5 4V5L7 9H3zm13.59 3 2.7-2.7-1.42-1.41-2.7 2.7-2.7-2.7-1.41 1.41 2.7 2.7-2.7 2.7 1.41 1.42 2.7-2.7 2.7 2.7 1.42-1.42-2.7-2.7z"/></svg>
+        </button>
+        <button class="icon-button" id="pauseButton" type="button" aria-label="暂停游戏" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="level-progress" aria-hidden="true"><i id="progressFill"></i></div>
+    <div class="level-label" id="levelLabel">光门 01 / 12</div>
+
+    <div class="bottom-hud">
+      <div class="hint"><span class="tap-dot"></span><span id="hintText">轻点跳跃 · 穿过同色光门</span></div>
+      <div class="color-chip" aria-label="小球当前颜色"><i id="currentColorDot"></i><span id="currentColorName">青色</span></div>
+    </div>
+
+    <section class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-card">
+        <div class="modal-orb" id="modalOrb"><span id="modalSymbol"></span></div>
+        <p class="modal-kicker" id="modalKicker">NEON · COLOR LEAP</p>
+        <h1 id="modalTitle">色彩跳跃</h1>
+        <p class="modal-text" id="modalText">轻点屏幕，让小球向上跳跃。
+只有相同颜色的光门才能穿过！</p>
+
+        <div class="rules" id="rules">
+          <div class="rule"><b>↥</b>轻点跳跃</div>
+          <div class="rule"><b>◈</b>同色穿越</div>
+          <div class="rule"><b>✦</b>收集变色</div>
+        </div>
+
+        <div class="result-stats" id="resultStats" hidden>
+          <div class="result-stat"><span>本局得分</span><strong id="resultScore">0</strong></div>
+          <div class="result-stat"><span>最高分</span><strong id="resultBest">0</strong></div>
+        </div>
+        <div class="record-badge" id="recordBadge" hidden>✦ 新纪录 ✦</div>
+
+        <button class="primary-button" id="primaryButton" type="button">开始游戏</button>
+        <button class="secondary-button" id="secondaryButton" type="button" hidden>重新开始</button>
+        <p class="keyboard-tip" id="keyboardTip">也可使用 空格 / ↑ / W · P 暂停</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // ---------- 基础配置与界面元素 ----------
+      const TOTAL_GATES = 12;
+      const VIEW_HEIGHT = 740;
+      const GRAVITY = 1250;
+      const JUMP_SPEED = -435;
+      const MAX_FALL_SPEED = 720;
+      const FIXED_STEP = 1 / 120;
+      const STORAGE_KEY = "neon-color-leap-best-v1";
+
+      const COLORS = ["#42e8ff", "#ff4fc8", "#ffd166", "#9b72ff"];
+      const COLOR_NAMES = ["青色", "粉色", "金色", "紫色"];
+      const COLOR_SYMBOLS = ["●", "◆", "▲", "■"];
+
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const gameShell = document.getElementById("gameShell");
+      const scoreValue = document.getElementById("scoreValue");
+      const bestValue = document.getElementById("bestValue");
+      const progressFill = document.getElementById("progressFill");
+      const levelLabel = document.getElementById("levelLabel");
+      const currentColorDot = document.getElementById("currentColorDot");
+      const currentColorName = document.getElementById("currentColorName");
+      const hintText = document.getElementById("hintText");
+      const pauseButton = document.getElementById("pauseButton");
+      const soundButton = document.getElementById("soundButton");
+      const soundOnIcon = document.getElementById("soundOnIcon");
+      const soundOffIcon = document.getElementById("soundOffIcon");
+      const overlay = document.getElementById("overlay");
+      const modalOrb = document.getElementById("modalOrb");
+      const modalSymbol = document.getElementById("modalSymbol");
+      const modalKicker = document.getElementById("modalKicker");
+      const modalTitle = document.getElementById("modalTitle");
+      const modalText = document.getElementById("modalText");
+      const rules = document.getElementById("rules");
+      const resultStats = document.getElementById("resultStats");
+      const resultScore = document.getElementById("resultScore");
+      const resultBest = document.getElementById("resultBest");
+      const recordBadge = document.getElementById("recordBadge");
+      const primaryButton = document.getElementById("primaryButton");
+      const secondaryButton = document.getElementById("secondaryButton");
+      const keyboardTip = document.getElementById("keyboardTip");
+
+      // 统一使用 740 高的逻辑坐标，适配不同屏幕且保持物理手感一致。
+      const view = { width: 420, height: VIEW_HEIGHT, scale: 1, dpr: 1 };
+      let state = "ready";
+      let score = 0;
+      let best = loadBest();
+      let bestAtStart = best;
+      let newRecord = false;
+      let elapsed = 0;
+      let cameraY = 0;
+      let lastTime = performance.now();
+      let accumulator = 0;
+      let player;
+      let gates = [];
+      let orbs = [];
+      let particles = [];
+      let floatingTexts = [];
+      let muted = false;
+      let audioContext = null;
+
+      // 星空使用归一化横坐标，屏幕尺寸变化时也能自然铺满。
+      const stars = Array.from({ length: 72 }, () => ({
+        x: Math.random(),
+        y: Math.random(),
+        size: 0.45 + Math.random() * 1.35,
+        alpha: 0.16 + Math.random() * 0.5,
+        depth: 0.025 + Math.random() * 0.075,
+        phase: Math.random() * Math.PI * 2
+      }));
+
+      function loadBest() {
+        try {
+          const saved = Number.parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10);
+          return Number.isFinite(saved) ? Math.max(0, Math.min(TOTAL_GATES, saved)) : 0;
+        } catch (error) {
+          return 0;
+        }
+      }
+
+      function saveBest() {
+        try {
+          localStorage.setItem(STORAGE_KEY, String(best));
+        } catch (error) {
+          // 隐私模式下存储不可用时，游戏仍可正常运行。
+        }
+      }
+
+      function padScore(value) {
+        return String(value).padStart(2, "0");
+      }
+
+      function updateHUD() {
+        scoreValue.textContent = padScore(score);
+        bestValue.textContent = padScore(best);
+        resultScore.textContent = String(score);
+        resultBest.textContent = String(best);
+        progressFill.style.width = `${(score / TOTAL_GATES) * 100}%`;
+        levelLabel.textContent = score >= TOTAL_GATES
+          ? "全部光门已点亮"
+          : `光门 ${padScore(score + 1)} / ${TOTAL_GATES}`;
+        const colorIndex = player ? player.colorIndex : 0;
+        currentColorDot.style.background = COLORS[colorIndex];
+        currentColorDot.style.color = COLORS[colorIndex];
+        currentColorName.textContent = COLOR_NAMES[colorIndex];
+      }
+
+      function resizeCanvas() {
+        const rect = gameShell.getBoundingClientRect();
+        const cssWidth = Math.max(1, rect.width);
+        const cssHeight = Math.max(1, rect.height);
+        view.scale = cssHeight / VIEW_HEIGHT;
+        view.width = cssWidth / view.scale;
+        view.dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(cssWidth * view.dpr);
+        canvas.height = Math.round(cssHeight * view.dpr);
+        if (player) player.x = view.width / 2;
+      }
+
+      // ---------- 关卡与状态 ----------
+      function shuffledColors() {
+        const list = [0, 1, 2, 3];
+        for (let i = list.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [list[i], list[j]] = [list[j], list[i]];
+        }
+        return list;
+      }
+
+      function resetLevel() {
+        score = 0;
+        elapsed = 0;
+        cameraY = 0;
+        accumulator = 0;
+        particles = [];
+        floatingTexts = [];
+        gates = [];
+        orbs = [];
+        bestAtStart = best;
+        newRecord = false;
+
+        player = {
+          x: view.width / 2,
+          y: VIEW_HEIGHT - 120,
+          previousY: VIEW_HEIGHT - 120,
+          vy: 0,
+          radius: 11,
+          colorIndex: Math.floor(Math.random() * COLORS.length),
+          trail: []
+        };
+
+        let nextColor = player.colorIndex;
+        for (let i = 0; i < TOTAL_GATES; i += 1) {
+          const y = VIEW_HEIGHT - 300 - i * 180;
+          gates.push({
+            index: i,
+            y,
+            thickness: 18,
+            pattern: shuffledColors(),
+            phase: Math.random() * Math.PI * 2,
+            speed: 0.76 + i * 0.035,
+            cleared: false
+          });
+
+          // 每两道门之间放置变色能量，下一道门始终包含所有颜色，保证可解。
+          if (i > 0) {
+            nextColor = (nextColor + 1 + Math.floor(Math.random() * 3)) % COLORS.length;
+            orbs.push({
+              y: y + 90,
+              colorIndex: nextColor,
+              collected: false,
+              phase: Math.random() * Math.PI * 2
+            });
+          }
+        }
+        updateHUD();
+      }
+
+      function setModalSymbol(symbol, color, isResult = false) {
+        modalOrb.classList.toggle("result", isResult);
+        modalOrb.style.borderColor = `${color}55`;
+        modalOrb.style.boxShadow = `inset 0 0 25px ${color}12, 0 0 34px ${color}16`;
+        modalSymbol.textContent = symbol;
+        modalSymbol.style.color = color;
+        if (isResult) {
+          modalSymbol.style.background = "none";
+          modalSymbol.style.boxShadow = "none";
+        } else {
+          modalSymbol.style.background = "";
+          modalSymbol.style.boxShadow = "";
+        }
+      }
+
+      function showStart() {
+        state = "ready";
+        resetLevel();
+        pauseButton.disabled = true;
+        overlay.hidden = false;
+        rules.hidden = false;
+        resultStats.hidden = true;
+        recordBadge.hidden = true;
+        secondaryButton.hidden = true;
+        modalKicker.textContent = "NEON · COLOR LEAP";
+        modalTitle.textContent = "色彩跳跃";
+        modalText.textContent = "轻点屏幕，让小球向上跳跃。\n只有相同颜色的光门才能穿过！";
+        primaryButton.textContent = "开始游戏";
+        keyboardTip.textContent = "也可使用 空格 / ↑ / W · P 暂停";
+        hintText.textContent = "轻点跳跃 · 穿过同色光门";
+        setModalSymbol("", COLORS[0]);
+        primaryButton.onclick = startGame;
+      }
+
+      function startGame() {
+        resetLevel();
+        state = "playing";
+        overlay.hidden = true;
+        pauseButton.disabled = false;
+        hintText.textContent = "轻点跳跃 · 穿过同色光门";
+        lastTime = performance.now();
+        accumulator = 0;
+        canvas.focus({ preventScroll: true });
+        jump();
+      }
+
+      function pauseGame() {
+        if (state !== "playing") return;
+        state = "paused";
+        overlay.hidden = false;
+        rules.hidden = true;
+        resultStats.hidden = true;
+        recordBadge.hidden = true;
+        secondaryButton.hidden = false;
+        modalKicker.textContent = "TAKE A BREATH";
+        modalTitle.textContent = "游戏暂停";
+        modalText.textContent = "休息一下，霓虹世界会在这里等你。";
+        primaryButton.textContent = "继续游戏";
+        secondaryButton.textContent = "重新开始";
+        keyboardTip.textContent = "按 P / Esc / 空格 继续";
+        setModalSymbol("Ⅱ", COLORS[3], true);
+        primaryButton.onclick = resumeGame;
+        secondaryButton.onclick = startGame;
+        primaryButton.focus({ preventScroll: true });
+      }
+
+      function resumeGame() {
+        if (state !== "paused") return;
+        state = "playing";
+        overlay.hidden = true;
+        lastTime = performance.now();
+        accumulator = 0;
+        canvas.focus({ preventScroll: true });
+        playTone(360, 0.08, "sine", 0.035, 520);
+      }
+
+      function finishGame(won, reason = "") {
+        if (state !== "playing") return;
+        state = won ? "won" : "over";
+        pauseButton.disabled = true;
+        overlay.hidden = false;
+        rules.hidden = true;
+        resultStats.hidden = false;
+        secondaryButton.hidden = true;
+        recordBadge.hidden = !(newRecord && score > 0);
+        modalKicker.textContent = won ? "ALL GATES CLEARED" : "KEEP GLOWING";
+        modalTitle.textContent = won ? "完美通关！" : "挑战失败";
+        modalText.textContent = won
+          ? "12 道霓虹光门全部点亮，你掌握了色彩的节奏！"
+          : reason || "再观察一下颜色，下一次一定更远。";
+        primaryButton.textContent = won ? "再玩一次" : "再来一局";
+        keyboardTip.textContent = "点击按钮或按空格重新挑战";
+        setModalSymbol(won ? "✓" : "×", won ? COLORS[0] : COLORS[1], true);
+        primaryButton.onclick = startGame;
+        updateHUD();
+        primaryButton.focus({ preventScroll: true });
+
+        if (won) {
+          spawnConfetti();
+          [523, 659, 784, 1047].forEach((frequency, index) => {
+            playTone(frequency, 0.24, "sine", 0.045, frequency * 1.01, index * 0.1);
+          });
+        } else {
+          playTone(150, 0.34, "sawtooth", 0.04, 55);
+          if (navigator.vibrate) navigator.vibrate([35, 45, 55]);
+        }
+      }
+
+      // ---------- 输入与音效 ----------
+      function jump() {
+        if (state !== "playing") return;
+        player.vy = JUMP_SPEED;
+        spawnBurst(player.x, player.y + player.radius, COLORS[player.colorIndex], 5, 85, 0.32);
+        playTone(260, 0.075, "sine", 0.025, 430);
+      }
+
+      canvas.addEventListener("pointerdown", (event) => {
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        event.preventDefault();
+        jump();
+      });
+
+      pauseButton.addEventListener("click", () => {
+        if (state === "playing") pauseGame();
+        else if (state === "paused") resumeGame();
+      });
+
+      soundButton.addEventListener("click", () => {
+        muted = !muted;
+        soundButton.setAttribute("aria-pressed", String(!muted));
+        soundButton.setAttribute("aria-label", muted ? "开启音效" : "关闭音效");
+        soundOnIcon.hidden = muted;
+        soundOffIcon.hidden = !muted;
+        if (!muted) playTone(520, 0.09, "sine", 0.035, 720);
+      });
+
+      window.addEventListener("keydown", (event) => {
+        const jumpKeys = ["Space", "ArrowUp", "KeyW"];
+        const pauseKeys = ["KeyP", "Escape"];
+        if (jumpKeys.includes(event.code) || pauseKeys.includes(event.code)) {
+          event.preventDefault();
+        }
+
+        // 焦点在按钮上时保留原生空格/回车行为，避免一次按键触发两次。
+        if (event.target instanceof HTMLButtonElement && ["Space", "Enter"].includes(event.code)) return;
+        if (event.repeat) return;
+
+        if (jumpKeys.includes(event.code)) {
+          if (state === "playing") jump();
+          else if (state === "ready" || state === "over" || state === "won") startGame();
+          else if (state === "paused") resumeGame();
+        } else if (pauseKeys.includes(event.code)) {
+          if (state === "playing") pauseGame();
+          else if (state === "paused") resumeGame();
+        }
+      }, { passive: false });
+
+      // 阻止移动端页面滚动、双指缩放手势与双击缩放。
+      document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("dblclick", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
+      gameShell.addEventListener("contextmenu", (event) => event.preventDefault());
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) pauseGame();
+      });
+      window.addEventListener("blur", pauseGame);
+      window.addEventListener("resize", resizeCanvas);
+
+      function playTone(frequency, duration, type, volume, endFrequency, delay = 0) {
+        if (muted) return;
+        try {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContextClass) return;
+          if (!audioContext) audioContext = new AudioContextClass();
+          if (audioContext.state === "suspended") audioContext.resume();
+          const start = audioContext.currentTime + delay;
+          const oscillator = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          oscillator.type = type;
+          oscillator.frequency.setValueAtTime(frequency, start);
+          oscillator.frequency.exponentialRampToValueAtTime(Math.max(20, endFrequency || frequency), start + duration);
+          gain.gain.setValueAtTime(0.0001, start);
+          gain.gain.exponentialRampToValueAtTime(volume, start + 0.012);
+          gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+          oscillator.connect(gain);
+          gain.connect(audioContext.destination);
+          oscillator.start(start);
+          oscillator.stop(start + duration + 0.02);
+        } catch (error) {
+          // 音频不是必要能力，浏览器限制时静默降级。
+        }
+      }
+
+      // ---------- 游戏物理与碰撞 ----------
+      function segmentWidth() {
+        return Math.max(72, view.width / 4);
+      }
+
+      function gateOffset(gate) {
+        return Math.sin(elapsed * gate.speed + gate.phase) * segmentWidth();
+      }
+
+      function colorAtGate(gate, x) {
+        const width = segmentWidth();
+        const rawIndex = Math.floor((x - gateOffset(gate)) / width);
+        const index = ((rawIndex % gate.pattern.length) + gate.pattern.length) % gate.pattern.length;
+        return gate.pattern[index];
+      }
+
+      function clearGate(gate) {
+        gate.cleared = true;
+        score += 1;
+        if (score > best) {
+          best = score;
+          newRecord = best > bestAtStart;
+          saveBest();
+        }
+
+        // 光门碎裂成与分段一致的颜色粒子。
+        for (let i = 0; i < 34; i += 1) {
+          const x = Math.random() * view.width;
+          const colorIndex = colorAtGate(gate, x);
+          particles.push({
+            x,
+            y: gate.y,
+            vx: (Math.random() - 0.5) * 220,
+            vy: (Math.random() - 0.5) * 150,
+            gravity: 190,
+            life: 0.55 + Math.random() * 0.35,
+            maxLife: 0.9,
+            size: 2 + Math.random() * 4,
+            color: COLORS[colorIndex]
+          });
+        }
+        floatingTexts.push({
+          x: player.x + 24,
+          y: player.y - 16,
+          text: "+1",
+          color: COLORS[player.colorIndex],
+          life: 0.8,
+          maxLife: 0.8
+        });
+        updateHUD();
+        playTone(510 + score * 24, 0.14, "triangle", 0.04, 760 + score * 25);
+        if (score === TOTAL_GATES) finishGame(true);
+      }
+
+      function collectOrb(orb) {
+        orb.collected = true;
+        player.colorIndex = orb.colorIndex;
+        spawnBurst(player.x, orb.y, COLORS[orb.colorIndex], 20, 155, 0.65);
+        floatingTexts.push({
+          x: player.x,
+          y: player.y - 25,
+          text: `变为${COLOR_NAMES[orb.colorIndex]}`,
+          color: COLORS[orb.colorIndex],
+          life: 0.95,
+          maxLife: 0.95
+        });
+        updateHUD();
+        playTone(620, 0.1, "sine", 0.04, 900);
+        playTone(900, 0.13, "sine", 0.025, 1120, 0.07);
+      }
+
+      function update(dt) {
+        if (state !== "playing") return;
+        elapsed += dt;
+        player.previousY = player.y;
+        player.vy = Math.min(MAX_FALL_SPEED, player.vy + GRAVITY * dt);
+        player.y += player.vy * dt;
+        player.x = view.width / 2;
+
+        // 镜头只向上推进，营造持续攀升的节奏。
+        const followLine = VIEW_HEIGHT * 0.42;
+        if (player.y - cameraY < followLine) cameraY = player.y - followLine;
+
+        player.trail.unshift({ x: player.x, y: player.y, colorIndex: player.colorIndex });
+        if (player.trail.length > 13) player.trail.pop();
+
+        for (const orb of orbs) {
+          if (!orb.collected && Math.abs(player.y - orb.y) < player.radius + 17) {
+            collectOrb(orb);
+          }
+        }
+
+        for (const gate of gates) {
+          if (gate.cleared) continue;
+          const touching = Math.abs(player.y - gate.y) < player.radius + gate.thickness / 2;
+          if (!touching) continue;
+
+          if (colorAtGate(gate, player.x) !== player.colorIndex) {
+            spawnBurst(player.x, player.y, COLORS[player.colorIndex], 28, 230, 0.85);
+            finishGame(false, "碰到了不同颜色！等同色光段移到小球上方再跳跃。 ");
+            return;
+          }
+
+          const crossedUpward = player.vy < 0 && player.previousY > gate.y && player.y <= gate.y;
+          if (crossedUpward) {
+            clearGate(gate);
+            if (state !== "playing") return;
+          }
+        }
+
+        updateEffects(dt);
+        if (player.y - cameraY > VIEW_HEIGHT + 46) {
+          finishGame(false, "小球坠入了霓虹深空。连续轻点，就能保持向上！");
+        }
+      }
+
+      function spawnBurst(x, y, color, count, speed, life) {
+        for (let i = 0; i < count; i += 1) {
+          const angle = Math.random() * Math.PI * 2;
+          const velocity = speed * (0.35 + Math.random() * 0.65);
+          particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * velocity,
+            vy: Math.sin(angle) * velocity,
+            gravity: 120,
+            life: life * (0.65 + Math.random() * 0.35),
+            maxLife: life,
+            size: 1.5 + Math.random() * 3,
+            color
+          });
+        }
+      }
+
+      function spawnConfetti() {
+        for (let i = 0; i < 90; i += 1) {
+          const color = COLORS[i % COLORS.length];
+          particles.push({
+            x: view.width / 2 + (Math.random() - 0.5) * 90,
+            y: player.y,
+            vx: (Math.random() - 0.5) * 390,
+            vy: -90 - Math.random() * 300,
+            gravity: 300,
+            life: 1.2 + Math.random() * 1.2,
+            maxLife: 2.4,
+            size: 2 + Math.random() * 4,
+            color
+          });
+        }
+      }
+
+      function updateEffects(dt) {
+        for (const particle of particles) {
+          particle.life -= dt;
+          particle.vy += particle.gravity * dt;
+          particle.x += particle.vx * dt;
+          particle.y += particle.vy * dt;
+        }
+        particles = particles.filter((particle) => particle.life > 0);
+
+        for (const item of floatingTexts) {
+          item.life -= dt;
+          item.y -= 34 * dt;
+        }
+        floatingTexts = floatingTexts.filter((item) => item.life > 0);
+      }
+
+      // ---------- Canvas 绘制 ----------
+      function positiveMod(value, divisor) {
+        return ((value % divisor) + divisor) % divisor;
+      }
+
+      function drawBackground(time) {
+        const gradient = ctx.createLinearGradient(0, 0, 0, VIEW_HEIGHT);
+        gradient.addColorStop(0, "#080b1c");
+        gradient.addColorStop(0.55, "#090c1c");
+        gradient.addColorStop(1, "#050711");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, view.width, VIEW_HEIGHT);
+
+        const glowA = ctx.createRadialGradient(view.width * 0.12, 180, 0, view.width * 0.12, 180, 260);
+        glowA.addColorStop(0, "rgba(66,232,255,0.065)");
+        glowA.addColorStop(1, "rgba(66,232,255,0)");
+        ctx.fillStyle = glowA;
+        ctx.fillRect(0, 0, view.width, VIEW_HEIGHT);
+
+        const glowB = ctx.createRadialGradient(view.width * 0.9, 560, 0, view.width * 0.9, 560, 280);
+        glowB.addColorStop(0, "rgba(255,79,200,0.05)");
+        glowB.addColorStop(1, "rgba(255,79,200,0)");
+        ctx.fillStyle = glowB;
+        ctx.fillRect(0, 0, view.width, VIEW_HEIGHT);
+
+        // 细微网格随镜头缓慢移动，增强向上攀升的空间感。
+        ctx.save();
+        ctx.strokeStyle = "rgba(133,151,208,0.035)";
+        ctx.lineWidth = 1;
+        const gridGap = 74;
+        const gridOffset = positiveMod(-cameraY * 0.12, gridGap);
+        for (let y = gridOffset - gridGap; y < VIEW_HEIGHT + gridGap; y += gridGap) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(view.width, y);
+          ctx.stroke();
+        }
+        for (let x = 0; x < view.width; x += gridGap) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, VIEW_HEIGHT);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        for (const star of stars) {
+          const y = positiveMod(star.y * VIEW_HEIGHT - cameraY * star.depth, VIEW_HEIGHT);
+          const twinkle = 0.7 + Math.sin(time * 0.0015 + star.phase) * 0.3;
+          ctx.globalAlpha = star.alpha * twinkle;
+          ctx.fillStyle = star.size > 1.35 ? COLORS[0] : "#dce5ff";
+          ctx.beginPath();
+          ctx.arc(star.x * view.width, y, star.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      function drawGates() {
+        const width = segmentWidth();
+        for (const gate of gates) {
+          if (gate.cleared) continue;
+          const y = gate.y - cameraY;
+          if (y < -55 || y > VIEW_HEIGHT + 55) continue;
+          const offset = gateOffset(gate);
+          const first = Math.floor(-offset / width) - 1;
+          const last = Math.ceil((view.width - offset) / width) + 1;
+
+          ctx.save();
+          ctx.font = "600 10px system-ui";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          for (let i = first; i <= last; i += 1) {
+            const colorIndex = gate.pattern[positiveMod(i, gate.pattern.length)];
+            const x = i * width + offset;
+            const color = COLORS[colorIndex];
+            const isCurrent = colorIndex === player.colorIndex;
+
+            ctx.shadowColor = color;
+            ctx.shadowBlur = isCurrent ? 17 : 10;
+            ctx.globalAlpha = isCurrent ? 1 : 0.82;
+            ctx.fillStyle = color;
+            ctx.fillRect(x + 1, y - gate.thickness / 2, width - 2, gate.thickness);
+
+            ctx.shadowBlur = 0;
+            ctx.globalAlpha = 0.26;
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(x + 2, y - gate.thickness / 2 + 1, width - 4, 2);
+
+            ctx.globalAlpha = 0.52;
+            ctx.fillStyle = "#07101d";
+            ctx.fillText(COLOR_SYMBOLS[colorIndex], x + width / 2, y + 0.5);
+          }
+          ctx.restore();
+
+          ctx.save();
+          ctx.fillStyle = "rgba(214,222,249,0.42)";
+          ctx.font = "600 9px system-ui";
+          ctx.textAlign = "left";
+          ctx.fillText(`GATE ${padScore(gate.index + 1)}`, 12, y - 18);
+          ctx.restore();
+        }
+      }
+
+      function drawOrbs() {
+        for (const orb of orbs) {
+          if (orb.collected) continue;
+          const y = orb.y - cameraY;
+          if (y < -40 || y > VIEW_HEIGHT + 40) continue;
+          const x = view.width / 2;
+          const pulse = 1 + Math.sin(elapsed * 5 + orb.phase) * 0.08;
+          const targetColor = COLORS[orb.colorIndex];
+
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.scale(pulse, pulse);
+          ctx.shadowColor = targetColor;
+          ctx.shadowBlur = 22;
+          ctx.strokeStyle = targetColor;
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = 0.9;
+          ctx.beginPath();
+          ctx.arc(0, 0, 17, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.rotate(elapsed * 1.8 + orb.phase);
+          ctx.shadowBlur = 8;
+          for (let i = 0; i < COLORS.length; i += 1) {
+            ctx.fillStyle = COLORS[i];
+            ctx.globalAlpha = 0.92;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.arc(0, 0, 10, i * Math.PI / 2 + 0.06, (i + 1) * Math.PI / 2 - 0.06);
+            ctx.closePath();
+            ctx.fill();
+          }
+          ctx.restore();
+
+          ctx.save();
+          ctx.fillStyle = "rgba(224,230,252,0.48)";
+          ctx.font = "9px system-ui";
+          ctx.textAlign = "center";
+          ctx.fillText("变色能量", x, y - 27);
+          ctx.restore();
+        }
+      }
+
+      function drawPlayer(time) {
+        // 上升时留下渐隐的彩色残影。
+        for (let i = player.trail.length - 1; i >= 1; i -= 1) {
+          const point = player.trail[i];
+          const alpha = (1 - i / player.trail.length) * 0.16;
+          const radius = player.radius * (1 - i / player.trail.length) * 0.82;
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = COLORS[point.colorIndex];
+          ctx.beginPath();
+          ctx.arc(point.x, point.y - cameraY, Math.max(0.5, radius), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        const idleOffset = state === "ready" ? Math.sin(time * 0.003) * 5 : 0;
+        const x = player.x;
+        const y = player.y - cameraY + idleOffset;
+        const pulse = 1 + Math.sin(elapsed * 8) * 0.035;
+        const color = COLORS[player.colorIndex];
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(pulse, pulse);
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 28;
+        const ballGradient = ctx.createRadialGradient(-4, -5, 1, 0, 0, player.radius + 2);
+        ballGradient.addColorStop(0, "#ffffff");
+        ballGradient.addColorStop(0.2, color);
+        ballGradient.addColorStop(1, color);
+        ctx.fillStyle = ballGradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "rgba(255,255,255,0.65)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(0, 0, player.radius + 3, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawEffects() {
+        for (const particle of particles) {
+          const y = particle.y - cameraY;
+          if (y < -30 || y > VIEW_HEIGHT + 30) continue;
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, Math.min(1, particle.life / particle.maxLife));
+          ctx.fillStyle = particle.color;
+          ctx.shadowColor = particle.color;
+          ctx.shadowBlur = 8;
+          ctx.translate(particle.x, y);
+          ctx.rotate(particle.x * 0.03 + particle.life * 3);
+          ctx.fillRect(-particle.size / 2, -particle.size / 2, particle.size, particle.size);
+          ctx.restore();
+        }
+
+        for (const item of floatingTexts) {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, item.life / item.maxLife);
+          ctx.fillStyle = item.color;
+          ctx.shadowColor = item.color;
+          ctx.shadowBlur = 10;
+          ctx.font = "700 15px system-ui";
+          ctx.textAlign = "center";
+          ctx.fillText(item.text, item.x, item.y - cameraY);
+          ctx.restore();
+        }
+      }
+
+      function render(time) {
+        ctx.setTransform(view.dpr * view.scale, 0, 0, view.dpr * view.scale, 0, 0);
+        ctx.clearRect(0, 0, view.width, VIEW_HEIGHT);
+        drawBackground(time);
+        drawGates();
+        drawOrbs();
+        drawPlayer(time);
+        drawEffects();
+      }
+
+      function frame(time) {
+        const frameTime = Math.min(0.05, Math.max(0, (time - lastTime) / 1000));
+        lastTime = time;
+
+        if (state === "playing") {
+          accumulator += frameTime;
+          while (accumulator >= FIXED_STEP) {
+            update(FIXED_STEP);
+            accumulator -= FIXED_STEP;
+          }
+        } else if (state === "over" || state === "won") {
+          // 结算后仍让碎裂与彩带粒子自然落下。
+          updateEffects(frameTime);
+        }
+
+        render(time);
+        requestAnimationFrame(frame);
+      }
+
+      // 初始化并启动绘制循环。
+      resizeCanvas();
+      showStart();
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>

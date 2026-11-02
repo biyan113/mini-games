@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080b18">
+  <title>落沙 · 霓虹沙漏</title>
+  <style>
+    /* ---------- 基础与移动端适配 ---------- */
+    :root {
+      color-scheme: dark;
+      --bg: #080b18;
+      --panel: rgba(18, 23, 44, 0.78);
+      --line: rgba(151, 166, 255, 0.14);
+      --text: #f3f5ff;
+      --muted: #8992b3;
+      --cyan: #50f5d4;
+      --violet: #a981ff;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      touch-action: none;
+      overscroll-behavior: none;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(70, 70, 180, 0.20), transparent 34%),
+        radial-gradient(circle at 92% 88%, rgba(0, 220, 190, 0.10), transparent 36%),
+        var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.18;
+      background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 100% 4px;
+    }
+
+    button { font: inherit; }
+    button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+    [hidden] { display: none !important; }
+
+    /* ---------- 整体布局 ---------- */
+    .app {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      max-width: 520px;
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: calc(14px + env(safe-area-inset-top)) 16px calc(12px + env(safe-area-inset-bottom));
+    }
+
+    .topbar, .brand, .header-actions, .palette-heading {
+      display: flex;
+      align-items: center;
+    }
+
+    .topbar { justify-content: space-between; gap: 10px; }
+    .brand { gap: 10px; min-width: 0; }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      flex: 0 0 42px;
+      width: 42px;
+      height: 42px;
+      border: 1px solid rgba(80, 245, 212, 0.34);
+      border-radius: 14px;
+      color: var(--cyan);
+      background: linear-gradient(145deg, rgba(80,245,212,0.16), rgba(169,129,255,0.10));
+      box-shadow: inset 0 0 16px rgba(80,245,212,0.08), 0 0 22px rgba(80,245,212,0.08);
+      font-size: 22px;
+    }
+
+    h1 { margin: 0; font-size: 24px; line-height: 1.05; letter-spacing: 0.16em; }
+    .brand-subtitle { margin: 5px 0 0; color: var(--muted); font-size: 10px; letter-spacing: 0.16em; }
+    .header-actions { gap: 7px; }
+
+    .icon-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      min-width: 44px;
+      height: 44px;
+      padding: 0 11px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      color: #c8cfea;
+      background: rgba(20, 25, 47, 0.78);
+      cursor: pointer;
+      transition: border-color 160ms ease, background 160ms ease, transform 100ms ease;
+    }
+
+    .icon-button:active { transform: scale(0.94); }
+    .icon-button:hover { border-color: rgba(80,245,212,0.36); background: rgba(30,38,66,0.9); }
+    .icon-button:disabled { opacity: 0.4; }
+    .control-icon { font-size: 17px; line-height: 1; }
+    .control-label { font-size: 12px; }
+
+    /* ---------- 分数与目标进度 ---------- */
+    .stats-panel {
+      padding: 10px 12px 9px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: linear-gradient(120deg, rgba(24,30,55,0.86), rgba(14,18,36,0.82));
+      box-shadow: 0 12px 34px rgba(0,0,0,0.16);
+    }
+
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); }
+    .stat { position: relative; text-align: center; }
+    .stat + .stat::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 5px;
+      bottom: 5px;
+      width: 1px;
+      background: var(--line);
+    }
+    .stat-label { display: block; margin-bottom: 2px; color: var(--muted); font-size: 10px; letter-spacing: 0.12em; }
+    .stat-value { display: block; font-size: 21px; font-weight: 750; line-height: 1.25; font-variant-numeric: tabular-nums; }
+    #scoreValue { color: var(--cyan); text-shadow: 0 0 16px rgba(80,245,212,0.30); }
+    #bestValue { color: #c6b2ff; }
+    .stat-value.bump { animation: score-bump 240ms ease; }
+
+    .progress-track {
+      height: 3px;
+      margin-top: 8px;
+      overflow: hidden;
+      border-radius: 99px;
+      background: rgba(255,255,255,0.06);
+    }
+    .progress-fill {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--violet), var(--cyan));
+      box-shadow: 0 0 10px rgba(80,245,212,0.45);
+      transition: width 160ms ease;
+    }
+
+    /* ---------- 落沙画布 ---------- */
+    .board {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 190px;
+      overflow: hidden;
+      isolation: isolate;
+      border: 1px solid rgba(133,151,235,0.22);
+      border-radius: 24px;
+      background:
+        linear-gradient(rgba(107,126,197,0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(107,126,197,0.045) 1px, transparent 1px),
+        radial-gradient(ellipse at 50% 105%, rgba(80,245,212,0.08), transparent 45%),
+        linear-gradient(180deg, rgba(11,15,31,0.94), rgba(10,14,28,0.98));
+      background-size: 22px 22px, 22px 22px, auto, auto;
+      box-shadow: inset 0 0 40px rgba(0,0,0,0.30), 0 20px 45px rgba(0,0,0,0.22);
+    }
+
+    .board::after {
+      content: "";
+      position: absolute;
+      z-index: 3;
+      left: 8%;
+      right: 8%;
+      bottom: 0;
+      height: 1px;
+      pointer-events: none;
+      background: linear-gradient(90deg, transparent, rgba(80,245,212,0.36), transparent);
+      box-shadow: 0 0 16px rgba(80,245,212,0.25);
+    }
+
+    #gameCanvas {
+      position: absolute;
+      z-index: 2;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    .nozzle {
+      position: absolute;
+      z-index: 5;
+      top: -1px;
+      left: 50%;
+      width: 34px;
+      height: 18px;
+      pointer-events: none;
+      transform: translateX(-50%);
+      border: 1px solid rgba(189,205,255,0.45);
+      border-top: 0;
+      border-radius: 0 0 11px 11px;
+      background: linear-gradient(90deg, #2a3150, #697391 48%, #282f4c);
+      box-shadow: 0 4px 13px rgba(0,0,0,0.4);
+      transition: left 50ms linear;
+    }
+    .nozzle::before {
+      content: "";
+      position: absolute;
+      left: 7px;
+      right: 7px;
+      bottom: -4px;
+      height: 5px;
+      border-radius: 0 0 5px 5px;
+      background: #141a30;
+    }
+    .nozzle::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 19px;
+      width: 18px;
+      height: 28px;
+      transform: translateX(-50%);
+      background: radial-gradient(ellipse at top, var(--sand-glow, rgba(80,245,212,0.24)), transparent 70%);
+      filter: blur(3px);
+    }
+
+    .danger-line {
+      position: absolute;
+      z-index: 4;
+      top: 10%;
+      left: 0;
+      right: 0;
+      height: 1px;
+      pointer-events: none;
+      background: repeating-linear-gradient(90deg, rgba(255,104,151,0.34) 0 7px, transparent 7px 13px);
+    }
+    .danger-line span {
+      position: absolute;
+      right: 9px;
+      top: 5px;
+      color: rgba(255,133,169,0.58);
+      font-size: 9px;
+      letter-spacing: 0.14em;
+    }
+
+    .pour-hint {
+      position: absolute;
+      z-index: 4;
+      top: 32px;
+      left: 50%;
+      width: max-content;
+      max-width: 88%;
+      padding: 7px 12px;
+      transform: translateX(-50%);
+      pointer-events: none;
+      border: 1px solid rgba(141,157,223,0.12);
+      border-radius: 99px;
+      color: #a8b1d0;
+      background: rgba(10,14,29,0.68);
+      backdrop-filter: blur(8px);
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      transition: opacity 250ms ease, transform 250ms ease;
+    }
+    .pour-hint.dismissed { opacity: 0; transform: translate(-50%, -5px); }
+
+    /* ---------- 颜色与操作区 ---------- */
+    .controls {
+      padding: 11px 12px 9px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--panel);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.15);
+    }
+    .palette-heading { justify-content: space-between; margin-bottom: 8px; font-size: 11px; }
+    .palette-heading span:first-child { color: var(--muted); letter-spacing: 0.12em; }
+    #colorName { color: #dbe1fa; font-size: 11px; }
+
+    .color-list { display: grid; grid-template-columns: repeat(6, 1fr); gap: 7px; }
+    .color-button {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      height: 43px;
+      padding: 0;
+      border: 1px solid transparent;
+      border-radius: 13px;
+      background: rgba(255,255,255,0.025);
+      cursor: pointer;
+      transition: background 150ms ease, border-color 150ms ease, transform 100ms ease;
+    }
+    .color-button:active { transform: scale(0.90); }
+    .color-button:hover { background: rgba(255,255,255,0.06); }
+    .color-button[aria-pressed="true"] { border-color: var(--sand); background: rgba(255,255,255,0.07); }
+    .color-dot {
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 28%, #ffffff 0 4%, var(--sand) 32%, #252a45 130%);
+      box-shadow: 0 0 13px var(--sand);
+    }
+    .color-button[aria-pressed="true"] .color-dot::after {
+      content: "";
+      display: block;
+      width: 5px;
+      height: 9px;
+      margin: 6px 0 0 9px;
+      border: solid #08101a;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+
+    .help { margin: 8px 0 0; color: #747f9f; text-align: center; font-size: 10px; letter-spacing: 0.04em; }
+    .help b { color: #aeb7d5; font-weight: 500; }
+
+    /* ---------- 暂停、胜利与失败弹窗 ---------- */
+    .modal {
+      position: fixed;
+      z-index: 50;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(4,6,15,0.74);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .modal-card {
+      width: min(100%, 350px);
+      padding: 28px 24px 22px;
+      border: 1px solid rgba(152,168,255,0.22);
+      border-radius: 28px;
+      text-align: center;
+      background: linear-gradient(145deg, rgba(29,35,64,0.98), rgba(12,16,32,0.98));
+      box-shadow: 0 28px 90px rgba(0,0,0,0.52), inset 0 1px rgba(255,255,255,0.05);
+      animation: modal-in 230ms cubic-bezier(.2,.8,.2,1);
+    }
+    .modal-icon {
+      display: grid;
+      place-items: center;
+      width: 62px;
+      height: 62px;
+      margin: 0 auto 16px;
+      border: 1px solid rgba(80,245,212,0.25);
+      border-radius: 21px;
+      color: var(--cyan);
+      background: rgba(80,245,212,0.08);
+      box-shadow: 0 0 28px rgba(80,245,212,0.10);
+      font-size: 28px;
+    }
+    .modal-eyebrow { margin: 0 0 7px; color: var(--cyan); font-size: 10px; letter-spacing: 0.24em; }
+    .modal h2 { margin: 0; font-size: 25px; letter-spacing: 0.05em; }
+    .modal-description { min-height: 38px; margin: 11px 0 18px; color: #949fbe; font-size: 13px; line-height: 1.7; }
+    .modal-score { margin-bottom: 20px; color: var(--muted); font-size: 11px; }
+    .modal-score strong { display: block; margin-top: 2px; color: #f6f7ff; font-size: 34px; font-variant-numeric: tabular-nums; }
+    .modal-actions { display: grid; gap: 9px; }
+    .modal-button {
+      min-height: 49px;
+      border: 1px solid transparent;
+      border-radius: 15px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+    .modal-button.primary {
+      color: #071612;
+      background: linear-gradient(100deg, #66f7d9, #82e9ef);
+      box-shadow: 0 8px 25px rgba(80,245,212,0.16);
+    }
+    .modal-button.secondary { color: #b2bddb; border-color: var(--line); background: rgba(255,255,255,0.035); }
+    .modal-button:active { transform: scale(0.98); }
+    .keyboard-tip { margin: 15px 0 0; color: #606b8c; font-size: 9px; }
+
+    @keyframes modal-in { from { opacity: 0; transform: translateY(12px) scale(0.96); } }
+    @keyframes score-bump { 50% { transform: scale(1.16); } }
+
+    @media (min-width: 700px) {
+      .app { padding-left: 22px; padding-right: 22px; }
+      .keyboard-tip { display: block; }
+    }
+    @media (max-width: 699px) { .keyboard-tip { display: none; } }
+    @media (max-height: 650px) {
+      .app { gap: 8px; padding-top: calc(8px + env(safe-area-inset-top)); }
+      .brand-subtitle, .help { display: none; }
+      .brand-mark { width: 38px; height: 38px; flex-basis: 38px; }
+      .stats-panel { padding-top: 6px; padding-bottom: 6px; }
+      .stat-value { font-size: 18px; }
+      .controls { padding-top: 8px; padding-bottom: 8px; }
+      .palette-heading { margin-bottom: 5px; }
+      .color-button { height: 38px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="落沙小游戏">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">✦</div>
+        <div>
+          <h1>落沙</h1>
+          <p class="brand-subtitle">SAND FALL · 霓虹沙漏</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-button" id="pauseButton" type="button" aria-label="暂停游戏" title="暂停（P）">
+          <span class="control-icon" id="pauseIcon" aria-hidden="true">Ⅱ</span>
+          <span class="control-label" id="pauseLabel">暂停</span>
+        </button>
+        <button class="icon-button" id="restartButton" type="button" aria-label="重新开始" title="重新开始（R）">
+          <span class="control-icon" aria-hidden="true">↻</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="stats-panel" aria-label="游戏数据">
+      <div class="stats">
+        <div class="stat"><span class="stat-label">当前分数</span><strong class="stat-value" id="scoreValue">0</strong></div>
+        <div class="stat"><span class="stat-label">最高分</span><strong class="stat-value" id="bestValue">0</strong></div>
+        <div class="stat"><span class="stat-label">胜利目标</span><strong class="stat-value" id="targetValue">1200</strong></div>
+      </div>
+      <div class="progress-track" id="progressTrack" role="progressbar" aria-label="目标进度" aria-valuemin="0" aria-valuemax="1200" aria-valuenow="0">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </section>
+
+    <section class="board" id="board" aria-label="落沙区域">
+      <canvas id="gameCanvas" role="img" aria-label="轻点或按住画面落沙，左右拖动改变落点；方向键移动，空格落沙"></canvas>
+      <div class="nozzle" id="nozzle" aria-hidden="true"></div>
+      <div class="danger-line" aria-hidden="true"><span>满溢线</span></div>
+      <div class="pour-hint" id="pourHint">轻点落沙 · 按住连续 · 拖动换位置</div>
+    </section>
+
+    <section class="controls" aria-label="选择沙粒颜色">
+      <div class="palette-heading"><span>沙色 / SAND COLOR</span><span id="colorName">极光青</span></div>
+      <div class="color-list" id="colorList">
+        <button class="color-button" style="--sand:#50f5d4" data-color="0" type="button" aria-label="极光青" aria-pressed="true"><span class="color-dot"></span></button>
+        <button class="color-button" style="--sand:#62b5ff" data-color="1" type="button" aria-label="星云蓝" aria-pressed="false"><span class="color-dot"></span></button>
+        <button class="color-button" style="--sand:#ad83ff" data-color="2" type="button" aria-label="暮光紫" aria-pressed="false"><span class="color-dot"></span></button>
+        <button class="color-button" style="--sand:#ff72ad" data-color="3" type="button" aria-label="脉冲粉" aria-pressed="false"><span class="color-dot"></span></button>
+        <button class="color-button" style="--sand:#ffad66" data-color="4" type="button" aria-label="落日橙" aria-pressed="false"><span class="color-dot"></span></button>
+        <button class="color-button" style="--sand:#f3ed78" data-color="5" type="button" aria-label="月光黄" aria-pressed="false"><span class="color-dot"></span></button>
+      </div>
+      <p class="help"><b>收集 1200 粒沙</b>即可胜利，别让沙堆越过满溢线</p>
+    </section>
+  </main>
+
+  <div class="modal" id="gameModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDescription" hidden>
+    <div class="modal-card">
+      <div class="modal-icon" id="modalIcon" aria-hidden="true">Ⅱ</div>
+      <p class="modal-eyebrow" id="modalEyebrow">稍作停留</p>
+      <h2 id="modalTitle">沙漏已暂停</h2>
+      <p class="modal-description" id="modalDescription">沙粒会在这里等你。</p>
+      <div class="modal-score">当前分数<strong id="modalScore">0</strong></div>
+      <div class="modal-actions">
+        <button class="modal-button primary" id="modalPrimary" type="button">继续落沙</button>
+        <button class="modal-button secondary" id="modalSecondary" type="button">重新开始</button>
+      </div>
+      <p class="keyboard-tip">P 暂停 · R 重开 · 数字键换色 · 空格落沙</p>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    /* ---------- 常量与 DOM ---------- */
+    const COLS = 60;
+    const ROWS = 80;
+    const TARGET = 1200;
+    const DANGER_ROW = 8;
+    const STEP_MS = 1000 / 60;
+    const DROP_INTERVAL = 32;
+    const BEST_KEY = 'sandfall.best.v1';
+    const COLORS = [
+      { name: '极光青', value: '#50f5d4' },
+      { name: '星云蓝', value: '#62b5ff' },
+      { name: '暮光紫', value: '#ad83ff' },
+      { name: '脉冲粉', value: '#ff72ad' },
+      { name: '落日橙', value: '#ffad66' },
+      { name: '月光黄', value: '#f3ed78' }
+    ];
+
+    const $ = (id) => document.getElementById(id);
+    const canvas = $('gameCanvas');
+    const ctx = canvas.getContext('2d', { alpha: true });
+    const scoreValue = $('scoreValue');
+    const bestValue = $('bestValue');
+    const progressTrack = $('progressTrack');
+    const progressFill = $('progressFill');
+    const nozzle = $('nozzle');
+    const pourHint = $('pourHint');
+    const pauseButton = $('pauseButton');
+    const pauseIcon = $('pauseIcon');
+    const pauseLabel = $('pauseLabel');
+    const modal = $('gameModal');
+    const modalPrimary = $('modalPrimary');
+    const modalSecondary = $('modalSecondary');
+    const colorButtons = [...document.querySelectorAll('.color-button')];
+
+    /* ---------- 游戏状态 ---------- */
+    // 网格中 0 表示空位，其他数字表示“颜色下标 + 1”。
+    const sand = new Uint8Array(COLS * ROWS);
+    const settled = new Uint8Array(COLS * ROWS);
+    let state = 'playing';
+    let score = 0;
+    let best = readBest();
+    let selectedColor = 0;
+    let emitterX = Math.floor(COLS / 2);
+    let activePointer = null;
+    let pointerPouring = false;
+    let keyboardPouring = false;
+    let dropElapsed = 0;
+    let simulationTime = 0;
+    let lastTime = performance.now();
+    let accumulator = 0;
+    let cssWidth = 1;
+    let cssHeight = 1;
+    let dpr = 1;
+    let bestSaveTimer = 0;
+
+    /* ---------- 本地最高分 ---------- */
+    function readBest() {
+      try {
+        const value = Number.parseInt(localStorage.getItem(BEST_KEY) || '0', 10);
+        return Number.isFinite(value) && value > 0 ? value : 0;
+      } catch (error) {
+        return 0;
+      }
+    }
+
+    function saveBest() {
+      try { localStorage.setItem(BEST_KEY, String(best)); } catch (error) { /* 隐私模式下仍可正常游戏 */ }
+      clearTimeout(bestSaveTimer);
+      bestSaveTimer = 0;
+    }
+
+    function scheduleBestSave() {
+      if (bestSaveTimer) return;
+      bestSaveTimer = window.setTimeout(saveBest, 800);
+    }
+
+    /* ---------- 尺寸与绘制 ---------- */
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      cssWidth = Math.max(1, rect.width);
+      cssHeight = Math.max(1, rect.height);
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(cssWidth * dpr);
+      canvas.height = Math.round(cssHeight * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, cssWidth, cssHeight);
+      const cellW = cssWidth / COLS;
+      const cellH = cssHeight / ROWS;
+      const gap = Math.min(0.55, cellW * 0.12, cellH * 0.12);
+
+      // 按颜色分批绘制，避免频繁切换画布样式。
+      for (let color = 1; color <= COLORS.length; color += 1) {
+        ctx.beginPath();
+        for (let i = 0; i < sand.length; i += 1) {
+          if (sand[i] !== color) continue;
+          const x = i % COLS;
+          const y = Math.floor(i / COLS);
+          ctx.rect(x * cellW + gap / 2, y * cellH + gap / 2, cellW - gap, cellH - gap);
+        }
+        ctx.fillStyle = COLORS[color - 1].value;
+        ctx.shadowColor = COLORS[color - 1].value;
+        ctx.shadowBlur = 2.5;
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+    }
+
+    /* ---------- 沙粒模拟 ---------- */
+    function moveGrain(from, to) {
+      sand[to] = sand[from];
+      settled[to] = 0;
+      sand[from] = 0;
+      settled[from] = 0;
+    }
+
+    function landGrain(index, y) {
+      settled[index] = 1;
+      score += 1;
+      if (score > best) {
+        best = score;
+        scheduleBestSave();
+      }
+      updateHud();
+      if (score >= TARGET) {
+        finishGame('won');
+      } else if (y <= DANGER_ROW) {
+        finishGame('lost');
+      }
+    }
+
+    function simulate(dt) {
+      if (pointerPouring || keyboardPouring) {
+        dropElapsed += dt;
+        while (dropElapsed >= DROP_INTERVAL) {
+          spawnGrain();
+          dropElapsed -= DROP_INTERVAL;
+          if (state !== 'playing') break;
+        }
+      } else {
+        dropElapsed = 0;
+      }
+
+      simulationTime += 1;
+      // 自下而上更新，并逐帧调换扫描方向，让沙堆形状更自然。
+      const leftToRight = simulationTime % 2 === 0;
+      for (let y = ROWS - 1; y >= 0 && state === 'playing'; y -= 1) {
+        for (let n = 0; n < COLS; n += 1) {
+          const x = leftToRight ? n : COLS - 1 - n;
+          const index = y * COLS + x;
+          if (!sand[index] || settled[index]) continue;
+
+          if (y === ROWS - 1) {
+            landGrain(index, y);
+            break;
+          }
+
+          const below = index + COLS;
+          if (!sand[below]) {
+            moveGrain(index, below);
+            continue;
+          }
+
+          const firstDirection = Math.random() < 0.5 ? -1 : 1;
+          let moved = false;
+          for (let attempt = 0; attempt < 2; attempt += 1) {
+            const direction = attempt === 0 ? firstDirection : -firstDirection;
+            const nextX = x + direction;
+            if (nextX < 0 || nextX >= COLS) continue;
+            const diagonal = below + direction;
+            if (!sand[diagonal]) {
+              moveGrain(index, diagonal);
+              moved = true;
+              break;
+            }
+          }
+          if (!moved) {
+            landGrain(index, y);
+            break;
+          }
+        }
+      }
+    }
+
+    function spawnGrain() {
+      if (state !== 'playing') return;
+      const index = COLS + emitterX;
+      if (sand[index]) {
+        if (settled[index]) finishGame('lost');
+        return;
+      }
+      sand[index] = selectedColor + 1;
+      settled[index] = 0;
+      pourHint.classList.add('dismissed');
+    }
+
+    /* ---------- 分数与界面状态 ---------- */
+    function updateHud() {
+      scoreValue.textContent = score;
+      bestValue.textContent = best;
+      const progress = Math.min(100, score / TARGET * 100);
+      progressFill.style.width = `${progress}%`;
+      progressTrack.setAttribute('aria-valuenow', String(score));
+      if (score > 0 && score % 100 === 0) {
+        scoreValue.classList.remove('bump');
+        requestAnimationFrame(() => scoreValue.classList.add('bump'));
+      }
+    }
+
+    function updateEmitter() {
+      nozzle.style.left = `${(emitterX + 0.5) / COLS * 100}%`;
+    }
+
+    function selectColor(index) {
+      selectedColor = Math.max(0, Math.min(COLORS.length - 1, index));
+      colorButtons.forEach((button, i) => button.setAttribute('aria-pressed', String(i === selectedColor)));
+      $('colorName').textContent = COLORS[selectedColor].name;
+      nozzle.style.setProperty('--sand-glow', `${COLORS[selectedColor].value}44`);
+    }
+
+    function stopPouring() {
+      pointerPouring = false;
+      keyboardPouring = false;
+      activePointer = null;
+      dropElapsed = 0;
+    }
+
+    function showModal(type) {
+      const content = {
+        paused: {
+          icon: 'Ⅱ', eyebrow: '稍作停留', title: '沙漏已暂停',
+          description: '沙粒会在这里等你，准备好后继续。', primary: '继续落沙'
+        },
+        won: {
+          icon: '✦', eyebrow: '目标达成', title: '沙之艺术家！',
+          description: `你成功收集了 ${TARGET} 粒沙，每一道色彩都闪闪发亮。`, primary: '再玩一次'
+        },
+        lost: {
+          icon: '◇', eyebrow: '沙堆满溢', title: '本局结束',
+          description: '试着左右拖动分散落点，让沙粒堆得更稳、更久。', primary: '重新挑战'
+        }
+      }[type];
+      $('modalIcon').textContent = content.icon;
+      $('modalEyebrow').textContent = content.eyebrow;
+      $('modalTitle').textContent = content.title;
+      $('modalDescription').textContent = content.description;
+      $('modalScore').textContent = score;
+      modalPrimary.textContent = content.primary;
+      modalSecondary.hidden = type !== 'paused';
+      modal.hidden = false;
+      window.setTimeout(() => modalPrimary.focus(), 50);
+    }
+
+    function finishGame(result) {
+      if (state !== 'playing') return;
+      state = result;
+      stopPouring();
+      saveBest();
+      updateHud();
+      pauseButton.disabled = true;
+      showModal(result);
+    }
+
+    function pauseGame() {
+      if (state !== 'playing') return;
+      state = 'paused';
+      stopPouring();
+      pauseIcon.textContent = '▶';
+      pauseLabel.textContent = '继续';
+      pauseButton.setAttribute('aria-label', '继续游戏');
+      showModal('paused');
+    }
+
+    function resumeGame() {
+      if (state !== 'paused') return;
+      state = 'playing';
+      modal.hidden = true;
+      pauseIcon.textContent = 'Ⅱ';
+      pauseLabel.textContent = '暂停';
+      pauseButton.setAttribute('aria-label', '暂停游戏');
+      accumulator = 0;
+      lastTime = performance.now();
+      pauseButton.focus();
+    }
+
+    function restartGame() {
+      saveBest();
+      sand.fill(0);
+      settled.fill(0);
+      score = 0;
+      state = 'playing';
+      emitterX = Math.floor(COLS / 2);
+      stopPouring();
+      accumulator = 0;
+      lastTime = performance.now();
+      modal.hidden = true;
+      pauseButton.disabled = false;
+      pauseIcon.textContent = 'Ⅱ';
+      pauseLabel.textContent = '暂停';
+      pauseButton.setAttribute('aria-label', '暂停游戏');
+      pourHint.classList.remove('dismissed');
+      updateEmitter();
+      updateHud();
+    }
+
+    /* ---------- 触屏、鼠标与键盘输入 ---------- */
+    function setEmitterFromClientX(clientX) {
+      const rect = canvas.getBoundingClientRect();
+      const ratio = (clientX - rect.left) / rect.width;
+      emitterX = Math.max(0, Math.min(COLS - 1, Math.floor(ratio * COLS)));
+      updateEmitter();
+    }
+
+    canvas.addEventListener('pointerdown', (event) => {
+      if (state !== 'playing' || activePointer !== null) return;
+      event.preventDefault();
+      activePointer = event.pointerId;
+      pointerPouring = true;
+      setEmitterFromClientX(event.clientX);
+      canvas.setPointerCapture(event.pointerId);
+      spawnGrain();
+      dropElapsed = 0;
+    });
+
+    canvas.addEventListener('pointermove', (event) => {
+      if (state !== 'playing') return;
+      if (event.pointerType === 'mouse' || event.pointerId === activePointer) {
+        setEmitterFromClientX(event.clientX);
+      }
+    });
+
+    function releasePointer(event) {
+      if (event.pointerId !== activePointer) return;
+      pointerPouring = false;
+      activePointer = null;
+      dropElapsed = 0;
+    }
+    canvas.addEventListener('pointerup', releasePointer);
+    canvas.addEventListener('pointercancel', releasePointer);
+    canvas.addEventListener('contextmenu', (event) => event.preventDefault());
+
+    colorButtons.forEach((button) => {
+      button.addEventListener('click', () => selectColor(Number(button.dataset.color)));
+    });
+
+    pauseButton.addEventListener('click', () => {
+      if (state === 'playing') pauseGame();
+      else if (state === 'paused') resumeGame();
+    });
+    $('restartButton').addEventListener('click', restartGame);
+    modalPrimary.addEventListener('click', () => {
+      if (state === 'paused') resumeGame();
+      else restartGame();
+    });
+    modalSecondary.addEventListener('click', restartGame);
+
+    document.addEventListener('keydown', (event) => {
+      const key = event.key.toLowerCase();
+      if (key === 'p' || key === 'escape') {
+        event.preventDefault();
+        if (!event.repeat) {
+          if (state === 'playing') pauseGame();
+          else if (state === 'paused') resumeGame();
+        }
+        return;
+      }
+      if (key === 'r' && !event.repeat) {
+        event.preventDefault();
+        restartGame();
+        return;
+      }
+      if (/^[1-6]$/.test(key)) {
+        selectColor(Number(key) - 1);
+        return;
+      }
+      if (state !== 'playing') return;
+      if (key === 'arrowleft' || key === 'arrowright') {
+        event.preventDefault();
+        emitterX = Math.max(0, Math.min(COLS - 1, emitterX + (key === 'arrowleft' ? -2 : 2)));
+        updateEmitter();
+      } else if (key === ' ' || key === 'arrowdown') {
+        event.preventDefault();
+        if (!keyboardPouring) {
+          keyboardPouring = true;
+          spawnGrain();
+          dropElapsed = 0;
+        }
+      }
+    });
+
+    document.addEventListener('keyup', (event) => {
+      if (event.key === ' ' || event.key.toLowerCase() === 'arrowdown') {
+        keyboardPouring = false;
+        dropElapsed = 0;
+      }
+    });
+
+    // 禁止 iOS 手势缩放、双击缩放及页面回弹滚动。
+    document.addEventListener('gesturestart', (event) => event.preventDefault(), { passive: false });
+    document.addEventListener('dblclick', (event) => event.preventDefault(), { passive: false });
+    document.addEventListener('touchmove', (event) => event.preventDefault(), { passive: false });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && state === 'playing') pauseGame();
+    });
+    window.addEventListener('pagehide', saveBest);
+
+    /* ---------- 固定步长动画循环 ---------- */
+    function frame(now) {
+      const elapsed = Math.min(60, now - lastTime);
+      lastTime = now;
+      if (state === 'playing') {
+        accumulator += elapsed;
+        while (accumulator >= STEP_MS && state === 'playing') {
+          simulate(STEP_MS);
+          accumulator -= STEP_MS;
+        }
+      } else {
+        accumulator = 0;
+      }
+      render();
+      requestAnimationFrame(frame);
+    }
+
+    // 初始化；ResizeObserver 只调整清晰度，不会重置沙堆。
+    $('targetValue').textContent = TARGET;
+    progressTrack.setAttribute('aria-valuemax', TARGET);
+    bestValue.textContent = best;
+    resizeCanvas();
+    updateEmitter();
+    updateHud();
+    if ('ResizeObserver' in window) new ResizeObserver(resizeCanvas).observe(canvas);
+    else window.addEventListener('resize', resizeCanvas);
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>

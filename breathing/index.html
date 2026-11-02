@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070b18">
+  <meta name="color-scheme" content="dark">
+  <title>息 · 呼吸冥想</title>
+  <style>
+    /* ---------- 基础与移动端约束 ---------- */
+    :root {
+      --bg: #070b18;
+      --panel: rgba(17, 25, 48, 0.68);
+      --text: #f2f6ff;
+      --muted: #8994b3;
+      --cyan: #58f5d2;
+      --violet: #a78bfa;
+      --phase-color: var(--cyan);
+      --phase-rgb: 88, 245, 210;
+      --orb-size: clamp(150px, min(62vw, 36dvh), 280px);
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: none;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    button {
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    /* ---------- 氛围背景 ---------- */
+    .ambient {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 12% 12%, rgba(73, 86, 180, 0.14), transparent 34%),
+        radial-gradient(circle at 88% 88%, rgba(41, 190, 174, 0.09), transparent 36%),
+        linear-gradient(160deg, #090e20 0%, #070b18 52%, #080a16 100%);
+    }
+
+    .ambient::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: 0.16;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: linear-gradient(to bottom, black, transparent 75%);
+    }
+
+    .glow {
+      position: absolute;
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: 0.13;
+      animation: drift 12s ease-in-out infinite alternate;
+    }
+
+    .glow-a { left: -120px; top: 12%; background: #6569ff; }
+    .glow-b { right: -130px; bottom: 5%; background: #32e7c4; animation-delay: -5s; }
+
+    .star {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      border-radius: 50%;
+      background: #c7d5ff;
+      opacity: 0.25;
+      animation: twinkle var(--twinkle-time) ease-in-out infinite alternate;
+    }
+
+    /* ---------- 应用容器与通用组件 ---------- */
+    .app {
+      position: relative;
+      width: min(100%, 540px);
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      isolation: isolate;
+    }
+
+    .screen {
+      height: 100%;
+      padding: max(20px, env(safe-area-inset-top)) max(22px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(22px, env(safe-area-inset-left));
+    }
+
+    .eyebrow {
+      margin: 0;
+      color: var(--cyan);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+    }
+
+    .glass {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: var(--panel);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 16px 44px rgba(0, 0, 0, 0.16);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .primary-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      min-height: 56px;
+      padding: 0 24px;
+      border-radius: 18px;
+      background: linear-gradient(120deg, #65f4d4, #79d9df);
+      box-shadow: 0 12px 32px rgba(69, 232, 202, 0.2), inset 0 1px 0 rgba(255,255,255,0.5);
+      color: #07231f;
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      transition: transform 160ms ease, box-shadow 160ms ease;
+    }
+
+    .primary-button:active {
+      transform: scale(0.975);
+      box-shadow: 0 7px 20px rgba(69, 232, 202, 0.16);
+    }
+
+    .primary-button svg { width: 20px; height: 20px; }
+
+    .secondary-button {
+      min-height: 48px;
+      padding: 0 20px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      background: rgba(255, 255, 255, 0.045);
+      color: #b8c2dd;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    /* ---------- 开始页 ---------- */
+    .setup-screen {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .brand {
+      padding-top: clamp(4px, 2.5dvh, 24px);
+      text-align: center;
+    }
+
+    .brand-mark {
+      position: relative;
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 16px;
+      display: grid;
+      place-items: center;
+    }
+
+    .brand-mark::before,
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(88, 245, 210, 0.28);
+      animation: logoBreath 5s ease-in-out infinite;
+    }
+
+    .brand-mark::before { inset: 0; }
+    .brand-mark::after { inset: 9px; animation-delay: -0.3s; }
+
+    .brand-core {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #d9fff6, #61efd1 40%, #518aa8 100%);
+      box-shadow: 0 0 28px rgba(88, 245, 210, 0.42);
+      animation: logoBreath 5s ease-in-out infinite reverse;
+    }
+
+    .brand h1 {
+      margin: 8px 0 8px;
+      font-size: clamp(30px, 8vw, 40px);
+      font-weight: 650;
+      letter-spacing: 0.12em;
+    }
+
+    .brand .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+      letter-spacing: 0.06em;
+    }
+
+    .how-to {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .how-item {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      min-height: 70px;
+      padding: 12px 13px;
+      border-radius: 18px;
+    }
+
+    .how-icon {
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      background: rgba(88, 245, 210, 0.09);
+      color: var(--cyan);
+    }
+
+    .how-item:last-child .how-icon {
+      color: var(--violet);
+      background: rgba(167, 139, 250, 0.1);
+    }
+
+    .how-icon svg { width: 20px; height: 20px; }
+    .how-item strong { display: block; margin-bottom: 3px; font-size: 13px; font-weight: 650; }
+    .how-item small { display: block; color: var(--muted); font-size: 11px; line-height: 1.4; }
+
+    .setup-panel {
+      padding: 17px;
+      border-radius: 22px;
+    }
+
+    .panel-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 13px;
+    }
+
+    .panel-heading h2 { margin: 0; font-size: 14px; font-weight: 650; }
+    .best-mini { color: var(--muted); font-size: 12px; }
+    .best-mini b { margin-left: 5px; color: #dbe5ff; font-size: 14px; font-variant-numeric: tabular-nums; }
+
+    .duration-options {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 9px;
+    }
+
+    .duration-button {
+      position: relative;
+      min-height: 58px;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 15px;
+      background: rgba(255, 255, 255, 0.035);
+      color: var(--muted);
+      transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+    }
+
+    .duration-button b { display: block; font-size: 19px; line-height: 1.15; }
+    .duration-button span { font-size: 10px; letter-spacing: 0.12em; }
+
+    .duration-button.selected {
+      border-color: rgba(88, 245, 210, 0.48);
+      background: rgba(88, 245, 210, 0.1);
+      box-shadow: inset 0 0 20px rgba(88, 245, 210, 0.035);
+      color: var(--cyan);
+    }
+
+    .duration-button.selected::after {
+      content: "";
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+    }
+
+    .start-area { display: grid; gap: 10px; }
+    .keyboard-hint { margin: 0; text-align: center; color: #65708d; font-size: 11px; letter-spacing: 0.03em; }
+
+    /* ---------- 游戏页 ---------- */
+    .game-screen {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      --phase-color: var(--cyan);
+      --phase-rgb: 88, 245, 210;
+    }
+
+    .game-screen[data-phase="exhale"] {
+      --phase-color: var(--violet);
+      --phase-rgb: 167, 139, 250;
+    }
+
+    .game-header {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      min-height: 48px;
+    }
+
+    .score-block:last-of-type { text-align: right; padding-right: 52px; }
+    .score-label { display: block; margin-bottom: 2px; color: var(--muted); font-size: 10px; letter-spacing: 0.12em; }
+    .score-value { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+    .timer {
+      min-width: 86px;
+      text-align: center;
+      font-size: 25px;
+      font-weight: 350;
+      letter-spacing: 0.06em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .pause-button {
+      position: absolute;
+      z-index: 3;
+      top: max(20px, env(safe-area-inset-top));
+      right: max(18px, env(safe-area-inset-right));
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.045);
+      color: #aeb9d5;
+    }
+
+    .pause-button svg { width: 18px; height: 18px; }
+
+    .session-track {
+      height: 3px;
+      overflow: hidden;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .session-progress {
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cyan), var(--violet));
+      box-shadow: 0 0 10px rgba(88, 245, 210, 0.4);
+      transform: scaleX(0);
+      transform-origin: left;
+    }
+
+    .play-zone {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-evenly;
+      gap: 8px;
+    }
+
+    .phase-heading { text-align: center; }
+
+    .phase-kicker {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--phase-color);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.25em;
+      transition: color 700ms ease;
+    }
+
+    .phase-heading h2 {
+      margin: 0;
+      font-size: clamp(24px, 7vw, 32px);
+      font-weight: 550;
+      letter-spacing: 0.2em;
+      text-indent: 0.2em;
+    }
+
+    .breath-stage {
+      position: relative;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      width: calc(var(--orb-size) + 88px);
+      height: calc(var(--orb-size) + 88px);
+    }
+
+    .breath-stage::before {
+      content: "";
+      position: absolute;
+      width: var(--orb-size);
+      height: var(--orb-size);
+      border-radius: 50%;
+      background: rgba(var(--phase-rgb), 0.14);
+      filter: blur(45px);
+      transform: scale(1.35);
+      transition: background 800ms ease;
+    }
+
+    .progress-ring {
+      position: absolute;
+      width: calc(var(--orb-size) + 58px);
+      height: calc(var(--orb-size) + 58px);
+      overflow: visible;
+      transform: rotate(-90deg);
+    }
+
+    .progress-ring .ring-track { fill: none; stroke: rgba(255, 255, 255, 0.055); stroke-width: 1; }
+    .progress-ring .ring-value {
+      fill: none;
+      stroke: var(--phase-color);
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-dasharray: 100;
+      stroke-dashoffset: 100;
+      opacity: 0.62;
+      filter: drop-shadow(0 0 4px rgba(var(--phase-rgb), 0.55));
+      transition: stroke 700ms ease;
+    }
+
+    .orbit {
+      position: absolute;
+      width: calc(var(--orb-size) + 30px);
+      height: calc(var(--orb-size) + 30px);
+      border: 1px solid rgba(var(--phase-rgb), 0.1);
+      border-radius: 50%;
+      animation: orbitSpin 20s linear infinite;
+      transition: border-color 700ms ease;
+    }
+
+    .orbit::before,
+    .orbit::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      background: var(--phase-color);
+      box-shadow: 0 0 9px rgba(var(--phase-rgb), 0.8);
+    }
+
+    .orbit::before { top: 18%; left: 5%; width: 3px; height: 3px; }
+    .orbit::after { right: 10%; bottom: 10%; width: 2px; height: 2px; opacity: 0.55; }
+    .orbit-two { width: calc(var(--orb-size) + 78px); height: calc(var(--orb-size) + 78px); animation-duration: 32s; animation-direction: reverse; opacity: 0.55; }
+
+    .orb {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: var(--orb-size);
+      height: var(--orb-size);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.42), transparent 20%),
+        radial-gradient(circle at 42% 38%, rgba(var(--phase-rgb), 0.9), rgba(var(--phase-rgb), 0.3) 48%, rgba(31, 46, 83, 0.7) 78%);
+      box-shadow:
+        inset -16px -20px 45px rgba(15, 21, 54, 0.35),
+        inset 8px 8px 25px rgba(255, 255, 255, 0.12),
+        0 0 34px rgba(var(--phase-rgb), 0.26),
+        0 0 90px rgba(var(--phase-rgb), 0.12);
+      will-change: transform;
+    }
+
+    .orb::after {
+      content: "";
+      position: absolute;
+      inset: 8%;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 50%;
+    }
+
+    .orb-content { position: relative; z-index: 1; text-align: center; text-shadow: 0 2px 12px rgba(4, 25, 35, 0.3); }
+    .breath-count { display: block; font-size: clamp(42px, 13vw, 62px); font-weight: 250; line-height: 1; font-variant-numeric: tabular-nums; }
+    .breath-unit { display: block; margin-top: 8px; color: rgba(255, 255, 255, 0.7); font-size: 10px; letter-spacing: 0.25em; }
+
+    .touch-cue {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      min-height: 40px;
+      padding: 0 18px;
+      border: 1px solid rgba(var(--phase-rgb), 0.13);
+      border-radius: 30px;
+      background: rgba(var(--phase-rgb), 0.055);
+      color: #c8d2e9;
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      transition: border-color 500ms ease, background 500ms ease;
+    }
+
+    .cue-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--phase-color);
+      box-shadow: 0 0 9px rgba(var(--phase-rgb), 0.65);
+    }
+
+    .game-screen.is-holding .touch-cue {
+      border-color: rgba(var(--phase-rgb), 0.34);
+      background: rgba(var(--phase-rgb), 0.1);
+    }
+
+    .game-screen.is-holding .cue-dot { animation: cuePulse 1.4s ease-in-out infinite; }
+
+    .live-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .live-stat {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 54px;
+      padding: 0 16px;
+      border-radius: 17px;
+    }
+
+    .live-stat span { color: var(--muted); font-size: 11px; }
+    .live-stat b { color: #e2e9fa; font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; }
+    .live-stat b.accent { color: var(--phase-color); transition: color 700ms ease; }
+
+    /* ---------- 暂停与结算弹窗 ---------- */
+    .modal-backdrop {
+      position: absolute;
+      z-index: 20;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(4, 7, 17, 0.76);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      animation: fadeIn 220ms ease both;
+    }
+
+    .modal {
+      width: min(100%, 380px);
+      padding: 28px 24px 22px;
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      border-radius: 28px;
+      background: linear-gradient(155deg, rgba(25, 35, 63, 0.98), rgba(12, 18, 36, 0.98));
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      text-align: center;
+      animation: modalIn 300ms cubic-bezier(.2,.8,.2,1) both;
+    }
+
+    .modal-symbol {
+      display: grid;
+      place-items: center;
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 17px;
+      border: 1px solid rgba(88, 245, 210, 0.2);
+      border-radius: 50%;
+      background: rgba(88, 245, 210, 0.08);
+      color: var(--cyan);
+      box-shadow: 0 0 30px rgba(88, 245, 210, 0.08);
+    }
+
+    .modal-symbol svg { width: 26px; height: 26px; }
+    .modal h2 { margin: 0 0 8px; font-size: 25px; font-weight: 600; letter-spacing: 0.08em; }
+    .modal-message { margin: 0 0 22px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .modal-actions { display: grid; gap: 10px; margin-top: 20px; }
+
+    .result-score { margin: 12px 0 20px; }
+    .result-score span { display: block; color: var(--muted); font-size: 11px; letter-spacing: 0.16em; }
+    .result-score strong { display: block; margin-top: 3px; color: var(--cyan); font-size: 50px; font-weight: 400; line-height: 1.2; font-variant-numeric: tabular-nums; }
+
+    .new-best {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: rgba(88, 245, 210, 0.1);
+      color: var(--cyan);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+    }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+    }
+
+    .result-item { padding: 12px 8px; border-radius: 15px; background: rgba(255, 255, 255, 0.035); }
+    .result-item span { display: block; margin-bottom: 4px; color: var(--muted); font-size: 10px; }
+    .result-item b { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    /* ---------- 动画与响应式微调 ---------- */
+    @keyframes logoBreath { 0%, 100% { transform: scale(0.88); opacity: 0.55; } 50% { transform: scale(1.08); opacity: 1; } }
+    @keyframes orbitSpin { to { transform: rotate(360deg); } }
+    @keyframes twinkle { to { opacity: 0.8; transform: scale(1.5); } }
+    @keyframes drift { to { transform: translate(35px, -25px) scale(1.15); } }
+    @keyframes cuePulse { 50% { transform: scale(1.5); opacity: 0.55; } }
+    @keyframes fadeIn { from { opacity: 0; } }
+    @keyframes modalIn { from { opacity: 0; transform: translateY(16px) scale(0.97); } }
+
+    @media (max-height: 680px) {
+      .screen { padding-top: max(14px, env(safe-area-inset-top)); padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+      .brand-mark { width: 52px; height: 52px; margin-bottom: 10px; }
+      .brand-core { width: 27px; height: 27px; }
+      .brand h1 { margin-top: 5px; font-size: 29px; }
+      .how-item { min-height: 58px; padding-top: 9px; padding-bottom: 9px; }
+      .setup-panel { padding: 13px; }
+      .duration-button { min-height: 50px; }
+      .primary-button { min-height: 50px; }
+      .pause-button { top: max(13px, env(safe-area-inset-top)); }
+      .live-stat { min-height: 46px; }
+      .breath-stage { width: calc(var(--orb-size) + 64px); height: calc(var(--orb-size) + 64px); }
+    }
+
+    @media (min-width: 700px) {
+      .app::before {
+        content: "";
+        position: fixed;
+        z-index: -1;
+        inset: 0 calc(50% - 270px);
+        border-left: 1px solid rgba(255, 255, 255, 0.035);
+        border-right: 1px solid rgba(255, 255, 255, 0.035);
+        background: rgba(12, 18, 36, 0.2);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .star, .glow, .brand-mark::before, .brand-mark::after, .brand-core, .orbit, .cue-dot { animation: none !important; }
+      .modal-backdrop, .modal { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient" id="ambient" aria-hidden="true">
+    <div class="glow glow-a"></div>
+    <div class="glow glow-b"></div>
+  </div>
+
+  <main class="app" id="app">
+    <!-- 开始与时长选择 -->
+    <section class="screen setup-screen" id="setupScreen" aria-labelledby="gameTitle">
+      <header class="brand">
+        <div class="brand-mark" aria-hidden="true"><div class="brand-core"></div></div>
+        <p class="eyebrow">BREATHE · RELAX · FOCUS</p>
+        <h1 id="gameTitle">息 · 呼吸冥想</h1>
+        <p class="subtitle">跟随光圈的一收一放<br>让节奏慢下来，让心静下来</p>
+      </header>
+
+      <div class="how-to" aria-label="玩法说明">
+        <div class="how-item glass">
+          <div class="how-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 11V5a2 2 0 0 1 4 0v5-7a2 2 0 0 1 4 0v7-5a2 2 0 0 1 4 0v8c0 5-3 8-8 8-3 0-5-1-7-4l-2-3a2 2 0 0 1 3-2l2 2v-3Z"/>
+            </svg>
+          </div>
+          <div><strong>光圈变大 · 按住</strong><small>缓缓吸气，保持触碰</small></div>
+        </div>
+        <div class="how-item glass">
+          <div class="how-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+              <path d="M3 8h10a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h5"/>
+            </svg>
+          </div>
+          <div><strong>光圈变小 · 松开</strong><small>轻轻呼气，释放指尖</small></div>
+        </div>
+      </div>
+
+      <section class="setup-panel glass" aria-labelledby="durationTitle">
+        <div class="panel-heading">
+          <h2 id="durationTitle">选择练习时长</h2>
+          <div class="best-mini">最高分 <b id="setupBest">0</b></div>
+        </div>
+        <div class="duration-options" role="group" aria-label="练习时长">
+          <button class="duration-button selected" type="button" data-minutes="1" aria-pressed="true"><b>1</b> <span>分钟</span></button>
+          <button class="duration-button" type="button" data-minutes="3" aria-pressed="false"><b>3</b> <span>分钟</span></button>
+          <button class="duration-button" type="button" data-minutes="5" aria-pressed="false"><b>5</b> <span>分钟</span></button>
+        </div>
+      </section>
+
+      <div class="start-area">
+        <button class="primary-button" id="startButton" type="button">
+          <span id="startButtonText">开始 · 1 分钟</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+        <p class="keyboard-hint">触屏按住 / 松开 · 键盘可使用空格键</p>
+      </div>
+    </section>
+
+    <!-- 游戏主界面 -->
+    <section class="screen game-screen" id="gameScreen" data-phase="inhale" aria-label="呼吸练习" tabindex="-1" hidden>
+      <header class="game-header">
+        <div class="score-block"><span class="score-label">当前得分</span><strong class="score-value" id="currentScore">0</strong></div>
+        <div class="timer" id="timer" aria-label="剩余时间">01:00</div>
+        <div class="score-block"><span class="score-label">最高分</span><strong class="score-value" id="gameBest">0</strong></div>
+      </header>
+      <button class="pause-button" id="pauseButton" type="button" aria-label="暂停练习">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+      </button>
+      <div class="session-track" aria-hidden="true"><div class="session-progress" id="sessionProgress"></div></div>
+
+      <div class="play-zone" id="playZone">
+        <div class="phase-heading">
+          <span class="phase-kicker" id="phaseKicker">INHALE · 跟随光圈</span>
+          <h2 id="phaseLabel" aria-live="polite">吸气</h2>
+        </div>
+
+        <div class="breath-stage" aria-hidden="true">
+          <div class="orbit"></div>
+          <div class="orbit orbit-two"></div>
+          <svg class="progress-ring" viewBox="0 0 320 320">
+            <circle class="ring-track" cx="160" cy="160" r="156" pathLength="100"/>
+            <circle class="ring-value" id="ringValue" cx="160" cy="160" r="156" pathLength="100"/>
+          </svg>
+          <div class="orb" id="orb">
+            <div class="orb-content"><strong class="breath-count" id="breathCount">4</strong><span class="breath-unit">秒</span></div>
+          </div>
+        </div>
+
+        <div class="touch-cue"><span class="cue-dot"></span><span id="touchCue">轻触并按住，缓缓吸气</span></div>
+      </div>
+
+      <div class="live-stats">
+        <div class="live-stat glass"><span>节奏契合</span><b id="accuracy">0%</b></div>
+        <div class="live-stat glass"><span>连贯加成</span><b class="accent" id="multiplier">×1.0</b></div>
+      </div>
+    </section>
+
+    <!-- 暂停弹窗 -->
+    <div class="modal-backdrop" id="pauseModal" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+        <div class="modal-symbol" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+        </div>
+        <h2 id="pauseTitle">稍作停留</h2>
+        <p class="modal-message">时间已暂停。准备好后，继续找回呼吸的节奏。</p>
+        <div class="modal-actions">
+          <button class="primary-button" id="resumeButton" type="button">继续呼吸</button>
+          <button class="secondary-button" id="pauseRestartButton" type="button">重新开始</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- 完成结算弹窗 -->
+    <div class="modal-backdrop" id="finishModal" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+        <div class="modal-symbol" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg>
+        </div>
+        <h2 id="resultTitle">练习完成</h2>
+        <p class="modal-message" id="resultMessage">这一口气，做得很好。</p>
+        <div class="result-score">
+          <span>本次得分</span><strong id="finalScore">0</strong>
+          <em class="new-best" id="newBest" hidden>新的最高分</em>
+        </div>
+        <div class="result-grid">
+          <div class="result-item"><span>节奏契合</span><b id="finalAccuracy">0%</b></div>
+          <div class="result-item"><span>完成呼吸</span><b id="finalCycles">0 轮</b></div>
+        </div>
+        <div class="modal-actions">
+          <button class="primary-button" id="restartButton" type="button">再来一次</button>
+          <button class="secondary-button" id="settingsButton" type="button">调整时长</button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // ---------- 常量与 DOM ----------
+      const INHALE_MS = 4000;
+      const EXHALE_MS = 6000;
+      const CYCLE_MS = INHALE_MS + EXHALE_MS;
+      const BEST_KEY = "xi-breath-best-v1";
+
+      const $ = (id) => document.getElementById(id);
+      const setupScreen = $("setupScreen");
+      const gameScreen = $("gameScreen");
+      const pauseModal = $("pauseModal");
+      const finishModal = $("finishModal");
+      const orb = $("orb");
+      const ringValue = $("ringValue");
+      const sessionProgress = $("sessionProgress");
+
+      let selectedMinutes = 1;
+      let state = "setup"; // setup | running | paused | finished
+      let elapsed = 0;
+      let duration = selectedMinutes * 60 * 1000;
+      let score = 0;
+      let matchedTime = 0;
+      let streakTime = 0;
+      let best = loadBest();
+      let lastFrame = performance.now();
+      let lastPhase = "";
+      let activePointer = null;
+      let pointerHolding = false;
+      let keyHolding = false;
+      let holding = false;
+
+      // ---------- 本地最高分（隐私模式下也可安全运行） ----------
+      function loadBest() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(BEST_KEY), 10);
+          return Number.isFinite(value) && value > 0 ? value : 0;
+        } catch (_) {
+          return 0;
+        }
+      }
+
+      function saveBest() {
+        try {
+          localStorage.setItem(BEST_KEY, String(best));
+        } catch (_) {
+          // 存储不可用时仅保留本次会话中的最高分。
+        }
+      }
+
+      // ---------- 输入状态：触屏、鼠标与空格键共用 ----------
+      function syncHolding() {
+        holding = pointerHolding || keyHolding;
+        gameScreen.classList.toggle("is-holding", holding);
+      }
+
+      function releaseInputs() {
+        activePointer = null;
+        pointerHolding = false;
+        keyHolding = false;
+        syncHolding();
+      }
+
+      gameScreen.addEventListener("pointerdown", (event) => {
+        if (state !== "running" || event.target.closest("button")) return;
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        if (activePointer !== null) return;
+        event.preventDefault();
+        activePointer = event.pointerId;
+        pointerHolding = true;
+        gameScreen.setPointerCapture?.(event.pointerId);
+        syncHolding();
+      });
+
+      function releasePointer(event) {
+        if (event.pointerId !== activePointer) return;
+        activePointer = null;
+        pointerHolding = false;
+        syncHolding();
+      }
+
+      gameScreen.addEventListener("pointerup", releasePointer);
+      gameScreen.addEventListener("pointercancel", releasePointer);
+      gameScreen.addEventListener("lostpointercapture", releasePointer);
+
+      document.addEventListener("keydown", (event) => {
+        if (event.code === "Space" && state === "running") {
+          event.preventDefault();
+          if (!event.repeat) {
+            keyHolding = true;
+            syncHolding();
+          }
+        } else if ((event.code === "KeyP" || event.code === "Escape") && !event.repeat) {
+          if (state === "running") pauseGame();
+          else if (state === "paused") resumeGame();
+        }
+      });
+
+      document.addEventListener("keyup", (event) => {
+        if (event.code === "Space") {
+          keyHolding = false;
+          syncHolding();
+        }
+      });
+
+      window.addEventListener("blur", releaseInputs);
+
+      // 禁止移动端页面滚动、双击缩放与缩放手势。
+      document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("dblclick", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("wheel", (event) => {
+        if (event.ctrlKey) event.preventDefault();
+      }, { passive: false });
+
+      // ---------- 开始页与游戏流程 ----------
+      document.querySelectorAll(".duration-button").forEach((button) => {
+        button.addEventListener("click", () => {
+          selectedMinutes = Number(button.dataset.minutes);
+          document.querySelectorAll(".duration-button").forEach((item) => {
+            const selected = item === button;
+            item.classList.toggle("selected", selected);
+            item.setAttribute("aria-pressed", String(selected));
+          });
+          $("startButtonText").textContent = `开始 · ${selectedMinutes} 分钟`;
+        });
+      });
+
+      $("startButton").addEventListener("click", startGame);
+      $("pauseButton").addEventListener("click", pauseGame);
+      $("resumeButton").addEventListener("click", resumeGame);
+      $("restartButton").addEventListener("click", startGame);
+      $("pauseRestartButton").addEventListener("click", startGame);
+      $("settingsButton").addEventListener("click", showSetup);
+
+      function startGame() {
+        duration = selectedMinutes * 60 * 1000;
+        elapsed = 0;
+        score = 0;
+        matchedTime = 0;
+        streakTime = 0;
+        lastPhase = "";
+        releaseInputs();
+        setupScreen.hidden = true;
+        pauseModal.hidden = true;
+        finishModal.hidden = true;
+        gameScreen.hidden = false;
+        state = "running";
+        updateDisplay(getBreathState(), true);
+        gameScreen.focus({ preventScroll: true });
+      }
+
+      function showSetup() {
+        state = "setup";
+        releaseInputs();
+        finishModal.hidden = true;
+        pauseModal.hidden = true;
+        gameScreen.hidden = true;
+        setupScreen.hidden = false;
+        $("setupBest").textContent = formatScore(best);
+        $("startButton").focus({ preventScroll: true });
+      }
+
+      function pauseGame() {
+        if (state !== "running") return;
+        state = "paused";
+        releaseInputs();
+        pauseModal.hidden = false;
+        $("resumeButton").focus({ preventScroll: true });
+      }
+
+      function resumeGame() {
+        if (state !== "paused") return;
+        state = "running";
+        pauseModal.hidden = true;
+        releaseInputs();
+        gameScreen.focus({ preventScroll: true });
+      }
+
+      function finishGame() {
+        state = "finished";
+        releaseInputs();
+        const finalScore = Math.round(score);
+        const finalAccuracy = elapsed > 0 ? Math.round(matchedTime / elapsed * 100) : 0;
+        const isNewBest = finalScore > best;
+
+        if (isNewBest) {
+          best = finalScore;
+          saveBest();
+        }
+
+        $("finalScore").textContent = formatScore(finalScore);
+        $("finalAccuracy").textContent = `${finalAccuracy}%`;
+        $("finalCycles").textContent = `${Math.floor(elapsed / CYCLE_MS)} 轮`;
+        $("newBest").hidden = !isNewBest;
+        $("setupBest").textContent = formatScore(best);
+        $("gameBest").textContent = formatScore(best);
+
+        let title = "温柔开始";
+        let message = "不必追求完美，每一次觉察都是进步。";
+        if (finalAccuracy >= 90) {
+          title = "身心合一";
+          message = "你与呼吸同频，把这份平静带回生活。";
+        } else if (finalAccuracy >= 75) {
+          title = "节奏很好";
+          message = "平稳而专注，这一刻你做得很好。";
+        } else if (finalAccuracy >= 60) {
+          title = "渐入佳境";
+          message = "节奏正在慢下来，继续保持这份觉察。";
+        }
+        $("resultTitle").textContent = title;
+        $("resultMessage").textContent = message;
+        finishModal.hidden = false;
+        $("restartButton").focus({ preventScroll: true });
+      }
+
+      // 页面进入后台时自动暂停，避免计时与节奏错位。
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && state === "running") pauseGame();
+      });
+
+      // ---------- 呼吸动画、判定与计分 ----------
+      function getBreathState() {
+        const cycleTime = elapsed % CYCLE_MS;
+        const inhale = cycleTime < INHALE_MS;
+        const phaseTime = inhale ? cycleTime : cycleTime - INHALE_MS;
+        const phaseDuration = inhale ? INHALE_MS : EXHALE_MS;
+        const progress = Math.min(1, phaseTime / phaseDuration);
+        return { inhale, progress, phaseTime, phaseDuration };
+      }
+
+      function gameLoop(now) {
+        const delta = Math.min(now - lastFrame, 64);
+        lastFrame = now;
+
+        if (state === "running") {
+          // 最后一帧只计入实际剩余时间，确保契合度不会超过 100%。
+          const step = Math.min(delta, duration - elapsed);
+          elapsed += step;
+          const breath = getBreathState();
+          const matched = holding === breath.inhale;
+
+          if (matched) {
+            matchedTime += step;
+            streakTime += step;
+            // 连续跟准节奏可逐渐获得最高两倍加分。
+            const multiplier = 1 + Math.min(1, streakTime / 30000);
+            score += step * 0.01 * multiplier;
+          } else {
+            streakTime = 0;
+          }
+
+          updateDisplay(breath);
+          if (elapsed >= duration) finishGame();
+        }
+
+        requestAnimationFrame(gameLoop);
+      }
+
+      function updateDisplay(breath, force = false) {
+        const phase = breath.inhale ? "inhale" : "exhale";
+        const multiplier = 1 + Math.min(1, streakTime / 30000);
+        const accuracy = elapsed > 0 ? Math.min(100, Math.round(matchedTime / elapsed * 100)) : 0;
+        const remaining = Math.max(0, Math.ceil((duration - elapsed) / 1000));
+        const minutes = Math.floor(remaining / 60);
+        const seconds = remaining % 60;
+
+        // 吸气时平滑放大，呼气时平滑缩小，两端速度趋近于零。
+        const wave = breath.inhale
+          ? 0.5 - 0.5 * Math.cos(Math.PI * breath.progress)
+          : 0.5 + 0.5 * Math.cos(Math.PI * breath.progress);
+        orb.style.transform = `scale(${0.68 + wave * 0.42})`;
+        ringValue.style.strokeDashoffset = String(100 - breath.progress * 100);
+        sessionProgress.style.transform = `scaleX(${duration ? elapsed / duration : 0})`;
+
+        $("timer").textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+        $("currentScore").textContent = formatScore(Math.floor(score));
+        $("gameBest").textContent = formatScore(Math.max(best, Math.floor(score)));
+        $("accuracy").textContent = `${accuracy}%`;
+        $("multiplier").textContent = `×${multiplier.toFixed(1)}`;
+        $("breathCount").textContent = String(Math.max(1, Math.ceil((breath.phaseDuration - breath.phaseTime) / 1000)));
+
+        if (force || phase !== lastPhase) {
+          lastPhase = phase;
+          gameScreen.dataset.phase = phase;
+          $("phaseLabel").textContent = breath.inhale ? "吸气" : "呼气";
+          $("phaseKicker").textContent = breath.inhale ? "INHALE · 跟随光圈" : "EXHALE · 缓慢释放";
+        }
+
+        let cue = "轻触并按住，缓缓吸气";
+        if (breath.inhale && holding) cue = "很好，继续保持";
+        if (!breath.inhale && !holding) cue = "保持松开，缓缓呼气";
+        if (!breath.inhale && holding) cue = "现在松开，释放指尖";
+        $("touchCue").textContent = cue;
+      }
+
+      function formatScore(value) {
+        return Math.max(0, value).toLocaleString("zh-CN");
+      }
+
+      // ---------- 轻量星光装饰 ----------
+      function createStars() {
+        const fragment = document.createDocumentFragment();
+        for (let i = 0; i < 28; i += 1) {
+          const star = document.createElement("i");
+          star.className = "star";
+          star.style.left = `${Math.random() * 100}%`;
+          star.style.top = `${Math.random() * 100}%`;
+          star.style.opacity = String(0.1 + Math.random() * 0.35);
+          star.style.setProperty("--twinkle-time", `${2.5 + Math.random() * 4}s`);
+          star.style.animationDelay = `${-Math.random() * 5}s`;
+          fragment.appendChild(star);
+        }
+        $("ambient").appendChild(fragment);
+      }
+
+      createStars();
+      $("setupBest").textContent = formatScore(best);
+      requestAnimationFrame(gameLoop);
+    })();
+  </script>
+</body>
+</html>

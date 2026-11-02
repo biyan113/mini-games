@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080a16">
+  <title>六边形拼 · HEX FIT</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080a16;
+      --panel: rgba(18, 22, 43, .76);
+      --line: rgba(132, 151, 218, .16);
+      --text: #f4f7ff;
+      --muted: #8b96b8;
+      --cyan: #43e7ff;
+      --purple: #aa78ff;
+      --pink: #ff65ad;
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 5%, rgba(75, 63, 180, .22), transparent 35%),
+        radial-gradient(circle at 95% 85%, rgba(0, 205, 255, .12), transparent 38%),
+        var(--bg);
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .22;
+      background-image:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: linear-gradient(to bottom, black, transparent 85%);
+    }
+
+    button { font: inherit; }
+    button, svg { touch-action: none; }
+
+    .app {
+      position: relative;
+      isolation: isolate;
+      width: min(100%, 520px);
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: calc(10px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .topbar {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex: 0 0 auto;
+    }
+
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      color: var(--cyan);
+      filter: drop-shadow(0 0 8px rgba(67, 231, 255, .65));
+    }
+    .brand-mark svg { width: 100%; height: 100%; }
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(20px, 5.6vw, 27px);
+      line-height: 1.05;
+      letter-spacing: .12em;
+      font-weight: 800;
+      background: linear-gradient(110deg, #fff 15%, #aeefff 55%, #c6adff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .brand p {
+      margin: 5px 0 0;
+      color: #7885ac;
+      font-size: 8px;
+      letter-spacing: .38em;
+      font-weight: 700;
+    }
+
+    .header-actions { display: flex; gap: 7px; }
+    .icon-button {
+      min-width: 48px;
+      height: 44px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      color: #b6c1df;
+      background: rgba(20, 25, 47, .72);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      cursor: pointer;
+      transition: border-color .18s, color .18s, transform .18s, background .18s;
+    }
+    .icon-button span:first-child { font-size: 17px; line-height: 1; }
+    .icon-button span:last-child { font-size: 11px; }
+    .icon-button:active { transform: scale(.94); }
+    .icon-button:hover { color: #fff; border-color: rgba(67,231,255,.4); background: rgba(29,37,65,.9); }
+    button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+
+    .score-panel {
+      position: relative;
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      padding: 10px 12px 12px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: linear-gradient(135deg, rgba(24,29,54,.86), rgba(13,17,35,.76));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 12px 35px rgba(0,0,0,.16);
+      backdrop-filter: blur(12px);
+    }
+    .stat { text-align: center; position: relative; }
+    .stat + .stat::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 4px;
+      bottom: 5px;
+      width: 1px;
+      background: var(--line);
+    }
+    .stat-label { display: block; color: var(--muted); font-size: 10px; letter-spacing: .12em; }
+    .stat-value {
+      display: block;
+      margin-top: 1px;
+      font-size: clamp(21px, 6vw, 28px);
+      line-height: 1.15;
+      font-variant-numeric: tabular-nums;
+      font-weight: 800;
+    }
+    #score { color: #fff; text-shadow: 0 0 18px rgba(67,231,255,.25); }
+    #best { color: #c4a9ff; }
+    #target { color: #75edf8; }
+    .stat-value.bump { animation: score-bump .28s ease-out; }
+
+    .progress-track {
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 5px;
+      height: 2px;
+      overflow: hidden;
+      border-radius: 99px;
+      background: rgba(255,255,255,.055);
+    }
+    .progress-bar {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--purple), var(--cyan));
+      box-shadow: 0 0 8px var(--cyan);
+      transition: width .35s ease;
+    }
+
+    .board-wrap {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 150px;
+      width: 100%;
+      display: grid;
+      place-items: center;
+      overflow: visible;
+    }
+    .board-wrap::before {
+      content: "";
+      position: absolute;
+      width: 75%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: rgba(78, 68, 190, .13);
+      filter: blur(44px);
+      pointer-events: none;
+    }
+    #board {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-width: 440px;
+      max-height: 440px;
+      overflow: visible;
+      filter: drop-shadow(0 16px 22px rgba(0,0,0,.25));
+    }
+    .hex-cell {
+      fill: url(#empty-cell);
+      stroke: #293252;
+      stroke-width: 1.35;
+      cursor: pointer;
+      transition: fill .16s, stroke .16s, opacity .16s, filter .16s;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+    .hex-cell:hover { stroke: #49577e; }
+    .hex-cell.filled {
+      stroke: color-mix(in srgb, var(--cell-color) 70%, white 10%);
+      stroke-width: 1.05;
+      filter: drop-shadow(0 0 4px color-mix(in srgb, var(--cell-color) 60%, transparent));
+    }
+    .hex-cell.preview-valid {
+      fill: var(--cell-color);
+      fill-opacity: .45;
+      stroke: #b7f8ff;
+      stroke-width: 2;
+      filter: drop-shadow(0 0 7px var(--cell-color));
+    }
+    .hex-cell.preview-invalid {
+      fill: #ff476f;
+      fill-opacity: .34;
+      stroke: #ff7996;
+      stroke-width: 2;
+    }
+    .hex-cell.keyboard-cursor {
+      stroke: #fff;
+      stroke-width: 2.2;
+      stroke-dasharray: 3 2;
+    }
+    .hex-cell.clearing { animation: cell-clear .36s ease-in forwards; }
+
+    .clear-badge {
+      position: absolute;
+      left: 50%;
+      top: 46%;
+      z-index: 3;
+      transform: translate(-50%, -50%) scale(.8);
+      padding: 8px 15px;
+      border: 1px solid rgba(103,239,255,.45);
+      border-radius: 999px;
+      color: #d9fcff;
+      background: rgba(9,16,34,.88);
+      box-shadow: 0 0 25px rgba(67,231,255,.2);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .clear-badge.show { animation: badge-pop .75s ease both; }
+
+    .toast {
+      position: absolute;
+      left: 50%;
+      bottom: 4px;
+      z-index: 5;
+      transform: translate(-50%, 8px);
+      padding: 7px 13px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 99px;
+      color: #e9edff;
+      background: rgba(13,17,34,.92);
+      box-shadow: 0 6px 22px rgba(0,0,0,.25);
+      font-size: 12px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .18s, transform .18s;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    .tray-section { flex: 0 0 auto; }
+    .tray-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 4px;
+      margin-bottom: 5px;
+      color: #a9b5d4;
+      font-size: 11px;
+    }
+    .tray-heading span:last-child { color: #626e91; font-size: 9px; letter-spacing: .05em; }
+    .tray { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+    .piece-slot {
+      position: relative;
+      height: clamp(82px, 12.5vh, 108px);
+      min-height: 72px;
+      padding: 7px;
+      overflow: hidden;
+      border: 1px solid rgba(124,143,206,.15);
+      border-radius: 17px;
+      color: #dce7ff;
+      background: linear-gradient(145deg, rgba(25,31,56,.82), rgba(13,17,34,.8));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+      cursor: grab;
+      transition: transform .16s, border-color .16s, background .16s, opacity .16s;
+    }
+    .piece-slot::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: radial-gradient(circle at 50% 60%, rgba(91,113,190,.09), transparent 65%);
+      pointer-events: none;
+    }
+    .piece-slot:not(:disabled):hover { border-color: rgba(113,217,255,.35); }
+    .piece-slot:not(:disabled):active { cursor: grabbing; transform: scale(.96); }
+    .piece-slot.selected {
+      border-color: rgba(67,231,255,.65);
+      background: linear-gradient(145deg, rgba(29,54,75,.88), rgba(17,25,47,.9));
+      box-shadow: inset 0 0 18px rgba(67,231,255,.06), 0 0 14px rgba(67,231,255,.09);
+      transform: translateY(-3px);
+    }
+    .piece-slot:disabled { cursor: default; }
+    .piece-slot.empty { opacity: .35; }
+    .slot-key {
+      position: absolute;
+      top: 6px;
+      left: 8px;
+      z-index: 2;
+      color: #596789;
+      font: 700 9px/1 system-ui, sans-serif;
+    }
+    .piece-preview { width: 100%; height: 100%; display: grid; place-items: center; }
+    .piece-preview svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 0 5px rgba(114,211,255,.18)); }
+    .mini-hex { stroke: rgba(255,255,255,.28); stroke-width: .8; }
+    .used-mark { color: #647293; font-size: 22px; }
+
+    .tip {
+      flex: 0 0 auto;
+      min-height: 20px;
+      margin: 0;
+      color: #7986a8;
+      text-align: center;
+      font-size: clamp(10px, 2.8vw, 12px);
+      line-height: 1.35;
+      letter-spacing: .02em;
+    }
+    .tip b { color: #a7b8da; font-weight: 500; }
+
+    #drag-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      pointer-events: none;
+      display: none;
+    }
+    #drag-layer.active { display: block; }
+    .drag-hex {
+      stroke: rgba(255,255,255,.48);
+      stroke-width: 1;
+      filter: drop-shadow(0 0 7px var(--drag-color));
+      opacity: .92;
+    }
+
+    .modal-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      padding: 24px;
+      display: grid;
+      place-items: center;
+      background: rgba(4,6,15,.74);
+      backdrop-filter: blur(12px);
+      animation: fade-in .2s ease-out;
+    }
+    .modal {
+      width: min(100%, 360px);
+      padding: 28px 24px 22px;
+      border: 1px solid rgba(128,157,224,.23);
+      border-radius: 26px;
+      text-align: center;
+      background: linear-gradient(145deg, rgba(28,34,63,.98), rgba(12,16,33,.98));
+      box-shadow: 0 24px 80px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.06);
+      animation: modal-in .28s cubic-bezier(.2,.85,.25,1.15);
+    }
+    .modal-icon {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 15px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(67,231,255,.3);
+      border-radius: 23px;
+      color: var(--cyan);
+      background: rgba(67,231,255,.07);
+      box-shadow: 0 0 28px rgba(67,231,255,.12);
+      font-size: 37px;
+    }
+    .modal.victory .modal-icon { color: #ffd76a; border-color: rgba(255,215,106,.35); background: rgba(255,215,106,.07); box-shadow: 0 0 30px rgba(255,215,106,.12); }
+    .modal.game-over .modal-icon { color: var(--pink); border-color: rgba(255,101,173,.3); background: rgba(255,101,173,.06); }
+    .modal h2 { margin: 0 0 8px; font-size: 25px; letter-spacing: .08em; }
+    .modal p { margin: 0; color: #929fbe; font-size: 13px; line-height: 1.7; }
+    .modal-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
+    .modal-stat { padding: 10px; border-radius: 13px; background: rgba(255,255,255,.035); }
+    .modal-stat span { display: block; color: #7886a9; font-size: 10px; }
+    .modal-stat strong { display: block; margin-top: 3px; color: #fff; font-size: 22px; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 22px; }
+    .primary-button, .secondary-button {
+      flex: 1;
+      min-height: 48px;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform .15s, filter .15s;
+    }
+    .primary-button {
+      border: 0;
+      color: #07131b;
+      background: linear-gradient(105deg, #65ecff, #8cb9ff);
+      box-shadow: 0 7px 22px rgba(67,231,255,.18);
+    }
+    .secondary-button { border: 1px solid rgba(139,157,208,.22); color: #b5c0dd; background: rgba(255,255,255,.04); }
+    .primary-button:active, .secondary-button:active { transform: scale(.96); }
+    .primary-button:hover, .secondary-button:hover { filter: brightness(1.1); }
+    .keyboard-help { margin-top: 15px !important; color: #626f90 !important; font-size: 10px !important; }
+
+    @keyframes score-bump { 45% { transform: scale(1.2); color: var(--cyan); } }
+    @keyframes cell-clear {
+      35% { transform: scale(1.16); filter: brightness(1.8) drop-shadow(0 0 9px var(--cell-color)); }
+      100% { transform: scale(.1) rotate(25deg); opacity: 0; }
+    }
+    @keyframes badge-pop {
+      0% { opacity: 0; transform: translate(-50%,-35%) scale(.75); }
+      20%, 70% { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+      100% { opacity: 0; transform: translate(-50%,-75%) scale(.95); }
+    }
+    @keyframes fade-in { from { opacity: 0; } }
+    @keyframes modal-in { from { opacity: 0; transform: translateY(15px) scale(.94); } }
+
+    @media (max-height: 690px) {
+      .app { gap: 5px; padding-top: calc(6px + env(safe-area-inset-top)); }
+      .topbar { min-height: 42px; }
+      .brand-mark { width: 36px; height: 36px; }
+      .brand p { display: none; }
+      .score-panel { padding-top: 7px; padding-bottom: 10px; }
+      .stat-value { font-size: 21px; }
+      .piece-slot { height: 78px; min-height: 68px; }
+      .tray-heading { margin-bottom: 3px; }
+    }
+    @media (max-width: 350px) {
+      .app { padding-left: 9px; padding-right: 9px; }
+      .icon-button { min-width: 43px; padding: 0 7px; }
+      .icon-button span:last-child { display: none; }
+      .tray { gap: 6px; }
+      .tray-heading span:last-child { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48"><polygon points="24,3 42,13.5 42,34.5 24,45 6,34.5 6,13.5" fill="none" stroke="currentColor" stroke-width="2"/><polygon points="24,12 34,18 34,30 24,36 14,30 14,18" fill="currentColor" opacity=".18"/><circle cx="24" cy="24" r="3" fill="currentColor"/></svg>
+        </span>
+        <div><h1>六边形拼</h1><p>HEX FIT</p></div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-button" id="restart-button" type="button" aria-label="重新开始"><span aria-hidden="true">↻</span><span>重开</span></button>
+        <button class="icon-button" id="pause-button" type="button" aria-label="暂停游戏"><span aria-hidden="true">Ⅱ</span><span>暂停</span></button>
+      </div>
+    </header>
+
+    <section class="score-panel" aria-label="游戏数据">
+      <div class="stat"><span class="stat-label">得分</span><strong class="stat-value" id="score">0</strong></div>
+      <div class="stat"><span class="stat-label">最高分</span><strong class="stat-value" id="best">0</strong></div>
+      <div class="stat"><span class="stat-label">胜利目标</span><strong class="stat-value" id="target">2000</strong></div>
+      <div class="progress-track" aria-hidden="true"><div class="progress-bar" id="progress-bar"></div></div>
+    </section>
+
+    <main class="board-wrap" id="board-wrap">
+      <svg id="board" viewBox="0 0 400 380" preserveAspectRatio="xMidYMid meet" role="grid" aria-label="六边形蜂窝棋盘">
+        <defs>
+          <radialGradient id="empty-cell" cx="38%" cy="28%" r="80%"><stop offset="0" stop-color="#1a203b"/><stop offset="1" stop-color="#101429"/></radialGradient>
+          <linearGradient id="grad-cyan" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#8af5ff"/><stop offset=".45" stop-color="#32d8ef"/><stop offset="1" stop-color="#1685bc"/></linearGradient>
+          <linearGradient id="grad-purple" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#dab9ff"/><stop offset=".45" stop-color="#a66ff1"/><stop offset="1" stop-color="#6638bd"/></linearGradient>
+          <linearGradient id="grad-pink" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffb0d2"/><stop offset=".45" stop-color="#fa609f"/><stop offset="1" stop-color="#b72e77"/></linearGradient>
+          <linearGradient id="grad-amber" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff0a5"/><stop offset=".45" stop-color="#ffc857"/><stop offset="1" stop-color="#d67b2c"/></linearGradient>
+          <linearGradient id="grad-green" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b0ffd6"/><stop offset=".45" stop-color="#52e6a2"/><stop offset="1" stop-color="#199b77"/></linearGradient>
+          <linearGradient id="grad-blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b6c8ff"/><stop offset=".45" stop-color="#708ff5"/><stop offset="1" stop-color="#4053b9"/></linearGradient>
+        </defs>
+        <g id="board-cells"></g>
+      </svg>
+      <div class="clear-badge" id="clear-badge" aria-live="polite"></div>
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </main>
+
+    <section class="tray-section" aria-label="待放置拼块">
+      <div class="tray-heading"><span>选择一枚拼块</span><span>不可旋转 · 不可重叠</span></div>
+      <div class="tray">
+        <button class="piece-slot" data-index="0" type="button" aria-label="拼块 1"><span class="slot-key">1</span><span class="piece-preview"></span></button>
+        <button class="piece-slot" data-index="1" type="button" aria-label="拼块 2"><span class="slot-key">2</span><span class="piece-preview"></span></button>
+        <button class="piece-slot" data-index="2" type="button" aria-label="拼块 3"><span class="slot-key">3</span><span class="piece-preview"></span></button>
+      </div>
+    </section>
+    <p class="tip"><b>拖动</b>或<b>点选</b>拼块放入蜂窝，填满任意方向整条线即可消除</p>
+  </div>
+
+  <svg id="drag-layer" aria-hidden="true"></svg>
+
+  <div class="modal-layer" id="pause-modal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+      <div class="modal-icon" aria-hidden="true">Ⅱ</div>
+      <h2 id="pause-title">稍作休息</h2>
+      <p>棋盘已暂停，灵感随时继续。</p>
+      <div class="modal-actions">
+        <button class="secondary-button" id="pause-restart" type="button">重新开始</button>
+        <button class="primary-button" id="resume-button" type="button">继续游戏</button>
+      </div>
+      <p class="keyboard-help">键盘：1 / 2 / 3 选块 · 方向键移动 · 回车放置 · P 暂停</p>
+    </section>
+  </div>
+
+  <div class="modal-layer" id="end-modal" hidden>
+    <section class="modal" id="end-dialog" role="dialog" aria-modal="true" aria-labelledby="end-title">
+      <div class="modal-icon" id="end-icon" aria-hidden="true">⬡</div>
+      <h2 id="end-title">本局结束</h2>
+      <p id="end-message">再来一次，刷新你的霓虹纪录。</p>
+      <div class="modal-stats">
+        <div class="modal-stat"><span>本局得分</span><strong id="final-score">0</strong></div>
+        <div class="modal-stat"><span>消除线数</span><strong id="final-lines">0</strong></div>
+      </div>
+      <button class="primary-button" id="play-again" type="button" style="width:100%">再玩一局</button>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // ---------- 基础数据与纯逻辑 ----------
+      const SVG_NS = 'http://www.w3.org/2000/svg';
+      const BOARD_RADIUS = 4;
+      const HEX_SIZE = 21;
+      const BOARD_CENTER = { x: 200, y: 190 };
+      const TARGET_SCORE = 2000;
+      const BEST_KEY = 'hex-fit-best-v1';
+      const COLORS = [
+        { name: 'cyan', value: '#43e7ff' },
+        { name: 'purple', value: '#aa78ff' },
+        { name: 'pink', value: '#ff65ad' },
+        { name: 'amber', value: '#ffc857' },
+        { name: 'green', value: '#5ce6a5' },
+        { name: 'blue', value: '#7895ff' }
+      ];
+
+      // 所有拼块均以 [0, 0] 为拖动锚点，坐标使用轴坐标 (q, r)。
+      const SHAPES = [
+        { name: '单晶', weight: .45, cells: [[0, 0]] },
+        { name: '双子', cells: [[0, 0], [1, 0]] },
+        { name: '双子', cells: [[0, 0], [0, 1]] },
+        { name: '双子', cells: [[0, 0], [1, -1]] },
+        { name: '三连', weight: .85, cells: [[0, 0], [1, 0], [2, 0]] },
+        { name: '三连', weight: .85, cells: [[0, 0], [0, 1], [0, 2]] },
+        { name: '三连', weight: .85, cells: [[0, 0], [1, -1], [2, -2]] },
+        { name: '折角', cells: [[0, 0], [1, 0], [0, 1]] },
+        { name: '折角', cells: [[0, 0], [1, 0], [1, -1]] },
+        { name: '折角', cells: [[0, 0], [0, 1], [-1, 1]] },
+        { name: '菱晶', weight: .65, cells: [[0, 0], [1, 0], [0, 1], [1, 1]] },
+        { name: '长链', weight: .35, cells: [[0, 0], [1, 0], [2, 0], [3, 0]] },
+        { name: '长链', weight: .35, cells: [[0, 0], [0, 1], [0, 2], [0, 3]] },
+        { name: '花簇', weight: .45, cells: [[0, 0], [1, 0], [0, 1], [-1, 1], [-1, 0]] }
+      ];
+
+      const coordKey = (q, r) => `${q},${r}`;
+      const BOARD_CELLS = [];
+      const CELL_MAP = new Map();
+
+      // 生成半径为 4 的六角棋盘，共 61 个格子。
+      for (let q = -BOARD_RADIUS; q <= BOARD_RADIUS; q++) {
+        const rMin = Math.max(-BOARD_RADIUS, -q - BOARD_RADIUS);
+        const rMax = Math.min(BOARD_RADIUS, -q + BOARD_RADIUS);
+        for (let r = rMin; r <= rMax; r++) {
+          const cell = { q, r, s: -q - r, key: coordKey(q, r), el: null };
+          BOARD_CELLS.push(cell);
+          CELL_MAP.set(cell.key, cell);
+        }
+      }
+
+      // 三个轴向的整条线：q 固定、r 固定、s 固定。
+      const LINES = [];
+      ['q', 'r', 's'].forEach(axis => {
+        for (let value = -BOARD_RADIUS; value <= BOARD_RADIUS; value++) {
+          const cells = BOARD_CELLS.filter(cell => cell[axis] === value);
+          LINES.push({ axis, value, cells });
+        }
+      });
+
+      function loadBest() {
+        try {
+          const value = Number(localStorage.getItem(BEST_KEY));
+          return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+        } catch (_) {
+          return 0;
+        }
+      }
+
+      function saveBest(value) {
+        try { localStorage.setItem(BEST_KEY, String(value)); } catch (_) { /* 隐私模式下仍可正常游戏 */ }
+      }
+
+      function canPlaceCells(cells, origin, board) {
+        return cells.every(([dq, dr]) => {
+          const key = coordKey(origin.q + dq, origin.r + dr);
+          return CELL_MAP.has(key) && !board.has(key);
+        });
+      }
+
+      function getFullLines(board) {
+        return LINES.filter(line => line.cells.every(cell => board.has(cell.key)));
+      }
+
+      function hasAnyMove(pieces, board) {
+        return pieces.some(piece => piece && BOARD_CELLS.some(origin => canPlaceCells(piece.cells, origin, board)));
+      }
+
+      function clearScore(lineCount, cellCount, combo) {
+        return lineCount * 100 + cellCount * 20 * Math.max(1, combo);
+      }
+
+      function axialToPixel(q, r, size = HEX_SIZE) {
+        return {
+          x: size * Math.sqrt(3) * (q + r / 2),
+          y: size * 1.5 * r
+        };
+      }
+
+      function hexPoints(x, y, radius) {
+        const points = [];
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI / 180) * (-90 + i * 60);
+          points.push(`${(x + radius * Math.cos(angle)).toFixed(2)},${(y + radius * Math.sin(angle)).toFixed(2)}`);
+        }
+        return points.join(' ');
+      }
+
+      function weightedChoice(items) {
+        const total = items.reduce((sum, item) => sum + (item.weight || 1), 0);
+        let cursor = Math.random() * total;
+        for (const item of items) {
+          cursor -= item.weight || 1;
+          if (cursor <= 0) return item;
+        }
+        return items[items.length - 1];
+      }
+
+      const state = {
+        board: new Map(),
+        pieces: [],
+        score: 0,
+        best: loadBest(),
+        combo: 0,
+        totalLines: 0,
+        selected: -1,
+        status: 'playing',
+        resolving: false
+      };
+      let pieceId = 0;
+      let drag = null;
+      let clearTimer = 0;
+      let keyboardCursor = { q: 0, r: 0 };
+      let keyboardMode = false;
+      let toastTimer = 0;
+      const el = {};
+
+      function makePiece(shape = weightedChoice(SHAPES)) {
+        const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+        return { id: ++pieceId, name: shape.name, cells: shape.cells, color: color.name, colorValue: color.value };
+      }
+
+      function generateTray() {
+        state.pieces = [makePiece(), makePiece(), makePiece()];
+        // 每批至少保留一枚当前可放的拼块，避免纯随机造成不公平开局。
+        const fittingShapes = SHAPES.filter(shape => BOARD_CELLS.some(origin => canPlaceCells(shape.cells, origin, state.board)));
+        if (fittingShapes.length && !hasAnyMove(state.pieces, state.board)) {
+          state.pieces[Math.floor(Math.random() * 3)] = makePiece(weightedChoice(fittingShapes));
+        }
+      }
+
+      // ---------- 画面绘制 ----------
+      function createSvg(tag, attributes = {}) {
+        const node = document.createElementNS(SVG_NS, tag);
+        Object.entries(attributes).forEach(([key, value]) => node.setAttribute(key, value));
+        return node;
+      }
+
+      function buildBoard() {
+        const fragment = document.createDocumentFragment();
+        BOARD_CELLS.forEach(cell => {
+          const point = axialToPixel(cell.q, cell.r);
+          const polygon = createSvg('polygon', {
+            points: hexPoints(BOARD_CENTER.x + point.x, BOARD_CENTER.y + point.y, HEX_SIZE * .93),
+            class: 'hex-cell',
+            'data-key': cell.key,
+            role: 'gridcell',
+            'aria-label': `蜂窝格 ${cell.q},${cell.r}`
+          });
+          cell.el = polygon;
+          fragment.appendChild(polygon);
+        });
+        el.boardCells.appendChild(fragment);
+      }
+
+      function renderBoard() {
+        BOARD_CELLS.forEach(cell => {
+          const color = state.board.get(cell.key);
+          cell.el.setAttribute('class', `hex-cell${color ? ' filled' : ''}`);
+          cell.el.setAttribute('fill', color ? `url(#grad-${color})` : 'url(#empty-cell)');
+          cell.el.style.setProperty('--cell-color', color ? COLORS.find(item => item.name === color).value : '#43e7ff');
+          cell.el.setAttribute('aria-label', color ? '已填充蜂窝格' : '空蜂窝格');
+        });
+        renderKeyboardCursor();
+      }
+
+      function createPiecePreview(piece) {
+        const svg = createSvg('svg', { viewBox: '0 0 100 100', 'aria-hidden': 'true' });
+        const size = 12;
+        const points = piece.cells.map(([q, r]) => axialToPixel(q, r, size));
+        const minX = Math.min(...points.map(point => point.x)) - size;
+        const maxX = Math.max(...points.map(point => point.x)) + size;
+        const minY = Math.min(...points.map(point => point.y)) - size;
+        const maxY = Math.max(...points.map(point => point.y)) + size;
+        const width = Math.max(1, maxX - minX);
+        const height = Math.max(1, maxY - minY);
+        svg.setAttribute('viewBox', `${minX} ${minY} ${width} ${height}`);
+        piece.cells.forEach(([q, r]) => {
+          const point = axialToPixel(q, r, size);
+          svg.appendChild(createSvg('polygon', {
+            points: hexPoints(point.x, point.y, size * .92),
+            class: 'mini-hex',
+            fill: piece.colorValue
+          }));
+        });
+        return svg;
+      }
+
+      function renderPieces() {
+        el.slots.forEach((slot, index) => {
+          const piece = state.pieces[index];
+          const preview = slot.querySelector('.piece-preview');
+          preview.replaceChildren();
+          slot.disabled = !piece || state.status !== 'playing';
+          slot.classList.toggle('selected', state.selected === index && !!piece);
+          slot.classList.toggle('empty', !piece);
+          slot.setAttribute('aria-pressed', String(state.selected === index));
+          if (piece) {
+            preview.appendChild(createPiecePreview(piece));
+            slot.setAttribute('aria-label', `拼块 ${index + 1}：${piece.name}，${piece.cells.length} 格`);
+          } else {
+            const used = document.createElement('span');
+            used.className = 'used-mark';
+            used.textContent = '✓';
+            used.setAttribute('aria-hidden', 'true');
+            preview.appendChild(used);
+            slot.setAttribute('aria-label', `拼块 ${index + 1} 已使用`);
+          }
+        });
+      }
+
+      function renderStats() {
+        el.score.textContent = state.score;
+        el.best.textContent = state.best;
+        el.target.textContent = TARGET_SCORE;
+        el.progress.style.width = `${Math.min(100, state.score / TARGET_SCORE * 100)}%`;
+      }
+
+      function renderKeyboardCursor() {
+        BOARD_CELLS.forEach(cell => cell.el.classList.remove('keyboard-cursor'));
+        if (keyboardMode && state.selected >= 0 && state.status === 'playing') {
+          const cell = CELL_MAP.get(coordKey(keyboardCursor.q, keyboardCursor.r));
+          if (cell) cell.el.classList.add('keyboard-cursor');
+        }
+      }
+
+      // ---------- 分数、回合与终局 ----------
+      function addScore(points) {
+        state.score += points;
+        if (state.score > state.best) {
+          state.best = state.score;
+          saveBest(state.best);
+        }
+        renderStats();
+        el.score.classList.remove('bump');
+        void el.score.offsetWidth;
+        el.score.classList.add('bump');
+      }
+
+      function setSelected(index) {
+        state.selected = state.pieces[index] ? index : -1;
+        if (state.selected >= 0) {
+          const origin = BOARD_CELLS.find(cell => canPlaceCells(state.pieces[index].cells, cell, state.board));
+          if (origin) keyboardCursor = { q: origin.q, r: origin.r };
+        }
+        el.slots.forEach((slot, i) => {
+          slot.classList.toggle('selected', i === state.selected && !!state.pieces[i]);
+          slot.setAttribute('aria-pressed', String(i === state.selected));
+        });
+        renderKeyboardCursor();
+      }
+
+      function placeSelected(origin) {
+        const index = state.selected;
+        const piece = state.pieces[index];
+        if (!piece || state.status !== 'playing' || state.resolving) return false;
+        if (!canPlaceCells(piece.cells, origin, state.board)) {
+          showToast('这里放不下，换个位置试试');
+          return false;
+        }
+
+        state.resolving = true;
+        piece.cells.forEach(([dq, dr]) => state.board.set(coordKey(origin.q + dq, origin.r + dr), piece.color));
+        state.pieces[index] = null;
+        state.selected = -1;
+        addScore(piece.cells.length * 10);
+        clearPreview();
+        renderBoard();
+        renderPieces();
+
+        const fullLines = getFullLines(state.board);
+        if (!fullLines.length) {
+          state.combo = 0;
+          state.resolving = false;
+          finishTurn();
+          return true;
+        }
+
+        state.combo += 1;
+        state.totalLines += fullLines.length;
+        const clearedCells = new Set();
+        fullLines.forEach(line => line.cells.forEach(cell => clearedCells.add(cell.key)));
+        const bonus = clearScore(fullLines.length, clearedCells.size, state.combo);
+        addScore(bonus);
+        showClearBadge(fullLines.length, bonus);
+        clearedCells.forEach(key => CELL_MAP.get(key).el.classList.add('clearing'));
+
+        // 先播放消除动画，再真正清空格子并检查下一回合。
+        clearTimer = window.setTimeout(() => {
+          clearedCells.forEach(key => state.board.delete(key));
+          state.resolving = false;
+          renderBoard();
+          finishTurn();
+        }, 370);
+        return true;
+      }
+
+      function finishTurn() {
+        if (state.pieces.every(piece => !piece)) {
+          generateTray();
+          renderPieces();
+        }
+        renderStats();
+        if (state.score >= TARGET_SCORE) {
+          endGame(true);
+        } else if (!hasAnyMove(state.pieces, state.board)) {
+          endGame(false);
+        }
+      }
+
+      function endGame(victory) {
+        cancelDrag();
+        state.status = victory ? 'won' : 'over';
+        state.selected = -1;
+        renderPieces();
+        el.endDialog.className = `modal ${victory ? 'victory' : 'game-over'}`;
+        el.endIcon.textContent = victory ? '✦' : '⬡';
+        el.endTitle.textContent = victory ? '目标达成！' : '无处可放了';
+        el.endMessage.textContent = victory
+          ? `你点亮了整座蜂窝，连续消除 ${state.totalLines} 条线！`
+          : '棋盘已经没有可放置的位置，再挑战一次纪录吧。';
+        el.finalScore.textContent = state.score;
+        el.finalLines.textContent = state.totalLines;
+        el.endModal.hidden = false;
+        window.setTimeout(() => el.playAgain.focus(), 50);
+      }
+
+      function newGame() {
+        cancelDrag();
+        window.clearTimeout(toastTimer);
+        window.clearTimeout(clearTimer);
+        state.board.clear();
+        state.pieces = [];
+        state.score = 0;
+        state.combo = 0;
+        state.totalLines = 0;
+        state.selected = -1;
+        state.status = 'playing';
+        state.resolving = false;
+        keyboardCursor = { q: 0, r: 0 };
+        keyboardMode = false;
+        el.pauseModal.hidden = true;
+        el.endModal.hidden = true;
+        el.toast.classList.remove('show');
+        el.clearBadge.classList.remove('show');
+        updatePauseButton();
+        generateTray();
+        renderBoard();
+        renderPieces();
+        renderStats();
+      }
+
+      function setPaused(paused) {
+        if (state.resolving || !['playing', 'paused'].includes(state.status)) return;
+        cancelDrag();
+        state.status = paused ? 'paused' : 'playing';
+        state.selected = -1;
+        el.pauseModal.hidden = !paused;
+        updatePauseButton();
+        renderPieces();
+        if (paused) window.setTimeout(() => el.resume.focus(), 30);
+      }
+
+      function updatePauseButton() {
+        const paused = state.status === 'paused';
+        el.pauseButton.innerHTML = paused
+          ? '<span aria-hidden="true">▶</span><span>继续</span>'
+          : '<span aria-hidden="true">Ⅱ</span><span>暂停</span>';
+        el.pauseButton.setAttribute('aria-label', paused ? '继续游戏' : '暂停游戏');
+      }
+
+      function showClearBadge(lineCount, bonus) {
+        el.clearBadge.textContent = `${state.combo > 1 ? `连锁 ×${state.combo} · ` : ''}${lineCount} 线消除 +${bonus}`;
+        el.clearBadge.classList.remove('show');
+        void el.clearBadge.offsetWidth;
+        el.clearBadge.classList.add('show');
+      }
+
+      function showToast(message) {
+        window.clearTimeout(toastTimer);
+        el.toast.textContent = message;
+        el.toast.classList.add('show');
+        toastTimer = window.setTimeout(() => el.toast.classList.remove('show'), 1500);
+      }
+
+      // ---------- 拖动、点选与键盘操作 ----------
+      function clientToBoardPoint(clientX, clientY) {
+        const matrix = el.board.getScreenCTM();
+        if (!matrix) return null;
+        const point = el.board.createSVGPoint();
+        point.x = clientX;
+        point.y = clientY;
+        return point.matrixTransform(matrix.inverse());
+      }
+
+      function clientToCell(clientX, clientY) {
+        const point = clientToBoardPoint(clientX, clientY);
+        if (!point) return null;
+        let nearest = null;
+        let nearestDistance = Infinity;
+        BOARD_CELLS.forEach(cell => {
+          const center = axialToPixel(cell.q, cell.r);
+          const distance = Math.hypot(point.x - BOARD_CENTER.x - center.x, point.y - BOARD_CENTER.y - center.y);
+          if (distance < nearestDistance) {
+            nearestDistance = distance;
+            nearest = cell;
+          }
+        });
+        return nearestDistance <= HEX_SIZE * 1.18 ? nearest : null;
+      }
+
+      function cellToClient(cell) {
+        const center = axialToPixel(cell.q, cell.r);
+        const point = el.board.createSVGPoint();
+        point.x = BOARD_CENTER.x + center.x;
+        point.y = BOARD_CENTER.y + center.y;
+        return point.matrixTransform(el.board.getScreenCTM());
+      }
+
+      function clearPreview() {
+        BOARD_CELLS.forEach(cell => cell.el.classList.remove('preview-valid', 'preview-invalid'));
+      }
+
+      function renderPreview(origin, valid) {
+        clearPreview();
+        if (!origin || state.selected < 0) return;
+        const piece = state.pieces[state.selected];
+        piece.cells.forEach(([dq, dr]) => {
+          const cell = CELL_MAP.get(coordKey(origin.q + dq, origin.r + dr));
+          if (cell) {
+            cell.el.style.setProperty('--cell-color', piece.colorValue);
+            cell.el.classList.add(valid ? 'preview-valid' : 'preview-invalid');
+          }
+        });
+      }
+
+      function renderDragGhost(clientX, clientY, origin) {
+        const piece = state.pieces[drag.index];
+        let anchor = { x: clientX, y: clientY - drag.lift };
+        const matrix = el.board.getScreenCTM();
+        const scale = matrix ? Math.hypot(matrix.a, matrix.b) : 1;
+        if (origin) anchor = cellToClient(origin);
+        const fragment = document.createDocumentFragment();
+        piece.cells.forEach(([q, r]) => {
+          const offset = axialToPixel(q, r, HEX_SIZE * scale);
+          fragment.appendChild(createSvg('polygon', {
+            points: hexPoints(anchor.x + offset.x, anchor.y + offset.y, HEX_SIZE * scale * .91),
+            class: 'drag-hex',
+            fill: piece.colorValue,
+            style: `--drag-color:${piece.colorValue}`
+          }));
+        });
+        el.dragLayer.replaceChildren(fragment);
+      }
+
+      function updateDrag(clientX, clientY) {
+        if (!drag) return;
+        const origin = clientToCell(clientX, clientY - drag.lift);
+        const piece = state.pieces[drag.index];
+        drag.origin = origin;
+        drag.valid = !!origin && canPlaceCells(piece.cells, origin, state.board);
+        renderPreview(origin, drag.valid);
+        renderDragGhost(clientX, clientY, origin);
+      }
+
+      function beginDrag(event, index) {
+        if (state.status !== 'playing' || state.resolving || !state.pieces[index]) return;
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        event.preventDefault();
+        keyboardMode = false;
+        setSelected(index);
+        drag = {
+          id: event.pointerId,
+          index,
+          startX: event.clientX,
+          startY: event.clientY,
+          moved: false,
+          origin: null,
+          valid: false,
+          lift: event.pointerType === 'touch' ? 68 : event.pointerType === 'pen' ? 45 : 0,
+          capture: event.currentTarget
+        };
+        try { event.currentTarget.setPointerCapture(event.pointerId); } catch (_) { /* 某些旧浏览器不支持捕获 */ }
+        el.dragLayer.classList.add('active');
+        updateDrag(event.clientX, event.clientY);
+      }
+
+      function moveDrag(event) {
+        if (!drag || event.pointerId !== drag.id) return;
+        event.preventDefault();
+        if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 7) drag.moved = true;
+        updateDrag(event.clientX, event.clientY);
+      }
+
+      function finishDrag(event, cancelled = false) {
+        if (!drag || (event && event.pointerId !== drag.id)) return;
+        const current = drag;
+        try { current.capture.releasePointerCapture(current.id); } catch (_) { /* 无需处理 */ }
+        drag = null;
+        el.dragLayer.classList.remove('active');
+        el.dragLayer.replaceChildren();
+        clearPreview();
+        if (!cancelled && current.valid && current.origin) {
+          placeSelected(current.origin);
+        } else if (cancelled || current.moved) {
+          state.selected = -1;
+          renderPieces();
+          if (!cancelled && current.moved) showToast('拼块已放回，试试其他位置');
+        }
+      }
+
+      function cancelDrag() {
+        if (drag) finishDrag(null, true);
+      }
+
+      function handleBoardTap(event) {
+        if (state.status !== 'playing' || state.resolving || drag) return;
+        const target = event.target.closest('.hex-cell');
+        if (!target) return;
+        const cell = CELL_MAP.get(target.dataset.key);
+        if (state.selected < 0) {
+          showToast('先选择下方的一枚拼块');
+          return;
+        }
+        placeSelected(cell);
+      }
+
+      function handleKeyboard(event) {
+        if (event.key.toLowerCase() === 'p') {
+          event.preventDefault();
+          if (state.status === 'playing') setPaused(true);
+          else if (state.status === 'paused') setPaused(false);
+          return;
+        }
+        if (event.key === 'Escape') {
+          if (drag) cancelDrag();
+          else if (state.status === 'paused') setPaused(false);
+          else if (state.status === 'playing') setPaused(true);
+          return;
+        }
+        if (state.status !== 'playing' || state.resolving) return;
+        if (['1', '2', '3'].includes(event.key)) {
+          event.preventDefault();
+          keyboardMode = true;
+          setSelected(Number(event.key) - 1);
+          return;
+        }
+        if (state.selected < 0) return;
+
+        const directions = {
+          ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+          ArrowUp: [0, -1], ArrowDown: [0, 1]
+        };
+        if (directions[event.key]) {
+          event.preventDefault();
+          keyboardMode = true;
+          const [dq, dr] = directions[event.key];
+          const next = CELL_MAP.get(coordKey(keyboardCursor.q + dq, keyboardCursor.r + dr));
+          if (next) keyboardCursor = { q: next.q, r: next.r };
+          renderKeyboardCursor();
+          const piece = state.pieces[state.selected];
+          renderPreview(keyboardCursor, canPlaceCells(piece.cells, keyboardCursor, state.board));
+          return;
+        }
+        if ((event.key === 'Enter' || event.key === ' ') && !event.target.closest('button')) {
+          event.preventDefault();
+          keyboardMode = true;
+          placeSelected(keyboardCursor);
+        }
+      }
+
+      // ---------- 初始化与事件绑定 ----------
+      function initGame() {
+        Object.assign(el, {
+          board: document.getElementById('board'),
+          boardCells: document.getElementById('board-cells'),
+          score: document.getElementById('score'),
+          best: document.getElementById('best'),
+          target: document.getElementById('target'),
+          progress: document.getElementById('progress-bar'),
+          slots: [...document.querySelectorAll('.piece-slot')],
+          dragLayer: document.getElementById('drag-layer'),
+          toast: document.getElementById('toast'),
+          clearBadge: document.getElementById('clear-badge'),
+          restartButton: document.getElementById('restart-button'),
+          pauseButton: document.getElementById('pause-button'),
+          pauseModal: document.getElementById('pause-modal'),
+          resume: document.getElementById('resume-button'),
+          pauseRestart: document.getElementById('pause-restart'),
+          endModal: document.getElementById('end-modal'),
+          endDialog: document.getElementById('end-dialog'),
+          endIcon: document.getElementById('end-icon'),
+          endTitle: document.getElementById('end-title'),
+          endMessage: document.getElementById('end-message'),
+          finalScore: document.getElementById('final-score'),
+          finalLines: document.getElementById('final-lines'),
+          playAgain: document.getElementById('play-again')
+        });
+
+        buildBoard();
+        newGame();
+
+        el.slots.forEach((slot, index) => {
+          slot.addEventListener('pointerdown', event => beginDrag(event, index));
+          // detail 为 0 表示按钮由键盘触发，避免与指针拖动重复处理。
+          slot.addEventListener('click', event => {
+            if (event.detail === 0 && state.status === 'playing') {
+              keyboardMode = true;
+              setSelected(index);
+            }
+          });
+        });
+        el.board.addEventListener('click', handleBoardTap);
+        window.addEventListener('pointermove', moveDrag, { passive: false });
+        window.addEventListener('pointerup', event => finishDrag(event));
+        window.addEventListener('pointercancel', event => finishDrag(event, true));
+        window.addEventListener('blur', cancelDrag);
+        document.addEventListener('keydown', handleKeyboard);
+        el.restartButton.addEventListener('click', newGame);
+        el.pauseRestart.addEventListener('click', newGame);
+        el.playAgain.addEventListener('click', newGame);
+        el.pauseButton.addEventListener('click', () => {
+          if (state.status === 'playing') setPaused(true);
+          else if (state.status === 'paused') setPaused(false);
+        });
+        el.resume.addEventListener('click', () => setPaused(false));
+
+        // 阻止 iOS 的双击缩放、捏合缩放和橡皮筋滚动。
+        document.addEventListener('dblclick', event => event.preventDefault(), { passive: false });
+        document.addEventListener('gesturestart', event => event.preventDefault(), { passive: false });
+        document.addEventListener('touchmove', event => event.preventDefault(), { passive: false });
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden && state.status === 'playing' && !state.resolving) setPaused(true);
+        });
+      }
+
+      initGame();
+    })();
+  </script>
+</body>
+</html>

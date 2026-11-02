@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070816">
+  <meta name="color-scheme" content="dark">
+  <title>霓虹跃迁 · 跳一跳</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070816;
+      --panel: rgba(16, 20, 43, 0.88);
+      --cyan: #5cf6ff;
+      --purple: #a879ff;
+      --pink: #ff66c4;
+      --text: #f4f7ff;
+      --muted: #939bb8;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      background: var(--bg);
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      background:
+        radial-gradient(circle at 18% 16%, rgba(92, 246, 255, 0.09), transparent 32%),
+        radial-gradient(circle at 85% 80%, rgba(168, 121, 255, 0.11), transparent 36%),
+        #050610;
+    }
+
+    button {
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    button:focus-visible,
+    canvas:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    /* 游戏窗口在手机上铺满屏幕，在桌面端呈现为精致掌机。 */
+    .game-shell {
+      position: relative;
+      isolation: isolate;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      touch-action: none;
+      background: #080a19;
+    }
+
+    #gameCanvas {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      cursor: pointer;
+    }
+
+    .vignette {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(3, 4, 14, 0.2), transparent 24%, transparent 72%, rgba(3, 4, 14, 0.48));
+      box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.28);
+    }
+
+    .hud {
+      position: absolute;
+      z-index: 3;
+      top: 0;
+      left: 0;
+      right: 0;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: start;
+      gap: 10px;
+      padding: max(16px, env(safe-area-inset-top)) 16px 0;
+      pointer-events: none;
+    }
+
+    .score-card {
+      min-width: 88px;
+      padding: 10px 13px;
+      border: 1px solid rgba(142, 163, 255, 0.14);
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(25, 30, 59, 0.72), rgba(12, 15, 34, 0.5));
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.05), 0 8px 28px rgba(0, 0, 0, 0.15);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .score-card.best {
+      justify-self: end;
+      margin-right: 50px;
+      min-width: 78px;
+    }
+
+    .score-label {
+      display: block;
+      margin-bottom: 1px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+    }
+
+    .score-number {
+      display: block;
+      font-size: 25px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.05;
+      text-shadow: 0 0 18px rgba(92, 246, 255, 0.25);
+    }
+
+    .best .score-number {
+      color: #c8b5ff;
+      font-size: 21px;
+    }
+
+    .mission {
+      align-self: center;
+      padding-top: 7px;
+      text-align: center;
+    }
+
+    .mission-title {
+      display: block;
+      color: rgba(224, 231, 255, 0.76);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      white-space: nowrap;
+    }
+
+    .mission-progress {
+      display: block;
+      margin-top: 5px;
+      color: var(--cyan);
+      font-size: 12px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.08em;
+    }
+
+    .icon-button {
+      position: absolute;
+      top: max(16px, env(safe-area-inset-top));
+      right: 16px;
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      border: 1px solid rgba(142, 163, 255, 0.2);
+      border-radius: 13px;
+      background: rgba(17, 21, 44, 0.72);
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      pointer-events: auto;
+      transition: transform 120ms ease, background 120ms ease, opacity 120ms ease;
+    }
+
+    .icon-button:active {
+      transform: scale(0.92);
+      background: rgba(43, 49, 85, 0.85);
+    }
+
+    .icon-button:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    .icon-button svg {
+      width: 18px;
+      height: 18px;
+      fill: #dbe2ff;
+    }
+
+    /* 底部蓄力仪表不拦截触摸，任意游戏区域都可操作。 */
+    .control-deck {
+      position: absolute;
+      z-index: 3;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      padding: 0 22px max(20px, env(safe-area-inset-bottom));
+      pointer-events: none;
+    }
+
+    .charge-heading {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 9px;
+    }
+
+    .charge-title {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: #c9d1ed;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+    }
+
+    .charge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 10px var(--cyan);
+    }
+
+    .charge-value {
+      color: var(--cyan);
+      font-size: 13px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 12px rgba(92, 246, 255, 0.55);
+    }
+
+    .charge-track {
+      position: relative;
+      height: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(145, 162, 224, 0.2);
+      border-radius: 999px;
+      background: rgba(9, 12, 28, 0.8);
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45), 0 0 0 4px rgba(11, 14, 31, 0.28);
+    }
+
+    .charge-fill {
+      position: absolute;
+      inset: 2px;
+      right: auto;
+      width: 0%;
+      min-width: 0;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #48e9ff 0%, #818bff 55%, #ff68c3 100%);
+      box-shadow: 0 0 14px rgba(92, 246, 255, 0.7);
+      transition: width 40ms linear;
+    }
+
+    .charge-fill::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), transparent 55%);
+    }
+
+    .charge-ticks {
+      position: absolute;
+      inset: 0 5px;
+      display: flex;
+      justify-content: space-evenly;
+      pointer-events: none;
+    }
+
+    .charge-ticks i {
+      width: 1px;
+      height: 100%;
+      background: rgba(5, 8, 22, 0.38);
+    }
+
+    .gesture-hint {
+      margin: 11px 0 0;
+      color: rgba(182, 191, 219, 0.72);
+      font-size: 11px;
+      text-align: center;
+      letter-spacing: 0.04em;
+      transition: color 160ms ease;
+    }
+
+    .game-shell.is-charging .gesture-hint {
+      color: #d9faff;
+    }
+
+    .game-shell.is-charging .charge-dot {
+      animation: blink 600ms ease-in-out infinite alternate;
+    }
+
+    /* 开始、暂停与结算共用轻量玻璃弹窗。 */
+    .overlay {
+      position: absolute;
+      z-index: 10;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 22px;
+      padding-top: max(22px, env(safe-area-inset-top));
+      padding-bottom: max(22px, env(safe-area-inset-bottom));
+      visibility: hidden;
+      opacity: 0;
+      pointer-events: none;
+      background: rgba(4, 5, 16, 0.56);
+      backdrop-filter: blur(0);
+      -webkit-backdrop-filter: blur(0);
+      transition: opacity 220ms ease, visibility 220ms ease, backdrop-filter 220ms ease;
+    }
+
+    .overlay.visible {
+      visibility: visible;
+      opacity: 1;
+      pointer-events: auto;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .modal {
+      position: relative;
+      width: min(100%, 360px);
+      overflow: hidden;
+      padding: 30px 26px 24px;
+      border: 1px solid rgba(149, 166, 255, 0.2);
+      border-radius: 28px;
+      text-align: center;
+      background:
+        linear-gradient(145deg, rgba(27, 32, 65, 0.94), rgba(11, 14, 33, 0.96)),
+        var(--panel);
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.08), 0 28px 90px rgba(0, 0, 0, 0.48), 0 0 45px rgba(107, 93, 255, 0.08);
+      transform: translateY(12px) scale(0.98);
+      transition: transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .overlay.visible .modal {
+      transform: translateY(0) scale(1);
+    }
+
+    .modal::before {
+      content: "";
+      position: absolute;
+      top: -90px;
+      left: 50%;
+      width: 240px;
+      height: 160px;
+      transform: translateX(-50%);
+      border-radius: 50%;
+      pointer-events: none;
+      background: radial-gradient(circle, rgba(92, 246, 255, 0.12), transparent 68%);
+    }
+
+    .brand-mark {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: 66px;
+      height: 66px;
+      margin: 0 auto 17px;
+      border: 1px solid rgba(92, 246, 255, 0.35);
+      border-radius: 22px;
+      color: var(--cyan);
+      font-size: 30px;
+      font-weight: 200;
+      background: linear-gradient(145deg, rgba(92, 246, 255, 0.12), rgba(168, 121, 255, 0.1));
+      box-shadow: inset 0 0 20px rgba(92, 246, 255, 0.06), 0 0 30px rgba(92, 246, 255, 0.13);
+      transform: rotate(-5deg);
+    }
+
+    .brand-mark span {
+      transform: rotate(5deg) translateY(-2px);
+      text-shadow: 0 0 18px var(--cyan);
+    }
+
+    .eyebrow {
+      margin: 0 0 7px;
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.28em;
+    }
+
+    .modal h1,
+    .modal h2 {
+      margin: 0;
+      font-size: 30px;
+      font-weight: 850;
+      letter-spacing: 0.06em;
+    }
+
+    .modal h2 {
+      font-size: 26px;
+    }
+
+    .subtitle {
+      margin: 10px 0 22px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .how-to {
+      display: grid;
+      gap: 9px;
+      margin: 0 0 17px;
+      text-align: left;
+    }
+
+    .how-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 13px;
+      border: 1px solid rgba(139, 157, 224, 0.11);
+      border-radius: 14px;
+      background: rgba(113, 134, 213, 0.045);
+    }
+
+    .how-icon {
+      display: grid;
+      flex: 0 0 auto;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 10px;
+      color: var(--cyan);
+      font-size: 14px;
+      background: rgba(92, 246, 255, 0.08);
+    }
+
+    .how-row strong {
+      display: block;
+      margin-bottom: 2px;
+      color: #e6ebff;
+      font-size: 12px;
+    }
+
+    .how-row small {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .goal-note {
+      margin: 0 0 19px;
+      color: #b8c1df;
+      font-size: 11px;
+    }
+
+    .goal-note b {
+      color: #d5c6ff;
+      font-weight: 700;
+    }
+
+    .primary-button,
+    .secondary-button {
+      width: 100%;
+      min-height: 50px;
+      border-radius: 15px;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      transition: transform 120ms ease, filter 120ms ease;
+    }
+
+    .primary-button {
+      color: #07101c;
+      background: linear-gradient(105deg, #67f4ff, #a8a0ff 58%, #e693ff);
+      box-shadow: 0 10px 28px rgba(92, 246, 255, 0.17), inset 0 1px rgba(255, 255, 255, 0.55);
+    }
+
+    .primary-button:active,
+    .secondary-button:active {
+      transform: scale(0.97);
+      filter: brightness(0.9);
+    }
+
+    .secondary-button {
+      margin-top: 10px;
+      border: 1px solid rgba(148, 164, 231, 0.18);
+      color: #c6cee9;
+      background: rgba(116, 133, 196, 0.07);
+    }
+
+    .keyboard-note {
+      margin: 13px 0 0;
+      color: #6f7897;
+      font-size: 10px;
+    }
+
+    .result-icon {
+      display: grid;
+      place-items: center;
+      width: 68px;
+      height: 68px;
+      margin: 0 auto 16px;
+      border: 1px solid rgba(168, 121, 255, 0.3);
+      border-radius: 50%;
+      color: #d6c4ff;
+      font-size: 32px;
+      background: rgba(168, 121, 255, 0.08);
+      box-shadow: 0 0 35px rgba(168, 121, 255, 0.16);
+    }
+
+    .result-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 21px 0;
+    }
+
+    .result-stat {
+      padding: 13px 8px;
+      border: 1px solid rgba(141, 159, 226, 0.12);
+      border-radius: 14px;
+      background: rgba(92, 110, 175, 0.05);
+    }
+
+    .result-stat span {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+    }
+
+    .result-stat strong {
+      color: #f2f5ff;
+      font-size: 25px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .new-best {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      color: #07101c;
+      font-size: 10px;
+      font-weight: 800;
+      background: var(--cyan);
+      box-shadow: 0 0 16px rgba(92, 246, 255, 0.25);
+    }
+
+    @keyframes blink {
+      to { opacity: 0.35; transform: scale(0.8); }
+    }
+
+    @media (min-width: 560px) and (min-height: 680px) {
+      .game-shell {
+        width: min(440px, calc(100vw - 32px));
+        height: min(880px, calc(100dvh - 32px));
+        border: 1px solid rgba(148, 165, 242, 0.18);
+        border-radius: 30px;
+        box-shadow: 0 35px 100px rgba(0, 0, 0, 0.5), 0 0 70px rgba(88, 99, 255, 0.08);
+      }
+    }
+
+    @media (max-width: 370px) {
+      .hud { padding-right: 12px; padding-left: 12px; gap: 5px; }
+      .score-card { min-width: 75px; padding: 9px 10px; }
+      .score-card.best { min-width: 67px; margin-right: 45px; }
+      .score-number { font-size: 22px; }
+      .mission-title { font-size: 9px; letter-spacing: 0.1em; }
+      .icon-button { right: 12px; width: 37px; height: 37px; }
+      .modal { padding-right: 21px; padding-left: 21px; }
+    }
+
+    @media (max-height: 650px) {
+      .modal { padding: 20px 23px 18px; border-radius: 23px; }
+      .brand-mark, .result-icon { width: 52px; height: 52px; margin-bottom: 11px; font-size: 25px; }
+      .modal h1 { font-size: 25px; }
+      .modal h2 { font-size: 23px; }
+      .subtitle { margin: 7px 0 13px; line-height: 1.5; }
+      .how-to { gap: 6px; margin-bottom: 11px; }
+      .how-row { padding: 8px 11px; }
+      .goal-note { margin-bottom: 12px; }
+      .keyboard-note { display: none; }
+      .result-stats { margin: 13px 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="game-shell" id="gameShell" aria-label="霓虹跃迁跳一跳游戏">
+    <canvas id="gameCanvas" tabindex="0" role="application" aria-label="游戏区域：按住蓄力，松开跳跃。键盘可使用空格键。"></canvas>
+    <div class="vignette"></div>
+
+    <header class="hud" aria-label="游戏信息">
+      <div class="score-card">
+        <span class="score-label">当前得分</span>
+        <strong class="score-number" id="scoreValue" aria-live="polite">0</strong>
+      </div>
+      <div class="mission">
+        <span class="mission-title">霓虹跃迁</span>
+        <span class="mission-progress" id="progressValue">0 / 12</span>
+      </div>
+      <div class="score-card best">
+        <span class="score-label">最高分</span>
+        <strong class="score-number" id="bestValue">0</strong>
+      </div>
+      <button class="icon-button" id="pauseButton" type="button" aria-label="暂停游戏" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5.5A1.5 1.5 0 0 1 8.5 4h1A1.5 1.5 0 0 1 11 5.5v13A1.5 1.5 0 0 1 9.5 20h-1A1.5 1.5 0 0 1 7 18.5v-13Zm6 0A1.5 1.5 0 0 1 14.5 4h1A1.5 1.5 0 0 1 17 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5v-13Z"/></svg>
+      </button>
+    </header>
+
+    <section class="control-deck" aria-label="蓄力状态">
+      <div class="charge-heading">
+        <span class="charge-title"><i class="charge-dot"></i>跃迁能量</span>
+        <span class="charge-value" id="chargeValue">0%</span>
+      </div>
+      <div class="charge-track" id="chargeTrack" role="progressbar" aria-label="跳跃力度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="charge-fill" id="chargeFill"></div>
+        <div class="charge-ticks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+      <p class="gesture-hint" id="gestureHint">按住屏幕蓄力 · 松开起跳</p>
+    </section>
+
+    <div class="overlay visible" id="overlay">
+      <section class="modal" id="startPanel" role="dialog" aria-modal="true" aria-labelledby="startTitle">
+        <div class="brand-mark" aria-hidden="true"><span>↗</span></div>
+        <p class="eyebrow">NEON LEAP</p>
+        <h1 id="startTitle">霓虹跃迁</h1>
+        <p class="subtitle">掌握力度，在光台之间轻盈跳跃。<br>下一次落点，由你决定。</p>
+        <div class="how-to">
+          <div class="how-row">
+            <span class="how-icon" aria-hidden="true">●</span>
+            <div><strong>按住屏幕 · 积蓄能量</strong><small>蓄力越久，跳得越远</small></div>
+          </div>
+          <div class="how-row">
+            <span class="how-icon" aria-hidden="true">↗</span>
+            <div><strong>松开手指 · 跃向前方</strong><small>落在光台中心可获得双倍分</small></div>
+          </div>
+        </div>
+        <p class="goal-note">抵达 <b>12 座光台</b>，完成本次跃迁挑战</p>
+        <button class="primary-button" id="startButton" type="button">开始跃迁&nbsp; →</button>
+        <p class="keyboard-note">键盘：空格蓄力 / 松开跳跃 · P 暂停</p>
+      </section>
+
+      <section class="modal" id="pausePanel" role="dialog" aria-modal="true" aria-labelledby="pauseTitle" hidden>
+        <div class="result-icon" aria-hidden="true">Ⅱ</div>
+        <p class="eyebrow">TAKE A BREATH</p>
+        <h2 id="pauseTitle">跃迁已暂停</h2>
+        <p class="subtitle">休息一下，光台会在原地等你。</p>
+        <button class="primary-button" id="resumeButton" type="button">继续游戏</button>
+        <button class="secondary-button" id="pauseRestartButton" type="button">重新开始</button>
+      </section>
+
+      <section class="modal" id="resultPanel" role="dialog" aria-modal="true" aria-labelledby="resultTitle" hidden>
+        <div class="result-icon" id="resultIcon" aria-hidden="true">✦</div>
+        <p class="eyebrow" id="resultEyebrow">JUMP AGAIN</p>
+        <h2 id="resultTitle">差一点，再来！</h2>
+        <p class="subtitle" id="resultMessage">调整蓄力时间，下次一定稳稳落地。</p>
+        <div class="new-best" id="newBestBadge" hidden>新纪录</div>
+        <div class="result-stats">
+          <div class="result-stat"><span>本局得分</span><strong id="finalScore">0</strong></div>
+          <div class="result-stat"><span>历史最高</span><strong id="finalBest">0</strong></div>
+        </div>
+        <button class="primary-button" id="restartButton" type="button">再来一局&nbsp; ↻</button>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // 基础元素与常量
+      const shell = document.getElementById('gameShell');
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      const overlay = document.getElementById('overlay');
+      const panels = {
+        start: document.getElementById('startPanel'),
+        pause: document.getElementById('pausePanel'),
+        result: document.getElementById('resultPanel')
+      };
+      const scoreValue = document.getElementById('scoreValue');
+      const bestValue = document.getElementById('bestValue');
+      const progressValue = document.getElementById('progressValue');
+      const chargeFill = document.getElementById('chargeFill');
+      const chargeValue = document.getElementById('chargeValue');
+      const chargeTrack = document.getElementById('chargeTrack');
+      const gestureHint = document.getElementById('gestureHint');
+      const pauseButton = document.getElementById('pauseButton');
+
+      const GOAL = 12;
+      const GRAVITY = 1000;
+      const CHARGE_SECONDS = 1.3;
+      const BEST_KEY = 'neon-leap-best-v1';
+      const TAU = Math.PI * 2;
+
+      let width = 0;
+      let height = 0;
+      let dpr = 1;
+      let state = 'ready'; // ready / playing / paused / over / won
+      let score = 0;
+      let best = readBest();
+      let previousBest = best;
+      let charge = 0;
+      let currentIndex = 0;
+      let platforms = [];
+      let particles = [];
+      let floaters = [];
+      let stars = [];
+      let cameraX = 0;
+      let cameraTarget = 0;
+      let activePointer = null;
+      let trailClock = 0;
+      let flash = 0;
+      let visualTime = 0;
+      let backgroundGradient = null;
+
+      const player = {
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        width: 25,
+        height: 36,
+        mode: 'grounded', // grounded / charging / jumping / fallen
+        standing: null
+      };
+
+      // localStorage 在隐私模式下可能不可用，读写都应安全降级。
+      function readBest() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(BEST_KEY), 10);
+          return Number.isFinite(value) && value > 0 ? value : 0;
+        } catch (_) {
+          return 0;
+        }
+      }
+
+      function saveBest() {
+        try {
+          localStorage.setItem(BEST_KEY, String(best));
+        } catch (_) {
+          // 无法存储时仍保留本次页面会话中的最高分。
+        }
+      }
+
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const random = (min, max) => min + Math.random() * (max - min);
+
+      function roundedRectPath(context, x, y, w, h, radius) {
+        const r = Math.min(radius, w / 2, h / 2);
+        context.beginPath();
+        context.moveTo(x + r, y);
+        context.arcTo(x + w, y, x + w, y + h, r);
+        context.arcTo(x + w, y + h, x, y + h, r);
+        context.arcTo(x, y + h, x, y, r);
+        context.arcTo(x, y, x + w, y, r);
+        context.closePath();
+      }
+
+      // 根据实际显示尺寸设置高清画布，并同步调整现有世界高度。
+      function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        const oldHeight = height;
+        width = Math.max(1, rect.width);
+        height = Math.max(1, rect.height);
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        backgroundGradient = ctx.createLinearGradient(0, 0, 0, height);
+        backgroundGradient.addColorStop(0, '#080a1b');
+        backgroundGradient.addColorStop(0.5, '#0c1026');
+        backgroundGradient.addColorStop(1, '#080917');
+
+        if (oldHeight && platforms.length && Math.abs(oldHeight - height) > 0.5) {
+          const offsetY = (height - oldHeight) * 0.64;
+          platforms.forEach(platform => { platform.y += offsetY; });
+          player.y += offsetY;
+          particles.forEach(particle => { particle.y += offsetY; });
+          floaters.forEach(floater => { floater.y += offsetY; });
+        }
+        createStars();
+      }
+
+      function createStars() {
+        const count = Math.round(clamp(width * height / 9000, 45, 85));
+        stars = Array.from({ length: count }, () => ({
+          x: random(0, width + 100),
+          y: random(20, height * 0.73),
+          radius: random(0.45, 1.55),
+          alpha: random(0.2, 0.8),
+          depth: random(0.04, 0.2),
+          phase: random(0, TAU)
+        }));
+      }
+
+      // 每次只生成下一座光台，距离与高度均限制在可完成范围内。
+      function createNextPlatform(previous) {
+        const minWidth = clamp(width * 0.18, 64, 82);
+        const maxWidth = clamp(width * 0.25, 84, 108);
+        const platformWidth = random(minWidth, maxWidth);
+        const gap = random(clamp(width * 0.14, 48, 62), clamp(width * 0.27, 78, 122));
+        let deltaY = random(-54, 54);
+        if (previous.y < height * 0.51) deltaY = random(4, 58);
+        if (previous.y > height * 0.68) deltaY = random(-58, -4);
+        const hues = [182, 194, 218, 263, 313];
+        return {
+          x: previous.x + previous.w + gap,
+          y: clamp(previous.y + deltaY, height * 0.45, height * 0.72),
+          w: platformWidth,
+          index: previous.index + 1,
+          hue: hues[Math.floor(Math.random() * hues.length)]
+        };
+      }
+
+      function resetWorld() {
+        score = 0;
+        charge = 0;
+        currentIndex = 0;
+        particles = [];
+        floaters = [];
+        cameraX = 0;
+        cameraTarget = 0;
+        activePointer = null;
+        trailClock = 0;
+        flash = 0;
+        previousBest = best;
+
+        const first = {
+          x: Math.max(28, width * 0.09),
+          y: height * 0.66,
+          w: clamp(width * 0.25, 84, 108),
+          index: 0,
+          hue: 184
+        };
+        platforms = [first, createNextPlatform(first)];
+        player.x = first.x + first.w * 0.48;
+        player.y = first.y;
+        player.vx = 0;
+        player.vy = 0;
+        player.mode = 'grounded';
+        player.standing = first;
+        updateHud();
+        updateChargeUI();
+      }
+
+      function updateHud() {
+        scoreValue.textContent = String(score);
+        bestValue.textContent = String(best);
+        progressValue.textContent = `${Math.min(currentIndex, GOAL)} / ${GOAL}`;
+        pauseButton.disabled = state !== 'playing' && state !== 'paused';
+        pauseButton.setAttribute('aria-label', state === 'paused' ? '继续游戏' : '暂停游戏');
+      }
+
+      function updateChargeUI() {
+        const percent = Math.round(charge * 100);
+        chargeFill.style.width = `${percent}%`;
+        chargeValue.textContent = `${percent}%`;
+        chargeTrack.setAttribute('aria-valuenow', String(percent));
+        shell.classList.toggle('is-charging', player.mode === 'charging');
+        if (player.mode === 'charging') {
+          gestureHint.textContent = percent >= 100 ? '能量已满 · 松开起跳' : '蓄力中 · 松开起跳';
+        } else if (player.mode === 'jumping') {
+          gestureHint.textContent = '跃迁中 · 注意下一座光台';
+        } else {
+          gestureHint.textContent = '按住屏幕蓄力 · 松开起跳';
+        }
+      }
+
+      function showPanel(name) {
+        Object.entries(panels).forEach(([key, panel]) => { panel.hidden = key !== name; });
+        overlay.classList.add('visible');
+        const focusTarget = panels[name].querySelector('button');
+        requestAnimationFrame(() => focusTarget && focusTarget.focus({ preventScroll: true }));
+      }
+
+      function hideOverlay() {
+        overlay.classList.remove('visible');
+        canvas.focus({ preventScroll: true });
+      }
+
+      function startGame() {
+        resetWorld();
+        state = 'playing';
+        updateHud();
+        hideOverlay();
+      }
+
+      function pauseGame() {
+        if (state !== 'playing') return;
+        cancelCharge();
+        state = 'paused';
+        updateHud();
+        showPanel('pause');
+      }
+
+      function resumeGame() {
+        if (state !== 'paused') return;
+        state = 'playing';
+        updateHud();
+        hideOverlay();
+      }
+
+      function togglePause() {
+        if (state === 'playing') pauseGame();
+        else if (state === 'paused') resumeGame();
+      }
+
+      function beginCharge() {
+        if (state !== 'playing' || player.mode !== 'grounded') return;
+        player.mode = 'charging';
+        charge = 0;
+        updateChargeUI();
+      }
+
+      function releaseCharge() {
+        if (state !== 'playing' || player.mode !== 'charging') return;
+        // 极短点击也会产生小跳，避免角色完全不动。
+        const power = Math.max(0.04, charge);
+        player.mode = 'jumping';
+        player.standing = null;
+        player.vx = 150 + power * 250;
+        player.vy = -(350 + power * 145);
+        charge = 0;
+        trailClock = 0;
+        spawnBurst(player.x, player.y - 4, 8, [185, 265], 0.55);
+        updateChargeUI();
+        if (navigator.vibrate) navigator.vibrate(8);
+      }
+
+      function cancelCharge() {
+        if (player.mode === 'charging') player.mode = 'grounded';
+        charge = 0;
+        activePointer = null;
+        updateChargeUI();
+      }
+
+      function finishGame(won) {
+        state = won ? 'won' : 'over';
+        if (!won) player.mode = 'fallen';
+        charge = 0;
+        activePointer = null;
+        updateChargeUI();
+        updateHud();
+
+        if (won) {
+          spawnBurst(player.x, player.y - 25, 46, [180, 265, 315], 1.4);
+        }
+        document.getElementById('resultIcon').textContent = won ? '✦' : '↘';
+        document.getElementById('resultEyebrow').textContent = won ? 'MISSION COMPLETE' : 'JUMP AGAIN';
+        document.getElementById('resultTitle').textContent = won ? '跃迁完成！' : '差一点，再来！';
+        document.getElementById('resultMessage').textContent = won
+          ? '十二座光台全部点亮，你已征服这片霓虹夜空。'
+          : '调整蓄力时间，下次一定稳稳落地。';
+        document.getElementById('finalScore').textContent = String(score);
+        document.getElementById('finalBest').textContent = String(best);
+        document.getElementById('newBestBadge').hidden = !(score > previousBest && score > 0);
+        showPanel('result');
+      }
+
+      function spawnBurst(x, y, count, hues, force = 1) {
+        for (let i = 0; i < count; i += 1) {
+          const angle = random(-Math.PI, 0);
+          const speed = random(45, 170) * force;
+          const life = random(0.35, 0.8);
+          particles.push({
+            x, y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            gravity: random(180, 360),
+            size: random(1.5, 3.5),
+            life,
+            maxLife: life,
+            hue: hues[Math.floor(Math.random() * hues.length)]
+          });
+        }
+      }
+
+      function spawnTrail() {
+        const life = random(0.2, 0.38);
+        particles.push({
+          x: player.x + random(-5, 5),
+          y: player.y - player.height * 0.45 + random(-5, 5),
+          vx: random(-35, -10),
+          vy: random(-15, 20),
+          gravity: 0,
+          size: random(1.5, 3.2),
+          life,
+          maxLife: life,
+          hue: Math.random() > 0.45 ? 185 : 270
+        });
+      }
+
+      function landOn(platform, landingX) {
+        player.x = landingX;
+        player.y = platform.y;
+        player.vx = 0;
+        player.vy = 0;
+        player.mode = 'grounded';
+        player.standing = platform;
+
+        if (platform.index > currentIndex) {
+          currentIndex = platform.index;
+          const centerOffset = Math.abs(landingX - (platform.x + platform.w / 2));
+          const perfect = centerOffset <= Math.min(14, platform.w * 0.16);
+          const points = perfect ? 2 : 1;
+          score += points;
+          if (score > best) {
+            best = score;
+            saveBest();
+          }
+
+          floaters.push({
+            x: landingX,
+            y: platform.y - 55,
+            text: perfect ? '完美 +2' : '+1',
+            color: perfect ? '#7df8ff' : '#d4c7ff',
+            life: 0.9,
+            maxLife: 0.9
+          });
+          spawnBurst(landingX, platform.y, perfect ? 22 : 12, perfect ? [180, 195, 265] : [190, 265], perfect ? 1 : 0.65);
+          if (perfect) flash = 0.2;
+          if (navigator.vibrate) navigator.vibrate(perfect ? [12, 30, 12] : 12);
+
+          cameraTarget = Math.max(0, platform.x - width * 0.12);
+          platforms = platforms.filter(item => item.index >= currentIndex - 1);
+          if (currentIndex >= GOAL) {
+            updateHud();
+            finishGame(true);
+            return;
+          }
+          const lastPlatform = platforms[platforms.length - 1];
+          platforms.push(createNextPlatform(lastPlatform));
+          updateHud();
+        }
+        updateChargeUI();
+      }
+
+      // 固定方向的抛物线运动，只在下落阶段检测平台顶面碰撞。
+      function updateGame(dt) {
+        if (player.mode === 'charging') {
+          charge = Math.min(1, charge + dt / CHARGE_SECONDS);
+          updateChargeUI();
+        }
+
+        if (player.mode === 'jumping') {
+          const previousX = player.x;
+          const previousY = player.y;
+          player.vy += GRAVITY * dt;
+          player.x += player.vx * dt;
+          player.y += player.vy * dt;
+
+          trailClock -= dt;
+          if (trailClock <= 0) {
+            spawnTrail();
+            trailClock = 0.035;
+          }
+
+          if (player.vy > 0) {
+            for (const platform of platforms) {
+              if (previousY <= platform.y + 1 && player.y >= platform.y) {
+                const ratio = clamp((platform.y - previousY) / (player.y - previousY), 0, 1);
+                const landingX = previousX + (player.x - previousX) * ratio;
+                const halfFoot = player.width * 0.34;
+                if (landingX + halfFoot >= platform.x && landingX - halfFoot <= platform.x + platform.w) {
+                  landOn(platform, landingX);
+                  break;
+                }
+              }
+            }
+          }
+
+          if (player.y > height + 90) finishGame(false);
+        }
+      }
+
+      function updateEffects(dt) {
+        cameraX += (cameraTarget - cameraX) * Math.min(1, dt * 4.5);
+        flash = Math.max(0, flash - dt);
+        particles.forEach(particle => {
+          particle.life -= dt;
+          particle.vy += particle.gravity * dt;
+          particle.x += particle.vx * dt;
+          particle.y += particle.vy * dt;
+        });
+        particles = particles.filter(particle => particle.life > 0);
+        floaters.forEach(floater => {
+          floater.life -= dt;
+          floater.y -= 28 * dt;
+        });
+        floaters = floaters.filter(floater => floater.life > 0);
+      }
+
+      function drawBackground() {
+        ctx.fillStyle = backgroundGradient || '#080a19';
+        ctx.fillRect(0, 0, width, height);
+
+        // 远处的霓虹月轮与薄雾。
+        const moonX = width * 0.78 - (cameraX * 0.025) % (width * 0.3);
+        const moonY = height * 0.22;
+        const glow = ctx.createRadialGradient(moonX, moonY, 2, moonX, moonY, width * 0.36);
+        glow.addColorStop(0, 'rgba(137, 112, 255, 0.15)');
+        glow.addColorStop(0.35, 'rgba(87, 91, 225, 0.055)');
+        glow.addColorStop(1, 'rgba(20, 20, 60, 0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, width, height * 0.7);
+        ctx.save();
+        ctx.strokeStyle = 'rgba(166, 150, 255, 0.12)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(moonX, moonY, Math.min(48, width * 0.12), 0, TAU);
+        ctx.stroke();
+        ctx.restore();
+
+        for (const star of stars) {
+          const span = width + 100;
+          const x = ((star.x - cameraX * star.depth) % span + span) % span - 50;
+          const twinkle = 0.65 + Math.sin(visualTime * 1.8 + star.phase) * 0.35;
+          ctx.globalAlpha = star.alpha * twinkle;
+          ctx.fillStyle = star.radius > 1.2 ? '#bdeeff' : '#8999d8';
+          ctx.beginPath();
+          ctx.arc(x, star.y, star.radius, 0, TAU);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        // 低对比度城市剪影增强纵深，但不干扰平台识别。
+        const skylineBase = height * 0.77;
+        const citySpan = width + 160;
+        for (let i = 0; i < 18; i += 1) {
+          const rawX = i * 54 - (cameraX * 0.1) % citySpan;
+          const x = ((rawX % citySpan) + citySpan) % citySpan - 70;
+          const buildingHeight = 25 + ((i * 37) % 85);
+          const buildingWidth = 30 + ((i * 19) % 25);
+          ctx.fillStyle = i % 2 ? 'rgba(18, 24, 52, 0.52)' : 'rgba(21, 25, 57, 0.42)';
+          ctx.fillRect(x, skylineBase - buildingHeight, buildingWidth, buildingHeight);
+          ctx.fillStyle = 'rgba(103, 140, 210, 0.13)';
+          for (let row = 0; row < 3; row += 1) {
+            if ((i + row) % 3 === 0) continue;
+            ctx.fillRect(x + 7, skylineBase - buildingHeight + 10 + row * 15, 2, 4);
+          }
+        }
+
+        // 底部透视网格。
+        ctx.save();
+        ctx.strokeStyle = 'rgba(96, 112, 190, 0.075)';
+        ctx.lineWidth = 1;
+        const horizon = height * 0.76;
+        for (let i = 0; i < 7; i += 1) {
+          const y = horizon + i * i * 4.5;
+          if (y > height) break;
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(width, y);
+          ctx.stroke();
+        }
+        const gridOffset = (cameraX * 0.16) % 44;
+        for (let x = -width; x < width * 2; x += 44) {
+          ctx.beginPath();
+          ctx.moveTo(width / 2 + (x - gridOffset) * 0.25, horizon);
+          ctx.lineTo(x - gridOffset, height);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawPlatform(platform) {
+        const isTarget = platform.index === currentIndex + 1 && (state === 'playing' || state === 'paused');
+        const isCurrent = player.standing === platform;
+        const { x, y, w, hue } = platform;
+        ctx.save();
+
+        // 悬浮光台下方的柔光。
+        const aura = ctx.createRadialGradient(x + w / 2, y + 14, 2, x + w / 2, y + 14, w * 0.8);
+        aura.addColorStop(0, `hsla(${hue}, 95%, 65%, 0.16)`);
+        aura.addColorStop(1, `hsla(${hue}, 95%, 55%, 0)`);
+        ctx.fillStyle = aura;
+        ctx.fillRect(x - w * 0.4, y - 20, w * 1.8, 100);
+
+        // 晶体切面。
+        const sideGradient = ctx.createLinearGradient(x, y + 8, x, y + 48);
+        sideGradient.addColorStop(0, `hsla(${hue}, 60%, 32%, 0.9)`);
+        sideGradient.addColorStop(1, `hsla(${hue + 25}, 65%, 10%, 0.08)`);
+        ctx.fillStyle = sideGradient;
+        ctx.beginPath();
+        ctx.moveTo(x + 7, y + 10);
+        ctx.lineTo(x + w - 7, y + 10);
+        ctx.lineTo(x + w * 0.66, y + 41);
+        ctx.lineTo(x + w * 0.48, y + 51);
+        ctx.lineTo(x + w * 0.27, y + 36);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = `hsla(${hue}, 90%, 72%, 0.16)`;
+        ctx.beginPath();
+        ctx.moveTo(x + w * 0.5, y + 14);
+        ctx.lineTo(x + w * 0.48, y + 48);
+        ctx.stroke();
+
+        const topGradient = ctx.createLinearGradient(x, y, x + w, y + 14);
+        topGradient.addColorStop(0, `hsla(${hue}, 70%, 25%, 0.96)`);
+        topGradient.addColorStop(0.5, `hsla(${hue + 15}, 75%, 37%, 0.98)`);
+        topGradient.addColorStop(1, `hsla(${hue}, 70%, 22%, 0.96)`);
+        roundedRectPath(ctx, x, y, w, 14, 6);
+        ctx.fillStyle = topGradient;
+        ctx.shadowColor = `hsla(${hue}, 100%, 65%, 0.5)`;
+        ctx.shadowBlur = isTarget ? 20 : 12;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = `hsla(${hue}, 100%, 78%, ${isTarget ? 0.95 : 0.62})`;
+        ctx.lineWidth = isTarget ? 1.6 : 1;
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.34)';
+        roundedRectPath(ctx, x + 9, y + 3, Math.max(8, w * 0.28), 2, 1);
+        ctx.fill();
+
+        if (isTarget) {
+          const pulse = 1 + Math.sin(visualTime * 4) * 0.1;
+          ctx.strokeStyle = `hsla(${hue}, 100%, 75%, 0.72)`;
+          ctx.lineWidth = 1.2;
+          ctx.shadowColor = `hsl(${hue}, 100%, 70%)`;
+          ctx.shadowBlur = 9;
+          ctx.beginPath();
+          ctx.ellipse(x + w / 2, y + 2, 15 * pulse, 4.5 * pulse, 0, 0, TAU);
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = 'rgba(190, 218, 255, 0.65)';
+          ctx.font = '600 10px -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('下一座', x + w / 2, y - 18);
+          ctx.beginPath();
+          ctx.moveTo(x + w / 2 - 3, y - 12);
+          ctx.lineTo(x + w / 2 + 3, y - 12);
+          ctx.lineTo(x + w / 2, y - 8);
+          ctx.fill();
+        } else if (isCurrent) {
+          ctx.fillStyle = 'rgba(158, 243, 255, 0.48)';
+          ctx.beginPath();
+          ctx.ellipse(player.x, y + 3, 16, 4, 0, 0, TAU);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function drawTrajectory() {
+        if (player.mode !== 'charging') return;
+        const power = Math.max(0.04, charge);
+        const vx = 150 + power * 250;
+        const vy = -(350 + power * 145);
+        ctx.save();
+        for (let i = 1; i <= 6; i += 1) {
+          const t = i * 0.09;
+          const x = player.x + vx * t;
+          const y = player.y + vy * t + GRAVITY * t * t * 0.5;
+          ctx.globalAlpha = (1 - i / 8) * 0.32;
+          ctx.fillStyle = '#a8f8ff';
+          ctx.beginPath();
+          ctx.arc(x, y - 17, Math.max(1, 2.4 - i * 0.2), 0, TAU);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function drawPlayer() {
+        const charging = player.mode === 'charging';
+        const bodyWidth = charging ? player.width + charge * 8 : player.width;
+        const bodyHeight = charging ? player.height - charge * 10 : player.height;
+        const tilt = player.mode === 'jumping' ? clamp(player.vy / 1800, -0.24, 0.3) : 0;
+
+        ctx.save();
+        ctx.translate(player.x, player.y - bodyHeight / 2);
+        ctx.rotate(tilt);
+
+        const aura = ctx.createRadialGradient(0, 0, 2, 0, 0, 36 + charge * 10);
+        aura.addColorStop(0, `rgba(92, 246, 255, ${0.2 + charge * 0.16})`);
+        aura.addColorStop(1, 'rgba(92, 246, 255, 0)');
+        ctx.fillStyle = aura;
+        ctx.fillRect(-48, -48, 96, 96);
+
+        // 小巧的霓虹机器人，蓄力时压缩身体提供明确反馈。
+        const bodyGradient = ctx.createLinearGradient(-bodyWidth / 2, -bodyHeight / 2, bodyWidth / 2, bodyHeight / 2);
+        bodyGradient.addColorStop(0, '#d9fdff');
+        bodyGradient.addColorStop(0.35, '#6cefff');
+        bodyGradient.addColorStop(1, '#7b72ee');
+        roundedRectPath(ctx, -bodyWidth / 2, -bodyHeight / 2, bodyWidth, bodyHeight, 9);
+        ctx.fillStyle = bodyGradient;
+        ctx.shadowColor = charging ? '#ff76d4' : '#62efff';
+        ctx.shadowBlur = 16 + charge * 14;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        roundedRectPath(ctx, -bodyWidth / 2 + 4, -bodyHeight / 2 + 6, bodyWidth - 8, 13, 5);
+        ctx.fillStyle = '#111a39';
+        ctx.fill();
+        ctx.fillStyle = charging ? '#ff9bdf' : '#bfffff';
+        ctx.shadowColor = ctx.fillStyle;
+        ctx.shadowBlur = 7;
+        ctx.beginPath();
+        ctx.arc(-4.5, -bodyHeight / 2 + 12.5, 1.7, 0, TAU);
+        ctx.arc(4.5, -bodyHeight / 2 + 12.5, 1.7, 0, TAU);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.strokeStyle = 'rgba(226, 253, 255, 0.72)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, -bodyHeight / 2);
+        ctx.lineTo(0, -bodyHeight / 2 - 6);
+        ctx.stroke();
+        ctx.fillStyle = charging ? '#ff79c8' : '#8df8ff';
+        ctx.beginPath();
+        ctx.arc(0, -bodyHeight / 2 - 7, 2.2, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawEffects() {
+        for (const particle of particles) {
+          const alpha = clamp(particle.life / particle.maxLife, 0, 1);
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = `hsl(${particle.hue}, 100%, 72%)`;
+          ctx.shadowColor = ctx.fillStyle;
+          ctx.shadowBlur = 7;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size * alpha, 0, TAU);
+          ctx.fill();
+        }
+        ctx.shadowBlur = 0;
+        for (const floater of floaters) {
+          const alpha = clamp(floater.life / floater.maxLife, 0, 1);
+          ctx.globalAlpha = Math.min(1, alpha * 1.8);
+          ctx.fillStyle = floater.color;
+          ctx.font = '800 16px -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.shadowColor = floater.color;
+          ctx.shadowBlur = 12;
+          ctx.fillText(floater.text, floater.x, floater.y);
+        }
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+      }
+
+      function render() {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, width, height);
+        drawBackground();
+        ctx.save();
+        ctx.translate(-cameraX, 0);
+        platforms.forEach(drawPlatform);
+        drawTrajectory();
+        drawPlayer();
+        drawEffects();
+        ctx.restore();
+
+        if (flash > 0) {
+          ctx.fillStyle = `rgba(130, 247, 255, ${flash * 0.22})`;
+          ctx.fillRect(0, 0, width, height);
+        }
+      }
+
+      let lastTime = performance.now();
+      function frame(now) {
+        const dt = Math.min(0.033, Math.max(0, (now - lastTime) / 1000));
+        lastTime = now;
+        visualTime = now / 1000;
+        if (state === 'playing') updateGame(dt);
+        if (state !== 'paused') updateEffects(dt);
+        render();
+        requestAnimationFrame(frame);
+      }
+
+      // Pointer Events 统一处理触屏与鼠标，指针捕获避免滑出画布后无法松手。
+      canvas.addEventListener('pointerdown', event => {
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        event.preventDefault();
+        if (state !== 'playing' || player.mode !== 'grounded') return;
+        activePointer = event.pointerId;
+        try { canvas.setPointerCapture(event.pointerId); } catch (_) { /* 旧浏览器无需捕获也可使用 */ }
+        beginCharge();
+      });
+
+      window.addEventListener('pointerup', event => {
+        if (activePointer === null || event.pointerId !== activePointer) return;
+        event.preventDefault();
+        activePointer = null;
+        releaseCharge();
+      }, { passive: false });
+
+      window.addEventListener('pointercancel', event => {
+        if (activePointer !== null && event.pointerId === activePointer) cancelCharge();
+      });
+
+      canvas.addEventListener('contextmenu', event => event.preventDefault());
+
+      // 键盘兼容：空格或上方向键跳跃，P / Esc 暂停，R 重开。
+      window.addEventListener('keydown', event => {
+        const isButton = event.target instanceof HTMLButtonElement;
+        if ((event.code === 'Space' || event.code === 'ArrowUp') && !isButton) {
+          event.preventDefault();
+          if (event.repeat) return;
+          if (state === 'ready') {
+            startGame();
+            beginCharge();
+          } else if (state === 'playing') {
+            beginCharge();
+          }
+        } else if (event.code === 'KeyP' || event.code === 'Escape') {
+          event.preventDefault();
+          if (!event.repeat) togglePause();
+        } else if (event.code === 'KeyR' && !event.repeat && !isButton) {
+          event.preventDefault();
+          startGame();
+        }
+      });
+
+      window.addEventListener('keyup', event => {
+        if ((event.code === 'Space' || event.code === 'ArrowUp') && !(event.target instanceof HTMLButtonElement)) {
+          event.preventDefault();
+          releaseCharge();
+        }
+      });
+
+      document.getElementById('startButton').addEventListener('click', startGame);
+      document.getElementById('restartButton').addEventListener('click', startGame);
+      document.getElementById('pauseRestartButton').addEventListener('click', startGame);
+      document.getElementById('resumeButton').addEventListener('click', resumeGame);
+      pauseButton.addEventListener('click', togglePause);
+
+      // 阻止浏览器手势、橡皮筋滚动与双击缩放，但不阻止按钮点击。
+      document.addEventListener('touchmove', event => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', event => event.preventDefault(), { passive: false });
+      document.addEventListener('dblclick', event => event.preventDefault(), { passive: false });
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state === 'playing') pauseGame();
+      });
+      window.addEventListener('blur', () => {
+        if (state === 'playing') pauseGame();
+      });
+      window.addEventListener('resize', resizeCanvas);
+      if ('ResizeObserver' in window) new ResizeObserver(resizeCanvas).observe(shell);
+
+      resizeCanvas();
+      resetWorld();
+      state = 'ready';
+      updateHud();
+      showPanel('start');
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>

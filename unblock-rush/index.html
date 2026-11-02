@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070b16">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>挪车让路 · 霓虹夜班</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070b16;
+      --panel: rgba(16, 24, 43, .78);
+      --line: rgba(143, 176, 216, .13);
+      --text: #f3f7ff;
+      --muted: #7f91ae;
+      --cyan: #43e8ff;
+      --violet: #9a7bff;
+      --red: #ff3e68;
+      --cell: calc(100% / 6);
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 4%, rgba(75, 70, 180, .20), transparent 32%),
+        radial-gradient(circle at 94% 56%, rgba(0, 210, 255, .09), transparent 34%),
+        linear-gradient(155deg, #090e1c 0%, var(--bg) 55%, #080d19 100%);
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .20;
+      background-image:
+        linear-gradient(rgba(109, 149, 200, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(109, 149, 200, .035) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: linear-gradient(to bottom, black, transparent 80%);
+    }
+
+    button { font: inherit; }
+    button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+
+    .app {
+      position: relative;
+      width: min(100%, 500px);
+      height: 100dvh;
+      min-height: 100%;
+      margin: 0 auto;
+      padding: max(16px, env(safe-area-inset-top)) 18px max(12px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      isolation: isolate;
+    }
+
+    .ambient {
+      position: absolute;
+      width: 220px;
+      height: 220px;
+      right: -130px;
+      top: 22%;
+      border-radius: 50%;
+      background: rgba(45, 220, 255, .08);
+      filter: blur(60px);
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    /* 顶部品牌与操作区 */
+    .topbar {
+      display: flex;
+      align-items: center;
+      min-height: 44px;
+      gap: 11px;
+      flex: 0 0 auto;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      flex: 0 0 42px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(94, 229, 255, .28);
+      border-radius: 13px;
+      color: var(--cyan);
+      background: linear-gradient(145deg, rgba(43, 220, 255, .12), rgba(125, 88, 255, .09));
+      box-shadow: inset 0 0 18px rgba(53, 220, 255, .06), 0 0 24px rgba(36, 207, 255, .07);
+    }
+
+    .brand-mark svg { width: 25px; height: 25px; }
+    .brand-copy { min-width: 0; flex: 1; }
+    .eyebrow {
+      margin: 0 0 2px;
+      color: #6d84a5;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 2.2px;
+      line-height: 1;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 21px;
+      line-height: 1.15;
+      letter-spacing: 2px;
+      font-weight: 800;
+    }
+
+    h1 span { color: var(--cyan); text-shadow: 0 0 18px rgba(67, 232, 255, .35); }
+    .header-actions { display: flex; gap: 7px; }
+
+    .icon-button {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      color: #a9bad2;
+      background: rgba(18, 27, 46, .72);
+      cursor: pointer;
+      transition: color .18s, border-color .18s, transform .18s, background .18s;
+    }
+
+    .icon-button:active { transform: scale(.92); }
+    .icon-button:hover { color: var(--cyan); border-color: rgba(67, 232, 255, .32); }
+    .icon-button svg { width: 18px; height: 18px; }
+
+    /* 数据卡片 */
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-top: 16px;
+      flex: 0 0 auto;
+    }
+
+    .stat {
+      position: relative;
+      min-width: 0;
+      padding: 10px 11px 9px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: linear-gradient(135deg, rgba(20, 30, 51, .88), rgba(12, 20, 36, .70));
+      box-shadow: inset 0 1px rgba(255, 255, 255, .025);
+    }
+
+    .stat::after {
+      content: "";
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      right: -13px;
+      top: -15px;
+      border-radius: 50%;
+      background: var(--stat-color, var(--cyan));
+      filter: blur(18px);
+      opacity: .25;
+    }
+
+    .stat-label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .stat-label::before {
+      content: "";
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--stat-color, var(--cyan));
+      box-shadow: 0 0 8px var(--stat-color, var(--cyan));
+    }
+
+    .stat-value {
+      margin-top: 7px;
+      font-size: 21px;
+      line-height: 1;
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: .4px;
+    }
+
+    .stat-value small { margin-left: 3px; color: #61758f; font-size: 10px; font-weight: 500; }
+    .stat:nth-child(2) { --stat-color: var(--violet); }
+    .stat:nth-child(3) { --stat-color: #ffd166; }
+
+    .level-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 34px;
+      margin-top: 8px;
+      flex: 0 0 auto;
+    }
+
+    .level-name { color: #a8b7cd; font-size: 11px; font-weight: 600; letter-spacing: .6px; }
+    .level-name b { margin-right: 6px; color: #e7f4ff; font-weight: 700; }
+    .level-dots { display: flex; align-items: center; gap: 5px; }
+    .level-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 5px;
+      background: #26364e;
+      transition: width .25s, background .25s, box-shadow .25s;
+    }
+    .level-dot.done { background: #376379; }
+    .level-dot.current { width: 17px; background: var(--cyan); box-shadow: 0 0 9px rgba(67, 232, 255, .55); }
+
+    /* 棋盘与出口 */
+    .board-shell {
+      position: relative;
+      width: min(calc(100% - 42px), 45dvh, 410px);
+      aspect-ratio: 1;
+      margin: 4px auto 0;
+      flex: 0 0 auto;
+    }
+
+    .board {
+      position: absolute;
+      inset: 0;
+      border: 1px solid rgba(96, 149, 190, .28);
+      border-radius: 20px;
+      background: #0b1423;
+      box-shadow:
+        0 22px 55px rgba(0, 0, 0, .36),
+        0 0 0 5px rgba(11, 21, 37, .72),
+        0 0 0 6px rgba(113, 159, 202, .06),
+        inset 0 0 45px rgba(0, 0, 0, .25);
+    }
+
+    .grid-surface {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      border-radius: 19px;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(116, 161, 198, .105) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(116, 161, 198, .105) 1px, transparent 1px),
+        radial-gradient(circle at 50% 40%, rgba(28, 60, 83, .24), transparent 68%);
+      background-size: var(--cell) var(--cell), var(--cell) var(--cell), 100% 100%;
+    }
+
+    .grid-surface::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: .26;
+      background-image: radial-gradient(circle, #7491aa 1px, transparent 1.2px);
+      background-size: 12px 12px;
+      mask-image: linear-gradient(135deg, black, transparent 70%);
+    }
+
+    .target-lane {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(var(--cell) * 2);
+      height: var(--cell);
+      pointer-events: none;
+      background: linear-gradient(90deg, rgba(255, 62, 104, .025), rgba(255, 62, 104, .065));
+      border-top: 1px solid rgba(255, 93, 126, .05);
+      border-bottom: 1px solid rgba(255, 93, 126, .05);
+    }
+
+    .target-lane::after {
+      content: "";
+      position: absolute;
+      left: 7%;
+      right: 7%;
+      top: 50%;
+      border-top: 1px dashed rgba(255, 121, 147, .12);
+    }
+
+    .exit-gate {
+      position: absolute;
+      z-index: 1;
+      left: 100%;
+      top: calc(var(--cell) * 2);
+      width: 43px;
+      height: var(--cell);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      color: var(--red);
+      pointer-events: none;
+      background: linear-gradient(90deg, rgba(255, 62, 104, .09), transparent);
+      text-shadow: 0 0 12px rgba(255, 62, 104, .65);
+    }
+
+    .exit-gate .arrow { font-size: 25px; line-height: .8; animation: exitPulse 1.7s ease-in-out infinite; }
+    .exit-gate .exit-text { font-size: 8px; font-weight: 700; letter-spacing: 2px; }
+
+    @keyframes exitPulse {
+      0%, 100% { transform: translateX(-2px); opacity: .55; }
+      50% { transform: translateX(3px); opacity: 1; }
+    }
+
+    .vehicles { position: absolute; inset: 0; z-index: 3; }
+
+    /* 车辆使用按钮元素，天然支持焦点与键盘操作 */
+    .vehicle {
+      position: absolute;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      appearance: none;
+      -webkit-appearance: none;
+      background: none;
+      color: white;
+      cursor: grab;
+      touch-action: none;
+      will-change: transform, left, top;
+    }
+
+    .vehicle:active { cursor: grabbing; }
+    .vehicle:focus { outline: none; }
+
+    .car-body {
+      position: absolute;
+      inset: clamp(4px, 1.25vw, 6px);
+      overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--car-light) 70%, white 10%);
+      border-radius: 12px;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, .28), transparent 30%),
+        linear-gradient(155deg, var(--car-light), var(--car-dark));
+      box-shadow:
+        inset 0 1px rgba(255, 255, 255, .34),
+        inset 0 -5px 10px rgba(0, 0, 0, .14),
+        0 4px 8px rgba(0, 0, 0, .32),
+        0 0 12px color-mix(in srgb, var(--car-light) 28%, transparent);
+      transition: box-shadow .18s, filter .18s;
+    }
+
+    .vehicle.v .car-body { border-radius: 13px; }
+    .vehicle.selected .car-body,
+    .vehicle:focus-visible .car-body {
+      box-shadow:
+        inset 0 1px rgba(255, 255, 255, .42),
+        0 5px 10px rgba(0, 0, 0, .36),
+        0 0 0 2px rgba(255, 255, 255, .65),
+        0 0 20px color-mix(in srgb, var(--car-light) 62%, transparent);
+    }
+
+    .vehicle.dragging { z-index: 12; }
+    .vehicle.dragging .car-body { filter: brightness(1.12); }
+
+    .car-body::before,
+    .car-body::after {
+      content: "";
+      position: absolute;
+      background: #07101c;
+      border: 1px solid rgba(255, 255, 255, .14);
+      opacity: .83;
+    }
+
+    .h .car-body::before { left: 24%; top: 10%; bottom: 10%; width: 20%; border-radius: 4px; }
+    .h .car-body::after { right: 20%; top: 10%; bottom: 10%; width: 15%; border-radius: 4px; }
+    .v .car-body::before { top: 23%; left: 10%; right: 10%; height: 20%; border-radius: 4px; }
+    .v .car-body::after { bottom: 20%; left: 10%; right: 10%; height: 15%; border-radius: 4px; }
+
+    .car-strip {
+      position: absolute;
+      z-index: 1;
+      opacity: .5;
+      background: rgba(255, 255, 255, .44);
+      box-shadow: 0 0 5px rgba(255, 255, 255, .35);
+    }
+    .h .car-strip { left: 8%; right: 8%; top: 48%; height: 1px; }
+    .v .car-strip { top: 8%; bottom: 8%; left: 48%; width: 1px; }
+
+    .car-light {
+      position: absolute;
+      z-index: 2;
+      border-radius: 3px;
+      background: #e9fcff;
+      box-shadow: 0 0 7px #c8f8ff;
+    }
+    .h .car-light { right: 3%; top: 17%; bottom: 17%; width: 3px; }
+    .v .car-light { bottom: 3%; left: 17%; right: 17%; height: 3px; }
+
+    .move-arrows {
+      position: absolute;
+      z-index: 3;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: rgba(255, 255, 255, .70);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 4px;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, .4);
+      opacity: .50;
+      transition: opacity .18s;
+      pointer-events: none;
+    }
+    .v .move-arrows { white-space: pre; line-height: 1.25; letter-spacing: 0; font-size: 10px; }
+    .selected .move-arrows { opacity: .92; }
+
+    .vehicle.red .car-body {
+      border-color: #ff9aae;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, .40), transparent 32%),
+        linear-gradient(155deg, #ff6687, #e82352 62%, #ad153b);
+      box-shadow: inset 0 1px rgba(255, 255, 255, .4), 0 5px 10px rgba(0, 0, 0, .35), 0 0 20px rgba(255, 45, 91, .42);
+    }
+
+    .vehicle.red .move-arrows { color: white; opacity: .9; }
+    .vehicle.escaping { z-index: 20; pointer-events: none; transition: left .72s cubic-bezier(.25, .75, .25, 1); }
+    .vehicle.escaping .car-body { box-shadow: 0 0 28px rgba(255, 45, 91, .75); }
+
+    .board.paused .vehicles { pointer-events: none; }
+    .pause-layer {
+      position: absolute;
+      z-index: 30;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 19px;
+      background: rgba(5, 11, 22, .70);
+      backdrop-filter: blur(9px);
+      -webkit-backdrop-filter: blur(9px);
+    }
+    .pause-symbol { color: var(--cyan); font-size: 31px; letter-spacing: 6px; text-shadow: 0 0 20px rgba(67, 232, 255, .5); }
+    .pause-layer h2 { margin: 12px 0 4px; font-size: 20px; letter-spacing: 2px; }
+    .pause-layer p { margin: 0 0 18px; color: var(--muted); font-size: 11px; }
+
+    .primary-button, .secondary-button {
+      min-height: 44px;
+      padding: 0 22px;
+      border-radius: 13px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: transform .15s, filter .15s;
+    }
+    .primary-button:active, .secondary-button:active { transform: scale(.97); }
+    .primary-button {
+      border: 1px solid #83f1ff;
+      color: #04131c;
+      background: linear-gradient(135deg, #78efff, #39d6f4);
+      box-shadow: 0 7px 24px rgba(46, 218, 248, .20), inset 0 1px white;
+    }
+    .primary-button:hover { filter: brightness(1.08); }
+    .secondary-button { border: 1px solid var(--line); color: #b6c5d9; background: rgba(20, 30, 50, .85); }
+
+    .gesture-tip {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 30px;
+      margin-top: 9px;
+      color: #667c99;
+      font-size: 10px;
+      flex: 0 0 auto;
+    }
+    .gesture-icon { color: #a1b6cc; font-size: 17px; line-height: 1; }
+    .gesture-tip i { width: 2px; height: 2px; border-radius: 50%; background: #3d526d; }
+
+    .mission {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      margin-top: auto;
+      padding: 11px 13px;
+      border: 1px solid rgba(112, 151, 192, .10);
+      border-radius: 13px;
+      background: rgba(12, 20, 35, .48);
+      flex: 0 0 auto;
+    }
+    .mission-icon {
+      width: 31px;
+      height: 31px;
+      flex: 0 0 31px;
+      display: grid;
+      place-items: center;
+      border-radius: 9px;
+      color: var(--red);
+      background: rgba(255, 62, 104, .09);
+      font-size: 16px;
+    }
+    .mission strong { display: block; margin-bottom: 3px; color: #b7c8dd; font-size: 10px; letter-spacing: 1px; }
+    .mission p { margin: 0; color: #6f839e; font-size: 10px; line-height: 1.45; }
+
+    .footer-note {
+      padding-top: 9px;
+      color: #34475f;
+      text-align: center;
+      font-size: 8px;
+      letter-spacing: 2px;
+      flex: 0 0 auto;
+    }
+
+    /* 胜利弹窗 */
+    .modal {
+      position: fixed;
+      z-index: 100;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(3, 7, 15, .76);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      animation: fadeIn .24s ease-out;
+    }
+
+    .modal-panel {
+      position: relative;
+      width: min(100%, 360px);
+      overflow: hidden;
+      padding: 29px 24px 22px;
+      border: 1px solid rgba(110, 229, 255, .22);
+      border-radius: 25px;
+      text-align: center;
+      background:
+        radial-gradient(circle at 50% 0, rgba(64, 224, 255, .12), transparent 42%),
+        linear-gradient(155deg, #14233a, #0c1425 70%);
+      box-shadow: 0 30px 90px rgba(0, 0, 0, .55), inset 0 1px rgba(255, 255, 255, .05);
+      animation: panelIn .38s cubic-bezier(.2, .9, .25, 1.15);
+    }
+
+    .win-badge {
+      width: 59px;
+      height: 59px;
+      margin: 0 auto 15px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(114, 240, 255, .65);
+      border-radius: 50%;
+      color: #a2f6ff;
+      background: rgba(52, 224, 255, .10);
+      box-shadow: 0 0 0 7px rgba(66, 226, 255, .035), 0 0 30px rgba(66, 226, 255, .20);
+      font-size: 28px;
+    }
+
+    .modal-kicker { color: var(--cyan); font-size: 8px; font-weight: 700; letter-spacing: 3px; }
+    .modal-panel h2 { margin: 7px 0 6px; font-size: 25px; letter-spacing: 1px; }
+    .modal-subtitle { margin: 0; color: var(--muted); font-size: 11px; }
+    .stars { min-height: 30px; margin: 13px 0 6px; color: #ffd76a; font-size: 25px; letter-spacing: 6px; text-shadow: 0 0 15px rgba(255, 205, 80, .30); }
+    .stars .dim { color: #293950; text-shadow: none; }
+
+    .score-earned { margin: 7px 0 15px; color: white; font-size: 37px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .score-earned small { margin-right: 4px; color: var(--cyan); font-size: 16px; font-weight: 600; }
+    .new-best { display: inline-block; margin-left: 5px; padding: 3px 6px; border-radius: 5px; color: #251a00; background: #ffd166; font-size: 8px; vertical-align: middle; letter-spacing: .5px; }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      margin-bottom: 19px;
+      padding: 12px 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .result-item + .result-item { border-left: 1px solid var(--line); }
+    .result-item span { display: block; color: #637996; font-size: 9px; }
+    .result-item b { display: block; margin-top: 5px; color: #dceaff; font-size: 15px; font-variant-numeric: tabular-nums; }
+    .modal-actions { display: grid; gap: 9px; }
+    .modal-actions button { width: 100%; }
+
+    .confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+    .confetti i {
+      position: absolute;
+      left: var(--x);
+      top: -15px;
+      width: 4px;
+      height: 9px;
+      border-radius: 2px;
+      background: var(--c);
+      opacity: 0;
+      transform: rotate(var(--r));
+      animation: confettiFall var(--d) ease-out var(--delay) forwards;
+    }
+
+    .toast {
+      position: fixed;
+      z-index: 150;
+      left: 50%;
+      bottom: max(24px, env(safe-area-inset-bottom));
+      max-width: calc(100% - 40px);
+      padding: 9px 15px;
+      border: 1px solid rgba(125, 173, 213, .18);
+      border-radius: 20px;
+      color: #c4d5e8;
+      background: rgba(14, 25, 42, .94);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, .30);
+      font-size: 11px;
+      white-space: nowrap;
+      transform: translate(-50%, 12px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s, transform .2s;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes panelIn { from { opacity: 0; transform: translateY(18px) scale(.96); } to { opacity: 1; transform: none; } }
+    @keyframes confettiFall {
+      0% { opacity: 0; transform: translateY(0) rotate(var(--r)); }
+      12% { opacity: 1; }
+      100% { opacity: 0; transform: translateY(310px) translateX(35px) rotate(420deg); }
+    }
+
+    @media (max-height: 710px) {
+      .app { padding-top: max(10px, env(safe-area-inset-top)); }
+      .stats { margin-top: 10px; }
+      .stat { padding-top: 8px; padding-bottom: 8px; }
+      .stat-value { margin-top: 5px; font-size: 19px; }
+      .level-row { margin-top: 3px; min-height: 29px; }
+      .board-shell { width: min(calc(100% - 42px), 43dvh, 410px); margin-top: 1px; }
+      .mission { display: none; }
+      .gesture-tip { margin-top: 5px; }
+      .footer-note { margin-top: auto; }
+    }
+
+    @media (max-width: 350px) {
+      .app { padding-left: 13px; padding-right: 13px; }
+      .brand-mark { width: 38px; height: 38px; flex-basis: 38px; }
+      h1 { font-size: 19px; }
+      .icon-button { width: 35px; height: 35px; }
+      .stat { padding-left: 8px; padding-right: 8px; }
+      .stat-value { font-size: 19px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+      .vehicle.escaping { transition-duration: .12s; }
+      .confetti { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="ambient"></div>
+
+    <header class="topbar">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 14.5 5.7 9c.3-.9 1.1-1.5 2-1.5h8.6c.9 0 1.7.6 2 1.5l1.7 5.5v4h-2v-2H6v2H4v-4Z"/>
+          <path d="M6.5 12h11M8 4.5h8M9 2.5h6"/>
+          <circle cx="7.5" cy="14.5" r=".7" fill="currentColor"/><circle cx="16.5" cy="14.5" r=".7" fill="currentColor"/>
+        </svg>
+      </div>
+      <div class="brand-copy">
+        <p class="eyebrow">NEON NIGHT SHIFT</p>
+        <h1>挪车<span>让路</span></h1>
+      </div>
+      <div class="header-actions">
+        <button id="restartBtn" class="icon-button" type="button" aria-label="重开本关" title="重开本关（R）">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7v5h-5"/><path d="M18.5 16a8 8 0 1 1 .8-7.8L20 12"/></svg>
+        </button>
+        <button id="pauseBtn" class="icon-button" type="button" aria-label="暂停游戏" title="暂停（P）">
+          <svg id="pauseIcon" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <section class="stats" aria-label="游戏数据">
+      <div class="stat">
+        <div class="stat-label">当前步数</div>
+        <div class="stat-value"><span id="moveCount">0</span><small>/ 最优 <span id="parCount">3</span></small></div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">本轮得分</div>
+        <div class="stat-value" id="scoreValue">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">最高分</div>
+        <div class="stat-value" id="bestValue">0</div>
+      </div>
+    </section>
+
+    <div class="level-row">
+      <div class="level-name"><b id="levelNumber">第 1 关</b><span id="levelName">午夜启程</span></div>
+      <div id="levelDots" class="level-dots" aria-label="关卡进度"></div>
+    </div>
+
+    <main>
+      <div class="board-shell">
+        <div id="board" class="board" role="group" aria-label="六乘六挪车棋盘。选择车辆后用方向键移动。">
+          <div class="grid-surface"></div>
+          <div class="target-lane"></div>
+          <div id="vehicles" class="vehicles"></div>
+          <div id="pauseLayer" class="pause-layer" hidden>
+            <div class="pause-symbol" aria-hidden="true">Ⅱ</div>
+            <h2>夜班暂停</h2>
+            <p>喝口水，路线等你回来。</p>
+            <button id="resumeBtn" class="primary-button" type="button">继续挪车</button>
+          </div>
+        </div>
+        <div class="exit-gate" aria-hidden="true"><span class="arrow">›</span><span class="exit-text">出口</span></div>
+      </div>
+    </main>
+
+    <div class="gesture-tip" aria-hidden="true">
+      <span class="gesture-icon">↔</span><span>按住车辆，沿车身方向拖动</span><i></i><span>键盘方向键亦可</span>
+    </div>
+
+    <section class="mission">
+      <div class="mission-icon" aria-hidden="true">⌁</div>
+      <div><strong>今夜任务</strong><p>挪开挡路车辆，让红色轿车从右侧出口驶离。每次连续拖动计为一步。</p></div>
+    </section>
+
+    <div class="footer-note">CLEAR THE WAY · OWN THE NIGHT</div>
+  </div>
+
+  <div id="winModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="winTitle" hidden>
+    <div class="modal-panel">
+      <div id="confetti" class="confetti" aria-hidden="true"></div>
+      <div class="win-badge" aria-hidden="true">✓</div>
+      <div class="modal-kicker">ROUTE CLEARED</div>
+      <h2 id="winTitle">通道已打开！</h2>
+      <p id="winSubtitle" class="modal-subtitle">漂亮的一步，红车顺利离场。</p>
+      <div id="stars" class="stars" aria-label="三星评价">★★★</div>
+      <div class="score-earned"><small>+</small><span id="earnedScore">1200</span><span id="newBest" class="new-best" hidden>新纪录</span></div>
+      <div class="result-grid">
+        <div class="result-item"><span>本关步数</span><b id="resultMoves">3</b></div>
+        <div class="result-item"><span>最优步数</span><b id="resultPar">3</b></div>
+        <div class="result-item"><span>本轮总分</span><b id="resultTotal">1200</b></div>
+      </div>
+      <div class="modal-actions">
+        <button id="nextBtn" class="primary-button" type="button">下一关&nbsp; →</button>
+        <button id="replayBtn" class="secondary-button" type="button">重玩本关</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="announcer" class="sr-only" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const SIZE = 6;
+      const STORAGE_KEY = 'unblock-rush-best-v1';
+      const PAUSE_ICON = '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>';
+      const PLAY_ICON = '<path d="M8 5.5v13l10-6.5z"/>';
+      const COLORS = [
+        ['#58ddff', '#167caa'], ['#a88bff', '#5a38af'], ['#ffd166', '#bd741b'],
+        ['#54edb2', '#17855f'], ['#ff8dc8', '#aa3a79'], ['#74a5ff', '#3455ac'],
+        ['#ff9d68', '#b64b27'], ['#62e3df', '#247f85'], ['#c0d4e8', '#637c98']
+      ];
+
+      // 所有关卡均为 6×6；h 只能横向移动，v 只能纵向移动。
+      const LEVELS = [
+        {
+          name: '午夜启程', par: 3,
+          cars: [
+            ['R', 'h', 0, 2, 2], ['A', 'v', 2, 1, 2], ['B', 'v', 5, 0, 3],
+            ['C', 'h', 0, 0, 2], ['D', 'h', 0, 3, 3], ['E', 'v', 3, 4, 2]
+          ]
+        },
+        {
+          name: '交错车流', par: 4,
+          cars: [
+            ['R', 'h', 0, 2, 2], ['A', 'v', 2, 0, 3], ['B', 'h', 1, 3, 3],
+            ['C', 'v', 4, 1, 2], ['D', 'h', 0, 5, 2], ['E', 'v', 3, 4, 2]
+          ]
+        },
+        {
+          name: '蓝调街口', par: 5,
+          cars: [
+            ['R', 'h', 0, 2, 2], ['A', 'v', 2, 0, 3], ['B', 'h', 1, 3, 3],
+            ['C', 'v', 4, 1, 2], ['D', 'v', 5, 3, 2], ['E', 'h', 0, 5, 2],
+            ['F', 'v', 3, 4, 2]
+          ]
+        },
+        {
+          name: '环环相扣', par: 6,
+          cars: [
+            ['R', 'h', 0, 2, 2], ['A', 'v', 2, 0, 3], ['B', 'h', 1, 3, 3],
+            ['C', 'v', 3, 1, 2], ['D', 'v', 5, 3, 2], ['E', 'h', 4, 1, 2],
+            ['F', 'h', 4, 5, 2]
+          ]
+        },
+        {
+          name: '霓虹迷宫', par: 7,
+          cars: [
+            ['R', 'h', 0, 2, 2], ['A', 'v', 2, 0, 3], ['B', 'h', 1, 3, 3],
+            ['C', 'v', 3, 1, 2], ['D', 'v', 5, 3, 2], ['E', 'h', 4, 1, 2],
+            ['F', 'h', 4, 5, 2], ['G', 'v', 4, 2, 2]
+          ]
+        },
+        {
+          name: '最后一班', par: 8,
+          cars: [
+            ['R', 'h', 0, 2, 2], ['A', 'v', 2, 0, 3], ['B', 'h', 1, 3, 3],
+            ['C', 'v', 3, 1, 2], ['D', 'v', 5, 3, 2], ['E', 'h', 4, 1, 2],
+            ['F', 'h', 4, 5, 2], ['G', 'v', 4, 2, 2], ['H', 'h', 3, 0, 2]
+          ]
+        }
+      ];
+
+      const $ = (id) => document.getElementById(id);
+      const dom = {
+        board: $('board'), vehicles: $('vehicles'), moveCount: $('moveCount'), parCount: $('parCount'),
+        score: $('scoreValue'), best: $('bestValue'), levelNumber: $('levelNumber'), levelName: $('levelName'),
+        dots: $('levelDots'), restart: $('restartBtn'), pause: $('pauseBtn'), pauseIcon: $('pauseIcon'),
+        pauseLayer: $('pauseLayer'), resume: $('resumeBtn'), modal: $('winModal'), next: $('nextBtn'),
+        replay: $('replayBtn'), winTitle: $('winTitle'), winSubtitle: $('winSubtitle'), stars: $('stars'),
+        earned: $('earnedScore'), newBest: $('newBest'), resultMoves: $('resultMoves'),
+        resultPar: $('resultPar'), resultTotal: $('resultTotal'), confetti: $('confetti'),
+        toast: $('toast'), announcer: $('announcer')
+      };
+
+      const state = {
+        level: 0, cars: [], moves: 0, score: 0, best: readBest(), selected: 'R',
+        paused: false, won: false, drag: null, lastEarned: 0, winTimer: 0, toastTimer: 0
+      };
+
+      // localStorage 在隐私模式下可能不可用，读写都静默降级。
+      function readBest() {
+        try {
+          const value = Number(localStorage.getItem(STORAGE_KEY));
+          return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+        } catch (_) { return 0; }
+      }
+
+      function saveBest() {
+        try { localStorage.setItem(STORAGE_KEY, String(state.best)); } catch (_) { /* 无存储权限时仅本次有效 */ }
+      }
+
+      function formatScore(value) { return value.toLocaleString('zh-CN'); }
+      function carAt(id) { return state.cars.find((car) => car.id === id); }
+      function elementAt(id) { return dom.vehicles.querySelector(`[data-id="${id}"]`); }
+
+      // 用彩色调色板生成每辆车稳定的霓虹配色。
+      function makeCar(raw, index) {
+        return { id: raw[0], dir: raw[1], x: raw[2], y: raw[3], len: raw[4], color: index % COLORS.length };
+      }
+
+      function setupLevel(index) {
+        clearTimeout(state.winTimer);
+        cancelDrag();
+        state.level = index;
+        state.cars = LEVELS[index].cars.map(makeCar);
+        state.moves = 0;
+        state.paused = false;
+        state.won = false;
+        state.selected = 'R';
+        state.lastEarned = 0;
+        dom.modal.hidden = true;
+        dom.pauseLayer.hidden = true;
+        dom.board.classList.remove('paused');
+        dom.pauseIcon.innerHTML = PAUSE_ICON;
+        dom.pause.setAttribute('aria-label', '暂停游戏');
+        buildCars();
+        buildDots();
+        updateHUD();
+        announce(`第 ${index + 1} 关，${LEVELS[index].name}，最优 ${LEVELS[index].par} 步`);
+      }
+
+      function buildCars() {
+        dom.vehicles.textContent = '';
+        const fragment = document.createDocumentFragment();
+        state.cars.forEach((car) => {
+          const el = document.createElement('button');
+          const palette = COLORS[car.color];
+          el.type = 'button';
+          el.className = `vehicle ${car.dir}${car.id === 'R' ? ' red selected' : ''}`;
+          el.dataset.id = car.id;
+          el.style.setProperty('--car-light', car.id === 'R' ? '#ff6687' : palette[0]);
+          el.style.setProperty('--car-dark', car.id === 'R' ? '#c51c48' : palette[1]);
+          el.innerHTML = `<span class="car-body"><span class="car-strip"></span><span class="car-light"></span><span class="move-arrows">${car.dir === 'h' ? '‹&nbsp;&nbsp;›' : '⌃<br>⌄'}</span></span>`;
+          positionCar(el, car);
+          fragment.appendChild(el);
+        });
+        dom.vehicles.appendChild(fragment);
+      }
+
+      function positionCar(el, car) {
+        el.style.left = `${car.x * 100 / SIZE}%`;
+        el.style.top = `${car.y * 100 / SIZE}%`;
+        el.style.width = `${(car.dir === 'h' ? car.len : 1) * 100 / SIZE}%`;
+        el.style.height = `${(car.dir === 'v' ? car.len : 1) * 100 / SIZE}%`;
+        el.style.transform = '';
+        el.setAttribute('aria-label', `${car.id === 'R' ? '红色目标车' : '车辆'}，${car.dir === 'h' ? '横向' : '纵向'}，长 ${car.len} 格`);
+        el.setAttribute('aria-pressed', car.id === state.selected ? 'true' : 'false');
+      }
+
+      function buildDots() {
+        dom.dots.textContent = '';
+        LEVELS.forEach((_, index) => {
+          const dot = document.createElement('span');
+          dot.className = `level-dot${index < state.level ? ' done' : index === state.level ? ' current' : ''}`;
+          dom.dots.appendChild(dot);
+        });
+        dom.dots.setAttribute('aria-label', `第 ${state.level + 1} 关，共 ${LEVELS.length} 关`);
+      }
+
+      function updateHUD() {
+        dom.moveCount.textContent = state.moves;
+        dom.parCount.textContent = LEVELS[state.level].par;
+        dom.score.textContent = formatScore(state.score);
+        dom.best.textContent = formatScore(state.best);
+        dom.levelNumber.textContent = `第 ${state.level + 1} 关`;
+        dom.levelName.textContent = LEVELS[state.level].name;
+      }
+
+      function selectCar(id) {
+        state.selected = id;
+        state.cars.forEach((car) => {
+          const el = elementAt(car.id);
+          el.classList.toggle('selected', car.id === id);
+          el.setAttribute('aria-pressed', car.id === id ? 'true' : 'false');
+        });
+      }
+
+      // 占用检测统一处理棋盘边界和其他车辆，拖动与键盘共用。
+      function cellBlocked(x, y, ignoreId) {
+        if (x < 0 || x >= SIZE || y < 0 || y >= SIZE) return true;
+        return state.cars.some((car) => {
+          if (car.id === ignoreId) return false;
+          const width = car.dir === 'h' ? car.len : 1;
+          const height = car.dir === 'v' ? car.len : 1;
+          return x >= car.x && x < car.x + width && y >= car.y && y < car.y + height;
+        });
+      }
+
+      function movementRange(car) {
+        let min = car.dir === 'h' ? car.x : car.y;
+        let max = min;
+        if (car.dir === 'h') {
+          while (min > 0 && !cellBlocked(min - 1, car.y, car.id)) min--;
+          while (max < SIZE - car.len && !cellBlocked(max + car.len, car.y, car.id)) max++;
+        } else {
+          while (min > 0 && !cellBlocked(car.x, min - 1, car.id)) min--;
+          while (max < SIZE - car.len && !cellBlocked(car.x, max + car.len, car.id)) max++;
+        }
+        return { min, max };
+      }
+
+      function exitIsClear() {
+        return !cellBlocked(5, 2, 'R');
+      }
+
+      // Pointer Events 同时覆盖触屏、鼠标与触控笔。
+      function onPointerDown(event) {
+        const el = event.target.closest('.vehicle');
+        if (!el || state.paused || state.won || (event.pointerType === 'mouse' && event.button !== 0)) return;
+        event.preventDefault();
+        const car = carAt(el.dataset.id);
+        selectCar(car.id);
+        el.focus({ preventScroll: true });
+        const range = movementRange(car);
+        const boardSize = dom.board.getBoundingClientRect().width;
+        state.drag = {
+          pointerId: event.pointerId, id: car.id, el, origin: car.dir === 'h' ? car.x : car.y,
+          current: car.dir === 'h' ? car.x : car.y, startX: event.clientX, startY: event.clientY,
+          delta: 0, cell: boardSize / SIZE, min: range.min, max: range.max
+        };
+        el.classList.add('dragging');
+        el.setPointerCapture(event.pointerId);
+      }
+
+      function onPointerMove(event) {
+        const drag = state.drag;
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        event.preventDefault();
+        const car = carAt(drag.id);
+        const distance = car.dir === 'h' ? event.clientX - drag.startX : event.clientY - drag.startY;
+        drag.delta = distance;
+        drag.current = Math.max(drag.min, Math.min(drag.max, drag.origin + distance / drag.cell));
+        const pixels = (drag.current - drag.origin) * drag.cell;
+        drag.el.style.transform = car.dir === 'h' ? `translateX(${pixels}px)` : `translateY(${pixels}px)`;
+      }
+
+      function onPointerUp(event) {
+        const drag = state.drag;
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        event.preventDefault();
+        const car = carAt(drag.id);
+        const target = Math.round(drag.current);
+        const changed = car.dir === 'h' ? target !== car.x : target !== car.y;
+        if (car.dir === 'h') car.x = target; else car.y = target;
+        if (changed) state.moves++;
+
+        const intendsExit = car.id === 'R' && target === SIZE - car.len && drag.delta > drag.cell * .12 && exitIsClear();
+        if (intendsExit && !changed) state.moves++;
+        state.drag = null;
+        drag.el.classList.remove('dragging');
+        positionCar(drag.el, car);
+        updateHUD();
+        if (intendsExit) winGame();
+      }
+
+      function cancelDrag(event) {
+        const drag = state.drag;
+        if (!drag) return;
+        if (event && event.pointerId !== drag.pointerId) return;
+        drag.el.style.transform = '';
+        drag.el.classList.remove('dragging');
+        state.drag = null;
+      }
+
+      // 键盘每次移动一格；红车在最右端再按右键即可出库。
+      function moveSelected(key) {
+        let car = carAt(state.selected);
+        if (!car) { selectCar('R'); car = carAt('R'); }
+        const horizontalKey = key === 'ArrowLeft' || key === 'ArrowRight';
+        const verticalKey = key === 'ArrowUp' || key === 'ArrowDown';
+        if ((car.dir === 'h' && !horizontalKey) || (car.dir === 'v' && !verticalKey)) {
+          showToast(car.dir === 'h' ? '这辆车只能左右移动' : '这辆车只能上下移动');
+          return;
+        }
+
+        const direction = key === 'ArrowLeft' || key === 'ArrowUp' ? -1 : 1;
+        const current = car.dir === 'h' ? car.x : car.y;
+        const range = movementRange(car);
+        const target = current + direction;
+
+        if (car.id === 'R' && key === 'ArrowRight' && current === SIZE - car.len && exitIsClear()) {
+          state.moves++;
+          updateHUD();
+          winGame();
+          return;
+        }
+        if (target < range.min || target > range.max) {
+          showToast('前方被挡住了，先挪开其他车辆');
+          return;
+        }
+
+        if (car.dir === 'h') car.x = target; else car.y = target;
+        state.moves++;
+        positionCar(elementAt(car.id), car);
+        updateHUD();
+        if (car.id === 'R' && car.x === SIZE - car.len && direction === 1 && exitIsClear()) winGame();
+      }
+
+      function calculateScore() {
+        const extraMoves = Math.max(0, state.moves - LEVELS[state.level].par);
+        return Math.max(100, 1200 + state.level * 100 - extraMoves * 100);
+      }
+
+      function winGame() {
+        if (state.won) return;
+        state.won = true;
+        state.paused = false;
+        state.lastEarned = calculateScore();
+        state.score += state.lastEarned;
+        const isNewBest = state.score > state.best;
+        if (isNewBest) { state.best = state.score; saveBest(); }
+        updateHUD();
+
+        const red = elementAt('R');
+        red.classList.add('escaping');
+        requestAnimationFrame(() => { red.style.left = 'calc(100% + 28px)'; });
+        announce(`胜利，本关 ${state.moves} 步，获得 ${state.lastEarned} 分`);
+        state.winTimer = setTimeout(() => showWinModal(isNewBest), 680);
+      }
+
+      function showWinModal(isNewBest) {
+        if (!state.won) return;
+        const level = LEVELS[state.level];
+        const starCount = state.moves <= level.par ? 3 : state.moves <= level.par + 2 ? 2 : 1;
+        const isLast = state.level === LEVELS.length - 1;
+        dom.winTitle.textContent = isLast ? '全部通关！' : '通道已打开！';
+        dom.winSubtitle.textContent = starCount === 3 ? '完美路线，一步也没有多走。' : starCount === 2 ? '干净利落，再试试挑战最优路线。' : '成功离场！精简移动可获得更高分。';
+        dom.stars.innerHTML = Array.from({ length: 3 }, (_, i) => `<span class="${i < starCount ? '' : 'dim'}">★</span>`).join('');
+        dom.stars.setAttribute('aria-label', `${starCount} 星评价`);
+        dom.earned.textContent = formatScore(state.lastEarned);
+        dom.newBest.hidden = !isNewBest;
+        dom.resultMoves.textContent = state.moves;
+        dom.resultPar.textContent = level.par;
+        dom.resultTotal.textContent = formatScore(state.score);
+        dom.next.innerHTML = isLast ? '再玩一轮&nbsp; ↻' : '下一关&nbsp; →';
+        makeConfetti();
+        dom.modal.hidden = false;
+        dom.next.focus({ preventScroll: true });
+      }
+
+      function makeConfetti() {
+        dom.confetti.textContent = '';
+        const colors = ['#43e8ff', '#ff5278', '#ffd166', '#a88bff', '#54edb2'];
+        for (let i = 0; i < 20; i++) {
+          const piece = document.createElement('i');
+          piece.style.setProperty('--x', `${(i * 47) % 100}%`);
+          piece.style.setProperty('--c', colors[i % colors.length]);
+          piece.style.setProperty('--r', `${(i * 37) % 180}deg`);
+          piece.style.setProperty('--d', `${1.25 + (i % 5) * .14}s`);
+          piece.style.setProperty('--delay', `${(i % 7) * .055}s`);
+          dom.confetti.appendChild(piece);
+        }
+      }
+
+      function replayLevel() {
+        // 重玩时撤回本关已结算分数，避免重复刷分。
+        if (state.won) state.score = Math.max(0, state.score - state.lastEarned);
+        setupLevel(state.level);
+      }
+
+      function nextLevel() {
+        if (state.level === LEVELS.length - 1) {
+          state.score = 0;
+          setupLevel(0);
+        } else {
+          setupLevel(state.level + 1);
+        }
+      }
+
+      function setPaused(value) {
+        if (state.won) return;
+        cancelDrag();
+        state.paused = value;
+        dom.pauseLayer.hidden = !value;
+        dom.board.classList.toggle('paused', value);
+        dom.pauseIcon.innerHTML = value ? PLAY_ICON : PAUSE_ICON;
+        dom.pause.setAttribute('aria-label', value ? '继续游戏' : '暂停游戏');
+        if (value) dom.resume.focus({ preventScroll: true });
+        else elementAt(state.selected)?.focus({ preventScroll: true });
+        announce(value ? '游戏已暂停' : '继续游戏');
+      }
+
+      function showToast(message) {
+        clearTimeout(state.toastTimer);
+        dom.toast.textContent = message;
+        dom.toast.classList.add('show');
+        state.toastTimer = setTimeout(() => dom.toast.classList.remove('show'), 1600);
+      }
+
+      function announce(message) { dom.announcer.textContent = message; }
+
+      // 弹窗开启时约束 Tab 焦点，方便键盘与读屏用户操作。
+      function trapModalFocus(event) {
+        if (dom.modal.hidden || event.key !== 'Tab') return;
+        const buttons = [dom.next, dom.replay];
+        const first = buttons[0], last = buttons[buttons.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      }
+
+      dom.vehicles.addEventListener('pointerdown', onPointerDown);
+      dom.vehicles.addEventListener('pointermove', onPointerMove);
+      dom.vehicles.addEventListener('pointerup', onPointerUp);
+      dom.vehicles.addEventListener('pointercancel', cancelDrag);
+      dom.vehicles.addEventListener('focusin', (event) => {
+        const el = event.target.closest('.vehicle');
+        if (el && !state.drag) selectCar(el.dataset.id);
+      });
+      dom.board.addEventListener('contextmenu', (event) => event.preventDefault());
+      dom.restart.addEventListener('click', replayLevel);
+      dom.replay.addEventListener('click', replayLevel);
+      dom.next.addEventListener('click', nextLevel);
+      dom.pause.addEventListener('click', () => setPaused(!state.paused));
+      dom.resume.addEventListener('click', () => setPaused(false));
+
+      document.addEventListener('keydown', (event) => {
+        trapModalFocus(event);
+        if (!dom.modal.hidden) return;
+        const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+        if (key.startsWith('Arrow')) {
+          event.preventDefault();
+          if (!state.paused && !state.won) moveSelected(key);
+        } else if (key === 'p' || key === 'Escape' || key === ' ') {
+          event.preventDefault();
+          setPaused(!state.paused);
+        } else if (key === 'r' && !state.won) {
+          event.preventDefault();
+          replayLevel();
+        }
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && !state.paused && !state.won) setPaused(true);
+      });
+
+      // iOS 手势与双击缩放兜底；页面本身始终不滚动。
+      document.addEventListener('gesturestart', (event) => event.preventDefault());
+      document.addEventListener('dblclick', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('touchmove', (event) => event.preventDefault(), { passive: false });
+      let lastTouchEnd = 0;
+      document.addEventListener('touchend', (event) => {
+        const now = performance.now();
+        if (now - lastTouchEnd < 300) event.preventDefault();
+        lastTouchEnd = now;
+      }, { passive: false });
+
+      setupLevel(0);
+    })();
+  </script>
+</body>
+</html>

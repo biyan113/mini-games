@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070816">
+  <meta name="color-scheme" content="dark">
+  <title>迷宫逃脱 · Neon Maze</title>
+  <style>
+    :root {
+      --bg: #070816;
+      --panel: rgba(16, 20, 43, 0.82);
+      --panel-strong: #11162f;
+      --line: rgba(156, 176, 255, 0.13);
+      --text: #f3f6ff;
+      --muted: #8d96b8;
+      --cyan: #61efff;
+      --violet: #a77bff;
+      --green: #62ffc2;
+      --danger: #ff648d;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-left: env(safe-area-inset-left, 0px);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 8%, rgba(87, 68, 190, 0.22), transparent 36%),
+        radial-gradient(circle at 90% 88%, rgba(20, 158, 180, 0.13), transparent 38%),
+        var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-text-size-adjust: 100%;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(125, 144, 218, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(125, 144, 218, 0.025) 1px, transparent 1px);
+      background-size: 36px 36px;
+      mask-image: linear-gradient(to bottom, black, transparent 90%);
+    }
+
+    button {
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    button:focus-visible,
+    canvas:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    button:disabled {
+      cursor: default;
+      opacity: 0.38;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    .app {
+      position: relative;
+      width: 100%;
+      max-width: 540px;
+      height: 100vh;
+      height: 100dvh;
+      padding: calc(12px + var(--safe-top)) calc(14px + var(--safe-right)) calc(10px + var(--safe-bottom)) calc(14px + var(--safe-left));
+      isolation: isolate;
+    }
+
+    .app::before,
+    .app::after {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      filter: blur(65px);
+      pointer-events: none;
+    }
+
+    .app::before {
+      top: 4%;
+      right: -50px;
+      background: rgba(111, 75, 226, 0.16);
+    }
+
+    .app::after {
+      bottom: 8%;
+      left: -60px;
+      background: rgba(32, 202, 220, 0.1);
+    }
+
+    .game-ui {
+      height: 100%;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+      gap: 11px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 46px;
+      gap: 10px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      gap: 10px;
+    }
+
+    .logo-mark {
+      display: grid;
+      flex: 0 0 auto;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      border: 1px solid rgba(97, 239, 255, 0.24);
+      border-radius: 13px;
+      background: linear-gradient(145deg, rgba(97, 239, 255, 0.11), rgba(167, 123, 255, 0.1));
+      box-shadow: inset 0 0 18px rgba(97, 239, 255, 0.05), 0 0 22px rgba(97, 239, 255, 0.06);
+    }
+
+    .logo-mark svg {
+      width: 27px;
+      height: 27px;
+      filter: drop-shadow(0 0 5px rgba(97, 239, 255, 0.55));
+    }
+
+    .brand-copy {
+      min-width: 0;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 19px;
+      font-weight: 750;
+      letter-spacing: 0.08em;
+      line-height: 1.15;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 650;
+      letter-spacing: 0.24em;
+      white-space: nowrap;
+    }
+
+    .top-actions {
+      display: flex;
+      flex: 0 0 auto;
+      gap: 7px;
+    }
+
+    .top-button {
+      display: inline-flex;
+      min-width: 44px;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(20, 25, 51, 0.72);
+      color: #bec7e7;
+      font-size: 12px;
+      transition: border-color 160ms ease, background 160ms ease, transform 100ms ease;
+    }
+
+    .top-button svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .top-button:active:not(:disabled) {
+      transform: scale(0.94);
+      background: rgba(39, 46, 83, 0.9);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .stat-card {
+      position: relative;
+      min-width: 0;
+      padding: 9px 10px 8px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: linear-gradient(145deg, rgba(23, 28, 57, 0.82), rgba(12, 16, 36, 0.82));
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.025);
+    }
+
+    .stat-card:first-child::after {
+      content: "";
+      position: absolute;
+      right: -18px;
+      bottom: -25px;
+      width: 65px;
+      height: 65px;
+      border-radius: 50%;
+      background: rgba(97, 239, 255, 0.09);
+      filter: blur(14px);
+    }
+
+    .stat-label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+
+    .stat-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 7px var(--cyan);
+    }
+
+    .stat-value {
+      display: block;
+      margin-top: 3px;
+      overflow: hidden;
+      font-size: clamp(18px, 5.4vw, 24px);
+      font-weight: 720;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.025em;
+      line-height: 1.2;
+      text-overflow: ellipsis;
+    }
+
+    .stat-card:first-child .stat-value {
+      color: var(--cyan);
+      text-shadow: 0 0 16px rgba(97, 239, 255, 0.25);
+    }
+
+    .stat-card:first-child.danger .stat-value {
+      color: var(--danger);
+      text-shadow: 0 0 16px rgba(255, 100, 141, 0.38);
+      animation: danger-pulse 700ms ease-in-out infinite alternate;
+    }
+
+    .maze-stage {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 7px;
+    }
+
+    .maze-meta {
+      display: flex;
+      min-height: 20px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 0 3px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .level-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #c6ceec;
+    }
+
+    .level-badge::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 2px;
+      background: var(--violet);
+      box-shadow: 0 0 8px rgba(167, 123, 255, 0.8);
+      transform: rotate(45deg);
+    }
+
+    .state-label {
+      color: var(--cyan);
+      letter-spacing: 0.08em;
+    }
+
+    .canvas-area {
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .maze-frame {
+      position: relative;
+      width: min(100%, 50dvh);
+      aspect-ratio: 1;
+      overflow: hidden;
+      border: 1px solid rgba(116, 148, 255, 0.25);
+      border-radius: 22px;
+      background: #080c1d;
+      box-shadow:
+        0 18px 45px rgba(0, 0, 0, 0.35),
+        0 0 32px rgba(78, 92, 211, 0.09),
+        inset 0 0 25px rgba(74, 104, 214, 0.06);
+      touch-action: none;
+    }
+
+    .maze-frame::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.018);
+      pointer-events: none;
+    }
+
+    .maze-frame.bump {
+      animation: bump 180ms ease-out;
+    }
+
+    #mazeCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    .maze-toast {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      z-index: 2;
+      padding: 6px 11px;
+      border: 1px solid rgba(255, 100, 141, 0.25);
+      border-radius: 999px;
+      color: #ffc0d0;
+      background: rgba(38, 16, 38, 0.88);
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.25);
+      font-size: 11px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, -6px);
+      transition: opacity 140ms ease, transform 140ms ease;
+      white-space: nowrap;
+    }
+
+    .maze-toast.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    .time-track {
+      height: 3px;
+      margin: 0 5px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(112, 132, 193, 0.12);
+    }
+
+    .time-fill {
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--violet), var(--cyan));
+      box-shadow: 0 0 9px rgba(97, 239, 255, 0.45);
+      transform-origin: left center;
+      transition: background 200ms ease;
+    }
+
+    .time-fill.danger {
+      background: linear-gradient(90deg, #ff9b6a, var(--danger));
+      box-shadow: 0 0 9px rgba(255, 100, 141, 0.45);
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 94px;
+      padding: 0 3px;
+    }
+
+    .control-help {
+      min-width: 0;
+      color: var(--muted);
+    }
+
+    .gesture-icon {
+      display: grid;
+      width: 35px;
+      height: 35px;
+      margin-bottom: 7px;
+      place-items: center;
+      border: 1px solid rgba(97, 239, 255, 0.14);
+      border-radius: 11px;
+      color: var(--cyan);
+      background: rgba(97, 239, 255, 0.045);
+    }
+
+    .gesture-icon svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    .control-help strong {
+      display: block;
+      color: #d5dcf4;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    .control-help p {
+      margin: 4px 0 0;
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .dpad {
+      display: grid;
+      flex: 0 0 auto;
+      grid-template-columns: repeat(3, 46px);
+      grid-template-rows: repeat(2, 43px);
+      gap: 6px;
+    }
+
+    .move-button {
+      display: grid;
+      min-width: 44px;
+      min-height: 44px;
+      place-items: center;
+      border: 1px solid rgba(140, 161, 235, 0.18);
+      border-radius: 13px;
+      color: #c9d4f5;
+      background: linear-gradient(145deg, rgba(30, 37, 72, 0.92), rgba(16, 21, 46, 0.92));
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.04), 0 5px 12px rgba(0, 0, 0, 0.16);
+      font-family: Arial, sans-serif;
+      font-size: 21px;
+      line-height: 1;
+      transition: color 120ms ease, border-color 120ms ease, transform 80ms ease, box-shadow 120ms ease;
+    }
+
+    .move-button:active {
+      color: var(--cyan);
+      border-color: rgba(97, 239, 255, 0.5);
+      box-shadow: inset 0 0 15px rgba(97, 239, 255, 0.08), 0 0 15px rgba(97, 239, 255, 0.08);
+      transform: scale(0.91);
+    }
+
+    .move-button[data-move="up"] { grid-column: 2; grid-row: 1; }
+    .move-button[data-move="left"] { grid-column: 1; grid-row: 2; }
+    .move-button[data-move="down"] { grid-column: 2; grid-row: 2; }
+    .move-button[data-move="right"] { grid-column: 3; grid-row: 2; }
+
+    .footer-note {
+      margin: -3px 0 0;
+      color: #606b91;
+      font-size: 9px;
+      letter-spacing: 0.06em;
+      line-height: 1.4;
+      text-align: center;
+    }
+
+    .footer-note span {
+      color: #8793b8;
+    }
+
+    .modal-backdrop {
+      position: absolute;
+      z-index: 20;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: calc(20px + var(--safe-top)) calc(18px + var(--safe-right)) calc(20px + var(--safe-bottom)) calc(18px + var(--safe-left));
+      background: rgba(4, 6, 17, 0.72);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      animation: fade-in 180ms ease-out;
+      touch-action: none;
+    }
+
+    .modal-card {
+      position: relative;
+      width: 100%;
+      max-width: 390px;
+      max-height: 100%;
+      padding: 26px 22px 20px;
+      overflow: auto;
+      overscroll-behavior: contain;
+      border: 1px solid rgba(141, 160, 240, 0.2);
+      border-radius: 25px;
+      background:
+        radial-gradient(circle at 85% 0%, rgba(115, 82, 217, 0.16), transparent 40%),
+        linear-gradient(150deg, rgba(24, 29, 58, 0.98), rgba(10, 13, 31, 0.98));
+      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.5), inset 0 1px rgba(255, 255, 255, 0.04);
+      text-align: center;
+      animation: modal-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      scrollbar-width: none;
+      touch-action: pan-y;
+    }
+
+    .modal-card::-webkit-scrollbar {
+      display: none;
+    }
+
+    .modal-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 28%;
+      width: 44%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      box-shadow: 0 0 12px var(--cyan);
+    }
+
+    .modal-symbol {
+      display: grid;
+      width: 58px;
+      height: 58px;
+      margin: 0 auto 15px;
+      place-items: center;
+      border: 1px solid rgba(97, 239, 255, 0.25);
+      border-radius: 18px;
+      color: var(--cyan);
+      background: rgba(97, 239, 255, 0.06);
+      box-shadow: 0 0 26px rgba(97, 239, 255, 0.08), inset 0 0 18px rgba(97, 239, 255, 0.04);
+    }
+
+    .modal-symbol.success {
+      color: var(--green);
+      border-color: rgba(98, 255, 194, 0.28);
+      background: rgba(98, 255, 194, 0.06);
+    }
+
+    .modal-symbol.failure {
+      color: var(--danger);
+      border-color: rgba(255, 100, 141, 0.28);
+      background: rgba(255, 100, 141, 0.06);
+    }
+
+    .modal-symbol svg {
+      width: 30px;
+      height: 30px;
+    }
+
+    .modal-eyebrow {
+      margin: 0 0 7px;
+      color: var(--cyan);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+    }
+
+    .modal-card h2 {
+      margin: 0;
+      font-size: 26px;
+      font-weight: 760;
+      letter-spacing: 0.04em;
+    }
+
+    .modal-description {
+      max-width: 300px;
+      margin: 11px auto 0;
+      color: #98a3c5;
+      font-size: 12px;
+      line-height: 1.75;
+    }
+
+    .difficulty-picker {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 7px;
+      margin-top: 19px;
+    }
+
+    .difficulty-button {
+      min-height: 58px;
+      padding: 8px 4px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(20, 25, 51, 0.8);
+      transition: border-color 140ms ease, background 140ms ease, transform 100ms ease;
+    }
+
+    .difficulty-button strong,
+    .difficulty-button small {
+      display: block;
+    }
+
+    .difficulty-button strong {
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .difficulty-button small {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 9px;
+    }
+
+    .difficulty-button.selected {
+      border-color: rgba(97, 239, 255, 0.48);
+      color: var(--cyan);
+      background: rgba(50, 115, 144, 0.13);
+      box-shadow: inset 0 0 16px rgba(97, 239, 255, 0.04);
+    }
+
+    .difficulty-button:active {
+      transform: scale(0.95);
+    }
+
+    .modal-actions {
+      display: grid;
+      gap: 8px;
+      margin-top: 20px;
+    }
+
+    .primary-button,
+    .secondary-button {
+      min-height: 48px;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 680;
+      letter-spacing: 0.06em;
+      transition: transform 100ms ease, filter 120ms ease;
+    }
+
+    .primary-button {
+      color: #07131d;
+      background: linear-gradient(105deg, #73f3ff, #7edbdff0 55%, #a5f4e3);
+      box-shadow: 0 8px 25px rgba(97, 239, 255, 0.16), inset 0 1px rgba(255, 255, 255, 0.55);
+    }
+
+    .secondary-button {
+      border: 1px solid var(--line);
+      color: #b6c0df;
+      background: rgba(24, 29, 57, 0.7);
+    }
+
+    .primary-button:active,
+    .secondary-button:active {
+      transform: scale(0.97);
+      filter: brightness(0.9);
+    }
+
+    .modal-best {
+      margin-top: 13px;
+      color: #6f7b9f;
+      font-size: 10px;
+    }
+
+    .modal-best strong {
+      color: #aeb9da;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .result-score {
+      margin-top: 18px;
+      padding: 14px;
+      border: 1px solid rgba(97, 239, 255, 0.12);
+      border-radius: 16px;
+      background: rgba(97, 239, 255, 0.035);
+    }
+
+    .result-score span {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+    }
+
+    .result-score strong {
+      display: block;
+      margin-top: 3px;
+      color: var(--cyan);
+      font-size: 38px;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.2;
+      text-shadow: 0 0 20px rgba(97, 239, 255, 0.25);
+    }
+
+    .record-badge {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      color: #09251d;
+      background: var(--green);
+      font-size: 9px;
+      font-weight: 750;
+      letter-spacing: 0.08em;
+    }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      margin-top: 13px;
+    }
+
+    .result-grid > div + div {
+      border-left: 1px solid var(--line);
+    }
+
+    .result-grid span,
+    .result-grid strong {
+      display: block;
+    }
+
+    .result-grid span {
+      color: var(--muted);
+      font-size: 9px;
+    }
+
+    .result-grid strong {
+      margin-top: 5px;
+      font-size: 15px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes modal-in {
+      from { opacity: 0; transform: translateY(12px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes bump {
+      0%, 100% { transform: translateX(0); }
+      30% { transform: translateX(-4px); }
+      65% { transform: translateX(4px); }
+    }
+
+    @keyframes danger-pulse {
+      from { opacity: 0.72; }
+      to { opacity: 1; }
+    }
+
+    @media (hover: hover) {
+      .top-button:hover:not(:disabled),
+      .move-button:hover,
+      .secondary-button:hover {
+        border-color: rgba(97, 239, 255, 0.32);
+        color: var(--cyan);
+      }
+
+      .primary-button:hover {
+        filter: brightness(1.07);
+      }
+
+      .difficulty-button:hover {
+        border-color: rgba(97, 239, 255, 0.35);
+      }
+    }
+
+    @media (min-width: 600px) {
+      .app {
+        height: min(94dvh, 920px);
+        padding: 20px 24px;
+        border: 1px solid rgba(139, 158, 228, 0.1);
+        border-radius: 30px;
+        background: rgba(8, 10, 25, 0.44);
+        box-shadow: 0 35px 100px rgba(0, 0, 0, 0.35);
+      }
+
+      .game-ui {
+        gap: 14px;
+      }
+    }
+
+    @media (max-width: 350px) {
+      .app {
+        padding-right: calc(10px + var(--safe-right));
+        padding-left: calc(10px + var(--safe-left));
+      }
+
+      .brand h1 { font-size: 17px; }
+      .brand p { letter-spacing: 0.16em; }
+      .top-button { padding: 0 8px; }
+      .top-button span { display: none; }
+      .stat-card { padding-right: 8px; padding-left: 8px; }
+      .control-help p { font-size: 9px; }
+      .dpad { grid-template-columns: repeat(3, 43px); }
+    }
+
+    @media (max-height: 700px) {
+      .app { padding-top: calc(8px + var(--safe-top)); }
+      .game-ui { gap: 7px; }
+      .brand p { display: none; }
+      .logo-mark { width: 38px; height: 38px; }
+      .stat-card { padding-top: 6px; padding-bottom: 6px; }
+      .controls { min-height: 86px; }
+      .gesture-icon { display: none; }
+      .footer-note { margin-top: 0; }
+    }
+
+    @media (max-height: 560px) {
+      .footer-note { display: none; }
+      .control-help p { display: none; }
+      .controls { min-height: 78px; }
+      .dpad { grid-template-rows: repeat(2, 36px); }
+      .move-button { min-height: 38px; }
+      .modal-card { padding-top: 18px; padding-bottom: 16px; }
+      .modal-symbol { width: 45px; height: 45px; margin-bottom: 10px; }
+      .modal-description { line-height: 1.5; }
+      .difficulty-picker { margin-top: 12px; }
+      .modal-actions { margin-top: 13px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <main class="game-ui" id="gameUI">
+      <header class="topbar">
+        <div class="brand">
+          <span class="logo-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path d="M5 4h22v24H9V12h14v10h-8v-5" stroke="url(#logoGradient)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <defs>
+                <linearGradient id="logoGradient" x1="5" y1="4" x2="27" y2="28">
+                  <stop stop-color="#61EFFF"/>
+                  <stop offset="1" stop-color="#A77BFF"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </span>
+          <div class="brand-copy">
+            <h1>迷宫逃脱</h1>
+            <p>NEON MAZE · ESCAPE</p>
+          </div>
+        </div>
+        <div class="top-actions">
+          <button class="top-button" id="pauseButton" type="button" aria-label="暂停游戏" disabled>
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M8 6v12M16 6v12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>暂停</span>
+          </button>
+          <button class="top-button" id="newButton" type="button" aria-label="生成新迷宫并重开">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M19 8a8 8 0 1 0 1 7M19 4v4h-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>新迷宫</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="stats" aria-label="游戏数据">
+        <div class="stat-card" id="timeCard">
+          <span class="stat-label"><i class="stat-dot" aria-hidden="true"></i>剩余时间</span>
+          <strong class="stat-value" id="timeValue">02:00</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">当前得分</span>
+          <strong class="stat-value" id="scoreValue">0</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">最高分</span>
+          <strong class="stat-value" id="bestValue">0</strong>
+        </div>
+      </section>
+
+      <section class="maze-stage" aria-label="迷宫游戏区">
+        <div class="maze-meta">
+          <span class="level-badge" id="levelLabel">普通 · 15 × 15</span>
+          <span id="movesLabel">步数 0</span>
+          <span class="state-label" id="stateLabel">待出发</span>
+        </div>
+        <div class="canvas-area" id="canvasArea">
+          <div class="maze-frame" id="mazeFrame">
+            <canvas id="mazeCanvas" tabindex="0" role="application" aria-label="随机迷宫。滑动、点击相邻格或使用方向键移动光点，抵达右下方绿色出口。">
+              您的浏览器不支持 Canvas，请使用较新的浏览器游玩。
+            </canvas>
+            <div class="maze-toast" id="toast" aria-hidden="true">此路不通</div>
+          </div>
+        </div>
+        <div class="time-track" id="timeTrack" role="progressbar" aria-label="剩余时间" aria-valuemin="0" aria-valuemax="120" aria-valuenow="120">
+          <div class="time-fill" id="timeFill"></div>
+        </div>
+      </section>
+
+      <section class="controls" aria-label="移动控制">
+        <div class="control-help">
+          <span class="gesture-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M8 12V7a2 2 0 0 1 4 0v4-6a2 2 0 0 1 4 0v7-3a2 2 0 0 1 4 0v6c0 4-2.5 7-7 7-3 0-5-1.5-7-4l-2-3a2 2 0 0 1 3-2l1 1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <strong>滑动移动光点</strong>
+          <p>每次一格，也可点击相邻格<br>找到右下方的绿色出口</p>
+        </div>
+        <div class="dpad">
+          <button class="move-button" type="button" data-move="up" aria-label="向上移动">↑</button>
+          <button class="move-button" type="button" data-move="left" aria-label="向左移动">←</button>
+          <button class="move-button" type="button" data-move="down" aria-label="向下移动">↓</button>
+          <button class="move-button" type="button" data-move="right" aria-label="向右移动">→</button>
+        </div>
+      </section>
+
+      <p class="footer-note">键盘 <span>方向键 / WASD</span> 移动 · <span>P / 空格</span> 暂停</p>
+    </main>
+
+    <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <section class="modal-card" id="modalCard"></section>
+    </div>
+    <div class="sr-only" id="announcer" aria-live="polite"></div>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // ===== 游戏配置：格子数均为奇数，倒计时与得分倍率随难度提升 =====
+      const LEVELS = {
+        easy: { label: '简单', size: 11, time: 90, base: 1000, timePoints: 10, movePoints: 6, note: '90 秒 · 热身' },
+        normal: { label: '普通', size: 15, time: 120, base: 1800, timePoints: 14, movePoints: 8, note: '120 秒 · 标准' },
+        hard: { label: '困难', size: 21, time: 150, base: 2800, timePoints: 18, movePoints: 10, note: '150 秒 · 挑战' }
+      };
+
+      // 墙体顺序固定为上、右、下、左，opposite 用于打通相邻两格。
+      const DIRECTIONS = [
+        { name: 'up', dx: 0, dy: -1, wall: 0, opposite: 2 },
+        { name: 'right', dx: 1, dy: 0, wall: 1, opposite: 3 },
+        { name: 'down', dx: 0, dy: 1, wall: 2, opposite: 0 },
+        { name: 'left', dx: -1, dy: 0, wall: 3, opposite: 1 }
+      ];
+      const DIRECTION_INDEX = { up: 0, right: 1, down: 2, left: 3 };
+      const STORAGE_KEY = 'neonMaze.highestScore.v1';
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      // ===== DOM 与运行状态 =====
+      const ui = {
+        gameUI: document.getElementById('gameUI'),
+        pauseButton: document.getElementById('pauseButton'),
+        newButton: document.getElementById('newButton'),
+        timeCard: document.getElementById('timeCard'),
+        timeValue: document.getElementById('timeValue'),
+        scoreValue: document.getElementById('scoreValue'),
+        bestValue: document.getElementById('bestValue'),
+        levelLabel: document.getElementById('levelLabel'),
+        movesLabel: document.getElementById('movesLabel'),
+        stateLabel: document.getElementById('stateLabel'),
+        canvasArea: document.getElementById('canvasArea'),
+        mazeFrame: document.getElementById('mazeFrame'),
+        canvas: document.getElementById('mazeCanvas'),
+        timeTrack: document.getElementById('timeTrack'),
+        timeFill: document.getElementById('timeFill'),
+        toast: document.getElementById('toast'),
+        modalBackdrop: document.getElementById('modalBackdrop'),
+        modalCard: document.getElementById('modalCard'),
+        announcer: document.getElementById('announcer')
+      };
+      const ctx = ui.canvas.getContext('2d');
+
+      let selectedLevel = 'normal';
+      let currentLevel = 'normal';
+      let maze = null;
+      let optimalSteps = 0;
+      let player = { x: 0, y: 0 };
+      let trail = [[0, 0]];
+      let moves = 0;
+      let state = 'ready';
+      let remainingMs = LEVELS.normal.time * 1000;
+      let deadline = 0;
+      let finalScore = 0;
+      let newRecord = false;
+      let bestScore = loadBestScore();
+      let viewSize = 0;
+      let pixelRatio = 1;
+      let moveAnimation = null;
+      let particles = [];
+      let gesture = null;
+      let toastTimer = 0;
+      let resultTimer = 0;
+      let modalType = 'start';
+
+      // localStorage 在隐私模式下可能不可用，读写失败时退化为本局最高分。
+      function loadBestScore() {
+        try {
+          const saved = Number.parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10);
+          return Number.isFinite(saved) && saved > 0 ? saved : 0;
+        } catch (error) {
+          return 0;
+        }
+      }
+
+      function saveBestScore() {
+        try {
+          localStorage.setItem(STORAGE_KEY, String(bestScore));
+        } catch (error) {
+          // 存储不可用不影响游戏本身。
+        }
+      }
+
+      function formatClock(totalSeconds) {
+        const seconds = Math.max(0, Math.ceil(totalSeconds));
+        const minutesPart = String(Math.floor(seconds / 60)).padStart(2, '0');
+        const secondsPart = String(seconds % 60).padStart(2, '0');
+        return `${minutesPart}:${secondsPart}`;
+      }
+
+      function formatScore(value) {
+        return Math.max(0, Math.round(value)).toLocaleString('zh-CN');
+      }
+
+      function setText(element, value) {
+        const text = String(value);
+        if (element.textContent !== text) element.textContent = text;
+      }
+
+      // ===== 随机迷宫：迭代式深度优先回溯，生成无孤岛的完美迷宫 =====
+      function generateMaze(size) {
+        const cells = Array.from({ length: size * size }, () => ({
+          walls: [true, true, true, true],
+          visited: false
+        }));
+        const stack = [0];
+        cells[0].visited = true;
+
+        while (stack.length) {
+          const currentIndex = stack[stack.length - 1];
+          const x = currentIndex % size;
+          const y = Math.floor(currentIndex / size);
+          const candidates = [];
+
+          for (const direction of DIRECTIONS) {
+            const nx = x + direction.dx;
+            const ny = y + direction.dy;
+            if (nx < 0 || ny < 0 || nx >= size || ny >= size) continue;
+            const nextIndex = ny * size + nx;
+            if (!cells[nextIndex].visited) {
+              candidates.push({ direction, nextIndex });
+            }
+          }
+
+          if (!candidates.length) {
+            stack.pop();
+            continue;
+          }
+
+          // 随机选择一条未访问支路，同时移除两侧墙体。
+          const choice = candidates[Math.floor(Math.random() * candidates.length)];
+          const { direction, nextIndex } = choice;
+          cells[currentIndex].walls[direction.wall] = false;
+          cells[nextIndex].walls[direction.opposite] = false;
+          cells[nextIndex].visited = true;
+          stack.push(nextIndex);
+        }
+
+        // 左上为入口、右下为出口，外墙上保留两个可见缺口。
+        cells[0].walls[3] = false;
+        cells[cells.length - 1].walls[1] = false;
+        return { size, cells };
+      }
+
+      // 广度优先搜索计算最少步数，也用于验证迷宫出口确实可达。
+      function shortestPathLength(targetMaze) {
+        const { size, cells } = targetMaze;
+        const distances = new Array(cells.length).fill(-1);
+        const queue = [0];
+        distances[0] = 0;
+        let head = 0;
+
+        while (head < queue.length) {
+          const index = queue[head++];
+          if (index === cells.length - 1) return distances[index];
+          const x = index % size;
+          const y = Math.floor(index / size);
+
+          for (const direction of DIRECTIONS) {
+            if (cells[index].walls[direction.wall]) continue;
+            const nx = x + direction.dx;
+            const ny = y + direction.dy;
+            if (nx < 0 || ny < 0 || nx >= size || ny >= size) continue;
+            const nextIndex = ny * size + nx;
+            if (distances[nextIndex] !== -1) continue;
+            distances[nextIndex] = distances[index] + 1;
+            queue.push(nextIndex);
+          }
+        }
+        return -1;
+      }
+
+      // 分数由难度基础分、剩余时间分和路径效率分组成。
+      function calculateScore(timeLeft = remainingMs) {
+        const level = LEVELS[currentLevel];
+        const timeBonus = Math.ceil(timeLeft / 1000) * level.timePoints;
+        const efficiencyBonus = Math.max(0, optimalSteps * 2 - moves) * level.movePoints;
+        return Math.max(0, Math.round(level.base + timeBonus + efficiencyBonus));
+      }
+
+      // ===== 画布尺寸与霓虹绘制 =====
+      function fitMaze() {
+        const area = ui.canvasArea.getBoundingClientRect();
+        const side = Math.floor(Math.min(area.width, area.height));
+        if (side > 0) {
+          ui.mazeFrame.style.width = `${side}px`;
+          ui.mazeFrame.style.height = `${side}px`;
+        }
+        resizeCanvas();
+      }
+
+      function resizeCanvas() {
+        const rect = ui.mazeFrame.getBoundingClientRect();
+        if (!rect.width) return;
+        pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+        viewSize = rect.width;
+        const width = Math.max(1, Math.round(rect.width * pixelRatio));
+        const height = Math.max(1, Math.round(rect.height * pixelRatio));
+        if (ui.canvas.width !== width || ui.canvas.height !== height) {
+          ui.canvas.width = width;
+          ui.canvas.height = height;
+        }
+      }
+
+      function mazeMetrics() {
+        const padding = Math.max(9, viewSize * 0.035);
+        return {
+          padding,
+          cell: (viewSize - padding * 2) / maze.size
+        };
+      }
+
+      function cellCenter(x, y, metrics = mazeMetrics()) {
+        return {
+          x: metrics.padding + (x + 0.5) * metrics.cell,
+          y: metrics.padding + (y + 0.5) * metrics.cell
+        };
+      }
+
+      function animatedPlayerPosition(now) {
+        if (!moveAnimation) return { x: player.x, y: player.y };
+        const raw = Math.min(1, (now - moveAnimation.start) / moveAnimation.duration);
+        const eased = 1 - Math.pow(1 - raw, 3);
+        const position = {
+          x: moveAnimation.from.x + (player.x - moveAnimation.from.x) * eased,
+          y: moveAnimation.from.y + (player.y - moveAnimation.from.y) * eased
+        };
+        if (raw >= 1) moveAnimation = null;
+        return position;
+      }
+
+      function drawMaze(now) {
+        if (!maze || !viewSize) return;
+        const size = viewSize;
+        const metrics = mazeMetrics();
+        const { padding, cell } = metrics;
+        ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+        ctx.clearRect(0, 0, size, size);
+
+        // 深蓝渐变地面与轻微棋盘纹理增强空间层次。
+        const floor = ctx.createLinearGradient(0, 0, size, size);
+        floor.addColorStop(0, '#0c1128');
+        floor.addColorStop(0.55, '#080d20');
+        floor.addColorStop(1, '#090b1c');
+        ctx.fillStyle = floor;
+        ctx.fillRect(0, 0, size, size);
+
+        for (let y = 0; y < maze.size; y++) {
+          for (let x = 0; x < maze.size; x++) {
+            if ((x + y) % 2 === 0) {
+              ctx.fillStyle = 'rgba(109, 135, 220, 0.018)';
+              ctx.fillRect(padding + x * cell, padding + y * cell, cell, cell);
+            }
+          }
+        }
+
+        // 当前行进轨迹会随回退缩短，不泄露未探索的正确路线。
+        if (trail.length > 1) {
+          ctx.beginPath();
+          trail.forEach(([x, y], index) => {
+            const point = cellCenter(x, y, metrics);
+            if (index === 0) ctx.moveTo(point.x, point.y);
+            else ctx.lineTo(point.x, point.y);
+          });
+          ctx.strokeStyle = 'rgba(97, 239, 255, 0.15)';
+          ctx.lineWidth = Math.max(1, cell * 0.12);
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.stroke();
+        }
+
+        const exit = cellCenter(maze.size - 1, maze.size - 1, metrics);
+        const pulse = reducedMotion ? 0.5 : (Math.sin(now / 330) + 1) / 2;
+
+        // 出口使用双层呼吸光环，和小光点保持明显色彩区分。
+        ctx.save();
+        ctx.shadowColor = '#62ffc2';
+        ctx.shadowBlur = cell * (0.45 + pulse * 0.25);
+        ctx.strokeStyle = `rgba(98, 255, 194, ${0.68 + pulse * 0.28})`;
+        ctx.lineWidth = Math.max(1.4, cell * 0.09);
+        ctx.beginPath();
+        ctx.arc(exit.x, exit.y, cell * (0.23 + pulse * 0.035), 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(98, 255, 194, 0.1)';
+        ctx.beginPath();
+        ctx.arc(exit.x, exit.y, cell * 0.32, 0, Math.PI * 2);
+        ctx.fill();
+        if (cell >= 15) {
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = '#8affd2';
+          ctx.font = `700 ${Math.max(8, cell * 0.28)}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('出', exit.x, exit.y + 0.5);
+        }
+        ctx.restore();
+
+        // 每面内墙只绘制一次，外圈则补齐右边与底边。
+        ctx.beginPath();
+        for (let y = 0; y < maze.size; y++) {
+          for (let x = 0; x < maze.size; x++) {
+            const current = maze.cells[y * maze.size + x];
+            const left = padding + x * cell;
+            const top = padding + y * cell;
+            const right = left + cell;
+            const bottom = top + cell;
+            if (current.walls[0]) {
+              ctx.moveTo(left, top);
+              ctx.lineTo(right, top);
+            }
+            if (current.walls[3]) {
+              ctx.moveTo(left, top);
+              ctx.lineTo(left, bottom);
+            }
+            if (y === maze.size - 1 && current.walls[2]) {
+              ctx.moveTo(left, bottom);
+              ctx.lineTo(right, bottom);
+            }
+            if (x === maze.size - 1 && current.walls[1]) {
+              ctx.moveTo(right, top);
+              ctx.lineTo(right, bottom);
+            }
+          }
+        }
+        const wallGradient = ctx.createLinearGradient(padding, padding, size - padding, size - padding);
+        wallGradient.addColorStop(0, '#67eaff');
+        wallGradient.addColorStop(0.5, '#738cff');
+        wallGradient.addColorStop(1, '#b079ff');
+        ctx.strokeStyle = wallGradient;
+        ctx.lineWidth = Math.max(1.25, Math.min(2.8, cell * 0.09));
+        ctx.lineCap = 'round';
+        ctx.shadowColor = 'rgba(91, 133, 255, 0.65)';
+        ctx.shadowBlur = Math.min(9, cell * 0.35);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // 起点在光点离开后仍保留柔和标记。
+        const start = cellCenter(0, 0, metrics);
+        ctx.fillStyle = 'rgba(167, 123, 255, 0.34)';
+        ctx.beginPath();
+        ctx.arc(start.x, start.y, Math.max(2, cell * 0.12), 0, Math.PI * 2);
+        ctx.fill();
+
+        // 玩家光点带短距离缓动，连续键盘输入也能平滑衔接。
+        const visualPlayer = animatedPlayerPosition(now);
+        const orb = cellCenter(visualPlayer.x, visualPlayer.y, metrics);
+        const orbRadius = Math.max(3.5, cell * 0.22);
+        ctx.save();
+        ctx.shadowColor = '#61efff';
+        ctx.shadowBlur = cell * 0.65;
+        const orbGradient = ctx.createRadialGradient(
+          orb.x - orbRadius * 0.3, orb.y - orbRadius * 0.35, 0,
+          orb.x, orb.y, orbRadius
+        );
+        orbGradient.addColorStop(0, '#ffffff');
+        orbGradient.addColorStop(0.35, '#b9fbff');
+        orbGradient.addColorStop(1, '#43cfe8');
+        ctx.fillStyle = orbGradient;
+        ctx.beginPath();
+        ctx.arc(orb.x, orb.y, orbRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        drawParticles(now, metrics);
+      }
+
+      function spawnVictoryParticles() {
+        if (reducedMotion) return;
+        const metrics = mazeMetrics();
+        const origin = cellCenter(player.x, player.y, metrics);
+        const colors = ['#61efff', '#62ffc2', '#a77bff', '#ffffff'];
+        const now = performance.now();
+        for (let i = 0; i < 42; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 25 + Math.random() * 75;
+          particles.push({
+            x: origin.x,
+            y: origin.y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 25,
+            born: now,
+            life: 650 + Math.random() * 650,
+            size: 1.2 + Math.random() * 2.4,
+            color: colors[i % colors.length]
+          });
+        }
+      }
+
+      function drawParticles(now, metrics) {
+        particles = particles.filter((particle) => now - particle.born < particle.life);
+        for (const particle of particles) {
+          const age = now - particle.born;
+          const seconds = age / 1000;
+          const alpha = 1 - age / particle.life;
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = particle.color;
+          ctx.shadowColor = particle.color;
+          ctx.shadowBlur = 5;
+          ctx.fillRect(
+            particle.x + particle.vx * seconds,
+            particle.y + particle.vy * seconds + 55 * seconds * seconds,
+            particle.size,
+            particle.size
+          );
+        }
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+      }
+
+      // ===== 状态切换、计时、计分与 HUD =====
+      function prepareGame(levelKey) {
+        window.clearTimeout(resultTimer);
+        currentLevel = levelKey;
+        const level = LEVELS[levelKey];
+        let attempts = 0;
+        do {
+          maze = generateMaze(level.size);
+          optimalSteps = shortestPathLength(maze);
+          attempts++;
+        } while (optimalSteps < level.size * 1.5 && attempts < 10);
+
+        player = { x: 0, y: 0 };
+        trail = [[0, 0]];
+        moves = 0;
+        remainingMs = level.time * 1000;
+        finalScore = 0;
+        newRecord = false;
+        state = 'ready';
+        moveAnimation = null;
+        particles = [];
+        gesture = null;
+        updateHud();
+      }
+
+      function startGame(levelKey = currentLevel) {
+        prepareGame(levelKey);
+        state = 'playing';
+        deadline = performance.now() + remainingMs;
+        closeModal();
+        updateHud();
+        announce(`${LEVELS[currentLevel].label}迷宫开始，限时${LEVELS[currentLevel].time}秒。`);
+      }
+
+      function pauseGame() {
+        if (state !== 'playing') return;
+        remainingMs = Math.max(0, deadline - performance.now());
+        state = 'paused';
+        updateHud();
+        openModal('paused');
+        announce('游戏已暂停，倒计时停止。');
+      }
+
+      function resumeGame() {
+        if (state !== 'paused') return;
+        state = 'playing';
+        deadline = performance.now() + remainingMs;
+        closeModal();
+        updateHud();
+        announce('继续游戏。');
+      }
+
+      function togglePause() {
+        if (state === 'playing') pauseGame();
+        else if (state === 'paused') resumeGame();
+      }
+
+      function finishGame(won) {
+        if (state !== 'playing') return;
+        if (won) {
+          finalScore = calculateScore();
+          state = 'won';
+          newRecord = finalScore > bestScore;
+          if (newRecord) {
+            bestScore = finalScore;
+            saveBestScore();
+          }
+          spawnVictoryParticles();
+          if (navigator.vibrate) navigator.vibrate([30, 40, 60]);
+          announce(`逃脱成功，得分${finalScore}，共走${moves}步。`);
+        } else {
+          remainingMs = 0;
+          finalScore = 0;
+          state = 'lost';
+          if (navigator.vibrate) navigator.vibrate(80);
+          announce('时间耗尽，挑战结束。');
+        }
+        updateHud();
+        resultTimer = window.setTimeout(() => openModal(won ? 'won' : 'lost'), won ? 520 : 180);
+      }
+
+      function updateHud() {
+        const level = LEVELS[currentLevel];
+        const secondsLeft = Math.ceil(remainingMs / 1000);
+        const score = state === 'won' ? finalScore : state === 'lost' ? 0 : calculateScore();
+        const labels = {
+          ready: '待出发',
+          playing: '探索中',
+          paused: '已暂停',
+          won: '已逃脱',
+          lost: '已超时'
+        };
+        setText(ui.timeValue, formatClock(secondsLeft));
+        setText(ui.scoreValue, formatScore(score));
+        setText(ui.bestValue, formatScore(bestScore));
+        setText(ui.levelLabel, `${level.label} · ${level.size} × ${level.size}`);
+        setText(ui.movesLabel, `步数 ${moves}`);
+        setText(ui.stateLabel, labels[state]);
+        ui.pauseButton.disabled = state !== 'playing' && state !== 'paused';
+        const isDanger = state === 'playing' && remainingMs <= 15000;
+        ui.timeCard.classList.toggle('danger', isDanger);
+        ui.timeFill.classList.toggle('danger', isDanger);
+        ui.timeFill.style.transform = `scaleX(${Math.max(0, remainingMs / (level.time * 1000))})`;
+        ui.timeTrack.setAttribute('aria-valuemax', String(level.time));
+        ui.timeTrack.setAttribute('aria-valuenow', String(secondsLeft));
+      }
+
+      function announce(message) {
+        ui.announcer.textContent = '';
+        window.setTimeout(() => { ui.announcer.textContent = message; }, 20);
+      }
+
+      function showToast(message) {
+        window.clearTimeout(toastTimer);
+        ui.toast.textContent = message;
+        ui.toast.classList.add('show');
+        toastTimer = window.setTimeout(() => ui.toast.classList.remove('show'), 650);
+      }
+
+      // ===== 移动逻辑：墙体会阻挡，走回头路时同步回退轨迹 =====
+      function movePlayer(directionName) {
+        if (state !== 'playing') return false;
+        const direction = DIRECTIONS[DIRECTION_INDEX[directionName]];
+        const index = player.y * maze.size + player.x;
+        if (maze.cells[index].walls[direction.wall]) {
+          ui.mazeFrame.classList.remove('bump');
+          void ui.mazeFrame.offsetWidth;
+          ui.mazeFrame.classList.add('bump');
+          showToast('此路不通，换个方向');
+          if (navigator.vibrate) navigator.vibrate(12);
+          return false;
+        }
+
+        const now = performance.now();
+        const from = animatedPlayerPosition(now);
+        player = { x: player.x + direction.dx, y: player.y + direction.dy };
+        moveAnimation = {
+          from,
+          start: now,
+          duration: reducedMotion ? 1 : 105
+        };
+        moves++;
+
+        const previous = trail[trail.length - 2];
+        if (previous && previous[0] === player.x && previous[1] === player.y) trail.pop();
+        else trail.push([player.x, player.y]);
+
+        updateHud();
+        if (player.x === maze.size - 1 && player.y === maze.size - 1) finishGame(true);
+        return true;
+      }
+
+      // ===== 弹窗内容：开始、暂停、胜利和失败共用同一容器 =====
+      function symbolMarkup(type) {
+        if (type === 'won') {
+          return '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4 4L19 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        }
+        if (type === 'lost') {
+          return '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+        }
+        if (type === 'paused') {
+          return '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 6v12M16 6v12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+        }
+        return '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 3h16v18H8V8h8v8h-4v-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      }
+
+      function openModal(type) {
+        modalType = type;
+        window.clearTimeout(resultTimer);
+        ui.gameUI.inert = true;
+        ui.modalBackdrop.hidden = false;
+
+        if (type === 'start') {
+          const difficultyButtons = Object.entries(LEVELS).map(([key, level]) => `
+            <button class="difficulty-button ${selectedLevel === key ? 'selected' : ''}" type="button" data-level="${key}" aria-pressed="${selectedLevel === key}">
+              <strong>${level.label}</strong><small>${level.note}</small>
+            </button>`).join('');
+          ui.modalCard.innerHTML = `
+            <div class="modal-symbol">${symbolMarkup(type)}</div>
+            <p class="modal-eyebrow">NEON MAZE · 随机生成</p>
+            <h2 id="modalTitle">准备逃离？</h2>
+            <p class="modal-description">在迷宫上向四个方向<strong>滑动</strong>，每次移动一格；也可点击相邻格。倒计时归零前，让光点抵达右下方的绿色出口。</p>
+            <div class="difficulty-picker" aria-label="选择难度">${difficultyButtons}</div>
+            <div class="modal-actions">
+              <button class="primary-button" type="button" data-action="start">开始逃脱</button>
+            </div>
+            <p class="modal-best">历史最高分 <strong>${formatScore(bestScore)}</strong> · 每次生成全新路线</p>`;
+        } else if (type === 'paused') {
+          ui.modalCard.innerHTML = `
+            <div class="modal-symbol">${symbolMarkup(type)}</div>
+            <p class="modal-eyebrow">TAKE A BREATH</p>
+            <h2 id="modalTitle">时间已冻结</h2>
+            <p class="modal-description">当前路线和倒计时都已保留，准备好后继续探索。</p>
+            <div class="result-grid">
+              <div><span>剩余</span><strong>${formatClock(remainingMs / 1000)}</strong></div>
+              <div><span>步数</span><strong>${moves}</strong></div>
+              <div><span>当前分</span><strong>${formatScore(calculateScore())}</strong></div>
+            </div>
+            <div class="modal-actions">
+              <button class="primary-button" type="button" data-action="resume">继续游戏</button>
+              <button class="secondary-button" type="button" data-action="restart">重新生成</button>
+            </div>`;
+        } else {
+          const won = type === 'won';
+          const usedSeconds = Math.ceil((LEVELS[currentLevel].time * 1000 - remainingMs) / 1000);
+          ui.modalCard.innerHTML = `
+            <div class="modal-symbol ${won ? 'success' : 'failure'}">${symbolMarkup(type)}</div>
+            <p class="modal-eyebrow">${won ? 'ESCAPE COMPLETE' : 'SIGNAL LOST'}</p>
+            <h2 id="modalTitle">${won ? '逃脱成功！' : '时间耗尽'}</h2>
+            <p class="modal-description">${won ? '你找到了霓虹迷宫的出口，下一条路线已经等待生成。' : '光点信号消失在迷宫中。记住走过的路线，再试一次吧。'}</p>
+            <div class="result-score">
+              <span>${won ? '本局得分' : '历史最高分'}</span>
+              <strong>${formatScore(won ? finalScore : bestScore)}</strong>
+              ${won && newRecord ? '<em class="record-badge">新纪录</em>' : ''}
+            </div>
+            <div class="result-grid">
+              <div><span>难度</span><strong>${LEVELS[currentLevel].label}</strong></div>
+              <div><span>用时</span><strong>${formatClock(usedSeconds)}</strong></div>
+              <div><span>步数</span><strong>${moves}</strong></div>
+            </div>
+            <div class="modal-actions">
+              <button class="primary-button" type="button" data-action="restart">${won ? '再来一局' : '重新挑战'}</button>
+              <button class="secondary-button" type="button" data-action="choose">更换难度</button>
+            </div>`;
+        }
+
+        window.setTimeout(() => {
+          const primary = ui.modalCard.querySelector('.primary-button');
+          if (primary && !ui.modalBackdrop.hidden) primary.focus({ preventScroll: true });
+        }, 30);
+      }
+
+      function closeModal() {
+        ui.modalBackdrop.hidden = true;
+        ui.gameUI.inert = false;
+        ui.canvas.focus({ preventScroll: true });
+      }
+
+      function showDifficultyPicker() {
+        selectedLevel = currentLevel;
+        prepareGame(selectedLevel);
+        openModal('start');
+      }
+
+      // ===== 触屏 / 鼠标：支持连续拖动换向，也支持点击相邻格 =====
+      function gestureThreshold() {
+        return Math.max(16, Math.min(34, mazeMetrics().cell * 0.55));
+      }
+
+      function directionFromDelta(dx, dy) {
+        if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? 'right' : 'left';
+        return dy > 0 ? 'down' : 'up';
+      }
+
+      function handleAdjacentTap(clientX, clientY) {
+        const rect = ui.canvas.getBoundingClientRect();
+        const metrics = mazeMetrics();
+        const x = (clientX - rect.left) * (viewSize / rect.width);
+        const y = (clientY - rect.top) * (viewSize / rect.height);
+        const cellX = Math.floor((x - metrics.padding) / metrics.cell);
+        const cellY = Math.floor((y - metrics.padding) / metrics.cell);
+        const dx = cellX - player.x;
+        const dy = cellY - player.y;
+        if (Math.abs(dx) + Math.abs(dy) !== 1) return;
+        if (dx === 1) movePlayer('right');
+        else if (dx === -1) movePlayer('left');
+        else if (dy === 1) movePlayer('down');
+        else movePlayer('up');
+      }
+
+      ui.canvas.addEventListener('pointerdown', (event) => {
+        if (state !== 'playing' || !event.isPrimary) return;
+        event.preventDefault();
+        ui.canvas.focus({ preventScroll: true });
+        gesture = {
+          id: event.pointerId,
+          x: event.clientX,
+          y: event.clientY,
+          moved: false
+        };
+        try { ui.canvas.setPointerCapture(event.pointerId); } catch (error) { /* 旧浏览器无需捕获 */ }
+      });
+
+      ui.canvas.addEventListener('pointermove', (event) => {
+        if (!gesture || gesture.id !== event.pointerId || state !== 'playing') return;
+        event.preventDefault();
+        const dx = event.clientX - gesture.x;
+        const dy = event.clientY - gesture.y;
+        if (Math.hypot(dx, dy) < gestureThreshold()) return;
+        movePlayer(directionFromDelta(dx, dy));
+        gesture.x = event.clientX;
+        gesture.y = event.clientY;
+        gesture.moved = true;
+      });
+
+      function endGesture(event) {
+        if (!gesture || gesture.id !== event.pointerId) return;
+        const dx = event.clientX - gesture.x;
+        const dy = event.clientY - gesture.y;
+        const alreadyMoved = gesture.moved;
+        gesture = null;
+        if (state !== 'playing') return;
+        if (Math.hypot(dx, dy) >= gestureThreshold()) {
+          movePlayer(directionFromDelta(dx, dy));
+        } else if (!alreadyMoved) {
+          handleAdjacentTap(event.clientX, event.clientY);
+        }
+      }
+
+      ui.canvas.addEventListener('pointerup', endGesture);
+      ui.canvas.addEventListener('pointercancel', () => { gesture = null; });
+
+      // 方向按钮与键盘共享同一套移动逻辑。
+      document.querySelectorAll('[data-move]').forEach((button) => {
+        button.addEventListener('click', () => movePlayer(button.dataset.move));
+      });
+
+      document.addEventListener('keydown', (event) => {
+        // 弹窗打开时限制 Tab 焦点在弹窗内部。
+        if (!ui.modalBackdrop.hidden && event.key === 'Tab') {
+          const focusable = [...ui.modalCard.querySelectorAll('button:not(:disabled)')];
+          if (!focusable.length) return;
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+          return;
+        }
+
+        if ((event.code === 'KeyP' || event.code === 'Space' || event.key === 'Escape') && !event.repeat) {
+          if (state === 'playing' || state === 'paused') {
+            event.preventDefault();
+            togglePause();
+          }
+          return;
+        }
+
+        if (state !== 'playing') return;
+        const keyMap = {
+          ArrowUp: 'up', KeyW: 'up',
+          ArrowRight: 'right', KeyD: 'right',
+          ArrowDown: 'down', KeyS: 'down',
+          ArrowLeft: 'left', KeyA: 'left'
+        };
+        const direction = keyMap[event.code] || keyMap[event.key];
+        if (direction) {
+          event.preventDefault();
+          movePlayer(direction);
+        }
+      });
+
+      // 弹窗按钮使用事件委托，重绘内容后无需重复绑定。
+      ui.modalCard.addEventListener('click', (event) => {
+        const levelButton = event.target.closest('[data-level]');
+        if (levelButton) {
+          selectedLevel = levelButton.dataset.level;
+          ui.modalCard.querySelectorAll('[data-level]').forEach((button) => {
+            const selected = button.dataset.level === selectedLevel;
+            button.classList.toggle('selected', selected);
+            button.setAttribute('aria-pressed', String(selected));
+          });
+          return;
+        }
+
+        const actionButton = event.target.closest('[data-action]');
+        if (!actionButton) return;
+        const action = actionButton.dataset.action;
+        if (action === 'start') startGame(selectedLevel);
+        else if (action === 'resume') resumeGame();
+        else if (action === 'restart') startGame(currentLevel);
+        else if (action === 'choose') showDifficultyPicker();
+      });
+
+      ui.pauseButton.addEventListener('click', togglePause);
+      ui.newButton.addEventListener('click', () => startGame(currentLevel));
+
+      // 页面切到后台时自动暂停，避免隐藏期间损失时间。
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state === 'playing') pauseGame();
+      });
+
+      // 禁止页面滚动、双击缩放与捏合缩放；小屏弹窗内部仍可滚动。
+      document.addEventListener('touchmove', (event) => {
+        if (!event.target.closest('.modal-card')) event.preventDefault();
+      }, { passive: false });
+      document.addEventListener('dblclick', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturechange', (event) => event.preventDefault(), { passive: false });
+      ui.canvas.addEventListener('contextmenu', (event) => event.preventDefault());
+
+      // ===== 动画主循环与初始化 =====
+      function animationLoop(now) {
+        if (state === 'playing') {
+          remainingMs = Math.max(0, deadline - now);
+          if (remainingMs <= 0) finishGame(false);
+          updateHud();
+        }
+        drawMaze(now);
+        requestAnimationFrame(animationLoop);
+      }
+
+      prepareGame(selectedLevel);
+      openModal('start');
+      fitMaze();
+      if ('ResizeObserver' in window) {
+        const observer = new ResizeObserver(fitMaze);
+        observer.observe(ui.canvasArea);
+      }
+      window.addEventListener('resize', fitMaze);
+      requestAnimationFrame(animationLoop);
+    })();
+  </script>
+</body>
+</html>

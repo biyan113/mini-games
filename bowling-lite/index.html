@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080a18">
+  <title>霓虹保龄球</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070816;
+      --panel: rgba(18, 21, 43, 0.82);
+      --line: rgba(139, 156, 255, 0.16);
+      --cyan: #63f3ff;
+      --pink: #ff58d6;
+      --violet: #9b7bff;
+      --text: #f4f6ff;
+      --muted: #8d95b8;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      background: var(--bg);
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      user-select: none;
+      background:
+        radial-gradient(circle at 12% 10%, rgba(93, 64, 190, 0.22), transparent 35%),
+        radial-gradient(circle at 90% 88%, rgba(0, 213, 232, 0.12), transparent 36%),
+        #070816;
+    }
+
+    button { font: inherit; }
+    button, canvas { -webkit-tap-highlight-color: transparent; }
+    [hidden] { display: none !important; }
+
+    .app {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: min(100%, 520px);
+      height: 100dvh;
+      max-height: 960px;
+      padding: calc(12px + env(safe-area-inset-top)) 14px calc(10px + env(safe-area-inset-bottom));
+    }
+
+    .app::before {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      content: "";
+      opacity: 0.16;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(108, 120, 190, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(108, 120, 190, 0.1) 1px, transparent 1px);
+      background-size: 42px 42px;
+      mask-image: linear-gradient(to bottom, black, transparent 80%);
+    }
+
+    .topbar {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 44px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 10px; }
+
+    .logo-ball {
+      position: relative;
+      width: 38px;
+      height: 38px;
+      flex: 0 0 auto;
+      border: 1px solid rgba(99, 243, 255, 0.65);
+      border-radius: 50%;
+      background: radial-gradient(circle at 32% 27%, #7458bc, #241d50 48%, #0b1026 80%);
+      box-shadow: 0 0 18px rgba(99, 243, 255, 0.2), inset -5px -6px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    .logo-ball i {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 5px var(--cyan);
+    }
+    .logo-ball i:nth-child(1) { left: 14px; top: 8px; }
+    .logo-ball i:nth-child(2) { left: 21px; top: 11px; }
+    .logo-ball i:nth-child(3) { left: 12px; top: 16px; }
+
+    h1 { margin: 0; font-size: 19px; font-weight: 750; letter-spacing: 0.08em; }
+    .brand p { margin: 3px 0 0; color: var(--muted); font-size: 9px; letter-spacing: 0.2em; }
+
+    .pause-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-width: 76px;
+      min-height: 40px;
+      padding: 8px 13px;
+      color: #dce5ff;
+      cursor: pointer;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(24, 27, 53, 0.75);
+      transition: border-color 160ms, background 160ms, transform 160ms;
+    }
+    .pause-button:active { transform: scale(0.96); }
+    .pause-button:hover { border-color: rgba(99, 243, 255, 0.45); background: rgba(34, 39, 72, 0.9); }
+    .pause-button:disabled { opacity: 0.4; cursor: default; }
+    #pauseIcon { width: 13px; color: var(--cyan); font-size: 14px; font-weight: 800; text-align: center; }
+
+    .scoreboard {
+      display: grid;
+      flex: 0 0 auto;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+
+    .score-card {
+      position: relative;
+      min-width: 0;
+      padding: 9px 12px 8px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: linear-gradient(145deg, rgba(27, 31, 60, 0.92), rgba(13, 16, 35, 0.86));
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.025);
+    }
+
+    .score-card::after {
+      position: absolute;
+      right: -12px;
+      bottom: -20px;
+      width: 55px;
+      height: 55px;
+      content: "";
+      border-radius: 50%;
+      background: var(--glow, rgba(99, 243, 255, 0.08));
+      filter: blur(16px);
+    }
+    .score-card.best { --glow: rgba(255, 88, 214, 0.12); }
+    .score-card.frame { --glow: rgba(155, 123, 255, 0.12); }
+    .score-label { display: block; margin-bottom: 2px; color: var(--muted); font-size: 10px; letter-spacing: 0.12em; }
+    .score-value { display: inline-block; font-size: 25px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+    .score-card:first-child .score-value { color: var(--cyan); text-shadow: 0 0 15px rgba(99, 243, 255, 0.35); }
+    .score-card.best .score-value { color: #ffd1f3; }
+    .score-unit { margin-left: 3px; color: var(--muted); font-size: 10px; }
+    .score-value.bump { animation: score-bump 260ms ease-out; }
+
+    .game-panel {
+      position: relative;
+      display: flex;
+      flex: 1 1 auto;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid rgba(131, 145, 230, 0.2);
+      border-radius: 22px;
+      background: #0b0e20;
+      box-shadow: 0 18px 55px rgba(0, 0, 0, 0.34), inset 0 1px rgba(255, 255, 255, 0.035);
+    }
+
+    .status-row {
+      display: flex;
+      z-index: 2;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 38px;
+      padding: 8px 13px 6px;
+      color: #c8d0ed;
+      font-size: 11px;
+      background: linear-gradient(to bottom, rgba(24, 28, 54, 0.96), rgba(14, 17, 37, 0.85));
+      border-bottom: 1px solid rgba(132, 146, 219, 0.1);
+    }
+
+    .status-pill { display: flex; align-items: center; gap: 6px; }
+    .status-pill::before {
+      width: 6px;
+      height: 6px;
+      content: "";
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+    }
+    #pinsLeft { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+    .canvas-wrap { position: relative; flex: 1 1 auto; min-height: 220px; overflow: hidden; }
+    #gameCanvas { display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+
+    .callout {
+      position: absolute;
+      top: 42%;
+      left: 50%;
+      z-index: 4;
+      width: max-content;
+      max-width: 90%;
+      padding: 10px 22px;
+      opacity: 0;
+      pointer-events: none;
+      text-align: center;
+      border: 1px solid rgba(99, 243, 255, 0.35);
+      border-radius: 16px;
+      background: rgba(8, 11, 28, 0.82);
+      box-shadow: 0 0 35px rgba(99, 243, 255, 0.12);
+      backdrop-filter: blur(8px);
+      transform: translate(-50%, -50%) scale(0.8);
+    }
+    .callout.show { animation: callout 1.15s ease both; }
+    .callout strong { display: block; color: var(--cyan); font-size: 25px; letter-spacing: 0.08em; text-shadow: 0 0 16px rgba(99, 243, 255, 0.5); }
+    .callout small { display: block; margin-top: 3px; color: #b5bddb; font-size: 10px; letter-spacing: 0.14em; }
+
+    .pause-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(5, 7, 20, 0.72);
+      backdrop-filter: blur(9px);
+    }
+    .pause-card { width: min(100%, 270px); text-align: center; }
+    .pause-symbol { color: var(--cyan); font-size: 38px; font-weight: 200; letter-spacing: 0.15em; text-shadow: 0 0 22px rgba(99, 243, 255, 0.55); }
+    .pause-card h2 { margin: 10px 0 5px; font-size: 23px; }
+    .pause-card p { margin: 0 0 20px; color: var(--muted); font-size: 12px; }
+    .pause-actions { display: grid; gap: 9px; }
+
+    .primary-button, .secondary-button {
+      min-height: 46px;
+      padding: 11px 20px;
+      cursor: pointer;
+      border-radius: 14px;
+      transition: transform 150ms, filter 150ms;
+    }
+    .primary-button {
+      color: #08121d;
+      font-weight: 800;
+      border: 0;
+      background: linear-gradient(110deg, var(--cyan), #a9f8ff);
+      box-shadow: 0 8px 24px rgba(99, 243, 255, 0.2);
+    }
+    .secondary-button { color: #c9d1ec; border: 1px solid var(--line); background: rgba(28, 32, 60, 0.85); }
+    .primary-button:active, .secondary-button:active { transform: scale(0.97); }
+    .primary-button:hover, .secondary-button:hover { filter: brightness(1.08); }
+
+    .frame-track {
+      display: grid;
+      z-index: 2;
+      flex: 0 0 auto;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 4px;
+      padding: 7px 10px 9px;
+      background: rgba(12, 15, 32, 0.96);
+      border-top: 1px solid rgba(132, 146, 219, 0.1);
+    }
+    .frame-dot {
+      display: grid;
+      place-items: center;
+      height: 21px;
+      color: #656e92;
+      font-size: 9px;
+      font-variant-numeric: tabular-nums;
+      border: 1px solid rgba(124, 137, 202, 0.12);
+      border-radius: 6px;
+      background: rgba(30, 34, 60, 0.45);
+      transition: 200ms;
+    }
+    .frame-dot.done { color: #a7b2d4; border-color: rgba(155, 123, 255, 0.25); background: rgba(107, 80, 177, 0.17); }
+    .frame-dot.current { color: #07121c; font-weight: 800; border-color: var(--cyan); background: var(--cyan); box-shadow: 0 0 12px rgba(99, 243, 255, 0.35); }
+
+    .hint {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      gap: 11px;
+      min-height: 48px;
+      text-align: left;
+    }
+    .swipe-icon {
+      position: relative;
+      width: 28px;
+      height: 35px;
+      flex: 0 0 auto;
+      border: 1px solid rgba(99, 243, 255, 0.25);
+      border-radius: 14px;
+    }
+    .swipe-icon::before {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      width: 4px;
+      height: 4px;
+      content: "";
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+      transform: translateX(-50%);
+      animation: swipe-up 1.6s ease-in-out infinite;
+    }
+    .hint strong { display: block; color: #e2e8fb; font-size: 12px; font-weight: 650; }
+    .hint small { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(3, 4, 14, 0.8);
+      backdrop-filter: blur(12px);
+      animation: fade-in 220ms ease-out;
+    }
+    .result-card {
+      position: relative;
+      width: min(100%, 350px);
+      padding: 28px 24px 23px;
+      overflow: hidden;
+      text-align: center;
+      border: 1px solid rgba(99, 243, 255, 0.24);
+      border-radius: 26px;
+      background: linear-gradient(155deg, rgba(29, 32, 65, 0.98), rgba(11, 14, 33, 0.98));
+      box-shadow: 0 25px 90px rgba(0, 0, 0, 0.55), 0 0 50px rgba(99, 243, 255, 0.07);
+      animation: modal-in 350ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .result-card::before {
+      position: absolute;
+      top: -90px;
+      left: 50%;
+      width: 240px;
+      height: 180px;
+      content: "";
+      pointer-events: none;
+      background: radial-gradient(ellipse, rgba(99, 243, 255, 0.18), transparent 66%);
+      transform: translateX(-50%);
+    }
+    .trophy { position: relative; width: 60px; height: 60px; margin: 0 auto 12px; color: var(--cyan); filter: drop-shadow(0 0 14px rgba(99, 243, 255, 0.38)); }
+    .result-badge { position: relative; display: inline-block; padding: 4px 10px; color: var(--cyan); font-size: 9px; letter-spacing: 0.2em; border: 1px solid rgba(99, 243, 255, 0.25); border-radius: 20px; }
+    .result-card h2 { position: relative; margin: 12px 0 6px; font-size: 27px; }
+    .result-card > p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .result-score { margin: 21px 0 17px; }
+    .result-score strong { display: block; color: var(--cyan); font-size: 55px; line-height: 1; text-shadow: 0 0 25px rgba(99, 243, 255, 0.32); }
+    .result-score span { display: block; margin-top: 6px; color: var(--muted); font-size: 10px; letter-spacing: 0.16em; }
+    .result-meta { display: flex; justify-content: center; gap: 18px; margin-bottom: 20px; color: #b8c0dd; font-size: 11px; }
+    .result-meta b { color: #fff; font-weight: 700; }
+    .result-card .primary-button { width: 100%; }
+    .keyboard-tip { margin-top: 12px !important; font-size: 9px !important; }
+
+    @keyframes swipe-up {
+      0% { opacity: 0; transform: translate(-50%, 13px); }
+      30% { opacity: 1; }
+      80%, 100% { opacity: 0; transform: translate(-50%, -4px); }
+    }
+    @keyframes score-bump { 50% { transform: scale(1.22); } }
+    @keyframes callout {
+      0% { opacity: 0; transform: translate(-50%, -40%) scale(0.75); }
+      18%, 70% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -62%) scale(1.04); }
+    }
+    @keyframes fade-in { from { opacity: 0; } }
+    @keyframes modal-in { from { opacity: 0; transform: translateY(20px) scale(0.94); } }
+
+    @media (max-height: 700px) {
+      .app { gap: 7px; padding-top: calc(8px + env(safe-area-inset-top)); }
+      .brand p { display: none; }
+      .logo-ball { width: 33px; height: 33px; }
+      .topbar { min-height: 36px; }
+      .score-card { padding-top: 7px; padding-bottom: 6px; }
+      .score-value { font-size: 22px; }
+      .hint { min-height: 40px; }
+      .hint small { display: none; }
+      .frame-track { padding-top: 5px; padding-bottom: 6px; }
+      .frame-dot { height: 18px; }
+    }
+
+    @media (min-width: 700px) {
+      body { align-items: center; }
+      .app { height: min(100dvh, 920px); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .swipe-icon::before { animation-duration: 3s; }
+      .score-value.bump { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo-ball" aria-hidden="true"><i></i><i></i><i></i></span>
+        <div>
+          <h1>霓虹保龄球</h1>
+          <p>NEON BOWLING · 10 轮挑战</p>
+        </div>
+      </div>
+      <button class="pause-button" id="pauseButton" type="button" aria-label="暂停游戏" aria-pressed="false">
+        <span id="pauseIcon" aria-hidden="true">Ⅱ</span><span id="pauseLabel">暂停</span>
+      </button>
+    </header>
+
+    <section class="scoreboard" aria-label="游戏计分">
+      <div class="score-card">
+        <span class="score-label">当前得分</span>
+        <strong class="score-value" id="score">0</strong><span class="score-unit">分</span>
+      </div>
+      <div class="score-card best">
+        <span class="score-label">最高分</span>
+        <strong class="score-value" id="bestScore">0</strong><span class="score-unit">分</span>
+      </div>
+      <div class="score-card frame">
+        <span class="score-label">当前轮次</span>
+        <strong class="score-value" id="frameNumber">1</strong><span class="score-unit">/ 10 轮</span>
+      </div>
+    </section>
+
+    <main class="game-panel">
+      <div class="status-row">
+        <span class="status-pill" id="statusText" aria-live="polite">第 1 轮 · 第 1 球</span>
+        <span id="pinsLeft">剩余 10 瓶</span>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="gameCanvas" role="img" aria-label="保龄球道，向上滑动即可掷球"></canvas>
+        <div class="callout" id="callout" aria-live="polite"><strong></strong><small></small></div>
+        <div class="pause-overlay" id="pauseOverlay" hidden>
+          <div class="pause-card">
+            <div class="pause-symbol" aria-hidden="true">Ⅱ</div>
+            <h2>稍作休息</h2>
+            <p>球道已为你暂停</p>
+            <div class="pause-actions">
+              <button class="primary-button" id="resumeButton" type="button">继续游戏</button>
+              <button class="secondary-button" id="pauseRestartButton" type="button">重新开始</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="frame-track" id="frameTrack" aria-label="十轮进度"></div>
+    </main>
+
+    <footer class="hint">
+      <span class="swipe-icon" aria-hidden="true"></span>
+      <div>
+        <strong id="hintTitle">向上滑动，掷出保龄球</strong>
+        <small id="hintSub">滑得越远力量越足 · 达到 100 分即可胜利 · 键盘空格也能玩</small>
+      </div>
+    </footer>
+  </div>
+
+  <div class="modal" id="resultModal" role="dialog" aria-modal="true" aria-labelledby="resultTitle" hidden>
+    <div class="result-card">
+      <svg class="trophy" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <path d="M20 10h24v12c0 9-5 16-12 16s-12-7-12-16V10Z" stroke="currentColor" stroke-width="3"/>
+        <path d="M20 15H11v5c0 7 4 11 11 11M44 15h9v5c0 7-4 11-11 11M32 38v9M23 55h18M27 47h10v8H27z" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="m32 16 2.2 4.5 5 .7-3.6 3.5.9 5-4.5-2.3-4.5 2.3.9-5-3.6-3.5 5-.7L32 16Z" fill="currentColor" opacity=".85"/>
+      </svg>
+      <span class="result-badge" id="resultBadge">挑战完成</span>
+      <h2 id="resultTitle">本局结束</h2>
+      <p id="resultMessage">漂亮的十轮对决！</p>
+      <div class="result-score"><strong id="finalScore">0</strong><span>本局得分</span></div>
+      <div class="result-meta"><span>全中 <b id="strikeCount">0</b> 次</span><span>最高分 <b id="finalBest">0</b></span></div>
+      <button class="primary-button" id="restartButton" type="button">再来一局</button>
+      <p class="keyboard-tip">也可以按回车快速重开</p>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // ---------- 基础常量与 DOM ----------
+      const W = 420;
+      const H = 640;
+      const CENTER = W / 2;
+      const WIN_SCORE = 100;
+      const STORAGE_KEY = 'neon-bowling-best-v1';
+      const $ = (id) => document.getElementById(id);
+      const canvas = $('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      const scoreEl = $('score');
+      const bestScoreEl = $('bestScore');
+      const frameNumberEl = $('frameNumber');
+      const statusTextEl = $('statusText');
+      const pinsLeftEl = $('pinsLeft');
+      const pauseButton = $('pauseButton');
+      const pauseOverlay = $('pauseOverlay');
+      const resultModal = $('resultModal');
+      const frameTrack = $('frameTrack');
+      const callout = $('callout');
+
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const sum = (values) => values.reduce((total, value) => total + value, 0);
+
+      let frames;
+      let currentFrame;
+      let phase;
+      let paused = false;
+      let pins = [];
+      let particles = [];
+      let aim = 0;
+      let pointer = null;
+      let rollElapsed = 0;
+      let settleTimer = 0;
+      let displayedScore = 0;
+      let calloutTimer = 0;
+      let resultTimer = 0;
+      let lastTime = performance.now();
+
+      const ball = {
+        x: CENTER, y: 558, vx: 0, vy: 0,
+        rotation: 0, inGutter: false
+      };
+
+      // 固定星点避免每帧闪烁，让背景保持柔和。
+      const stars = Array.from({ length: 34 }, (_, i) => ({
+        x: (Math.sin(i * 91.17) * 0.5 + 0.5) * W,
+        y: (Math.sin(i * 37.41 + 2) * 0.5 + 0.5) * H,
+        r: 0.4 + (i % 3) * 0.35,
+        a: 0.12 + (i % 5) * 0.035
+      }));
+
+      // ---------- 本地最高分 ----------
+      function loadBest() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10);
+          return Number.isFinite(value) ? clamp(value, 0, 300) : 0;
+        } catch (_) {
+          return 0; // 隐私模式下仍可进行游戏，只是不持久化。
+        }
+      }
+
+      function saveBest() {
+        try { localStorage.setItem(STORAGE_KEY, String(bestScore)); } catch (_) { /* 忽略存储异常 */ }
+      }
+
+      let bestScore = loadBest();
+
+      // ---------- 球瓶与球道状态 ----------
+      function createPins() {
+        const formation = [
+          [-1.5, 126], [-0.5, 126], [0.5, 126], [1.5, 126],
+          [-1, 153], [0, 153], [1, 153],
+          [-0.5, 180], [0.5, 180],
+          [0, 208]
+        ];
+        return formation.map(([offset, y], index) => ({
+          x: CENTER + offset * 29,
+          y,
+          vx: 0,
+          vy: 0,
+          down: false,
+          angle: 0,
+          spin: index % 2 ? 1 : -1,
+          fall: 0
+        }));
+      }
+
+      function resetBall() {
+        Object.assign(ball, { x: CENTER, y: 558, vx: 0, vy: 0, rotation: 0, inGutter: false });
+      }
+
+      function resetPins() {
+        pins = createPins();
+      }
+
+      function clearFallenPins() {
+        // 第二球前移走已倒球瓶，保留所有站立球瓶的位置。
+        pins = pins.filter((pin) => !pin.down);
+      }
+
+      function laneHalfWidth(y) {
+        const ratio = clamp((y - 70) / (H - 90), 0, 1);
+        return 112 + ratio * 66;
+      }
+
+      // ---------- 标准十轮计分 ----------
+      function calculateScore() {
+        const allRolls = frames.flatMap((frame) => frame.rolls);
+        let total = 0;
+        let cursor = 0;
+
+        for (let i = 0; i < 10; i += 1) {
+          const rolls = frames[i].rolls;
+          if (!rolls.length) break;
+
+          // 第十轮的奖励球直接计入本轮，不再额外奖励。
+          if (i === 9) {
+            total += sum(rolls);
+            break;
+          }
+
+          if (rolls[0] === 10) {
+            const bonuses = allRolls.slice(cursor + 1, cursor + 3);
+            if (bonuses.length === 2) total += 10 + sum(bonuses);
+            cursor += 1;
+          } else if (rolls.length === 2) {
+            const framePins = rolls[0] + rolls[1];
+            if (framePins === 10) {
+              const bonus = allRolls[cursor + 2];
+              if (bonus !== undefined) total += 10 + bonus;
+            } else {
+              total += framePins;
+            }
+            cursor += 2;
+          } else {
+            break; // 普通轮第二球尚未完成，分数暂时保持。
+          }
+        }
+        return total;
+      }
+
+      // ---------- 界面更新 ----------
+      function buildFrameTrack() {
+        const fragment = document.createDocumentFragment();
+        for (let i = 0; i < 10; i += 1) {
+          const dot = document.createElement('span');
+          dot.className = 'frame-dot';
+          dot.textContent = String(i + 1);
+          dot.title = `第 ${i + 1} 轮`;
+          fragment.appendChild(dot);
+        }
+        frameTrack.appendChild(fragment);
+      }
+
+      function updatePinDisplay() {
+        pinsLeftEl.textContent = `剩余 ${pins.filter((pin) => !pin.down).length} 瓶`;
+      }
+
+      function updateUI() {
+        const score = calculateScore();
+        if (score !== displayedScore) {
+          scoreEl.textContent = String(score);
+          scoreEl.classList.remove('bump');
+          void scoreEl.offsetWidth;
+          scoreEl.classList.add('bump');
+          displayedScore = score;
+        }
+
+        if (score > bestScore) {
+          bestScore = score;
+          saveBest();
+        }
+        bestScoreEl.textContent = String(bestScore);
+        frameNumberEl.textContent = String(Math.min(currentFrame + 1, 10));
+
+        if (phase === 'over') {
+          statusTextEl.textContent = '十轮挑战完成';
+        } else {
+          const rollNumber = frames[currentFrame].rolls.length + 1;
+          statusTextEl.textContent = `第 ${currentFrame + 1} 轮 · 第 ${rollNumber} 球`;
+        }
+        updatePinDisplay();
+
+        const hints = {
+          ready: '向上滑动，掷出保龄球',
+          rolling: '保龄球冲刺中…',
+          settling: '球瓶结算中…',
+          over: '精彩收官，感谢游玩'
+        };
+        $('hintTitle').textContent = paused ? '游戏已暂停' : hints[phase];
+
+        [...frameTrack.children].forEach((dot, index) => {
+          dot.classList.toggle('done', phase === 'over' || index < currentFrame);
+          dot.classList.toggle('current', phase !== 'over' && index === currentFrame);
+        });
+
+        pauseButton.disabled = phase === 'over';
+        pauseButton.setAttribute('aria-pressed', String(paused));
+        pauseButton.setAttribute('aria-label', paused ? '继续游戏' : '暂停游戏');
+        $('pauseLabel').textContent = paused ? '继续' : '暂停';
+        $('pauseIcon').textContent = paused ? '▶' : 'Ⅱ';
+        pauseOverlay.hidden = !paused;
+      }
+
+      function showCallout(title, subtitle = '') {
+        window.clearTimeout(calloutTimer);
+        callout.querySelector('strong').textContent = title;
+        callout.querySelector('small').textContent = subtitle;
+        callout.classList.remove('show');
+        void callout.offsetWidth;
+        callout.classList.add('show');
+        calloutTimer = window.setTimeout(() => callout.classList.remove('show'), 1180);
+      }
+
+      // ---------- 开局、暂停与结束 ----------
+      function startGame() {
+        window.clearTimeout(resultTimer);
+        window.clearTimeout(calloutTimer);
+        frames = Array.from({ length: 10 }, () => ({ rolls: [] }));
+        currentFrame = 0;
+        phase = 'ready';
+        paused = false;
+        particles = [];
+        pointer = null;
+        aim = 0;
+        displayedScore = 0;
+        resultModal.hidden = true;
+        callout.classList.remove('show');
+        scoreEl.textContent = '0';
+        resetPins();
+        resetBall();
+        updateUI();
+        lastTime = performance.now();
+      }
+
+      function setPaused(value) {
+        if (phase === 'over') return;
+        paused = value;
+        pointer = null;
+        updateUI();
+        lastTime = performance.now();
+      }
+
+      function endGame() {
+        phase = 'over';
+        resetBall();
+        const finalScore = calculateScore();
+        const strikes = frames.reduce((count, frame) => count + frame.rolls.filter((pinsDown) => pinsDown === 10).length, 0);
+        const won = finalScore >= WIN_SCORE;
+
+        if (finalScore > bestScore) bestScore = finalScore;
+        saveBest();
+        updateUI();
+
+        $('resultBadge').textContent = won ? '胜利 · VICTORY' : '挑战完成';
+        $('resultTitle').textContent = finalScore === 300 ? '完美满分！' : won ? '霓虹球王！' : '本局结束';
+        $('resultMessage').textContent = finalScore === 300
+          ? '十二次全中，你征服了整条霓虹球道！'
+          : won
+            ? '已突破 100 分，胜利徽章为你点亮！'
+            : `距离胜利还差 ${Math.max(0, WIN_SCORE - finalScore)} 分，再挑战一次吧！`;
+        $('finalScore').textContent = String(finalScore);
+        $('strikeCount').textContent = String(strikes);
+        $('finalBest').textContent = String(bestScore);
+
+        resultTimer = window.setTimeout(() => {
+          if (phase !== 'over') return;
+          resultModal.hidden = false;
+          $('restartButton').focus({ preventScroll: true });
+        }, 650);
+      }
+
+      // ---------- 投球与一局流程 ----------
+      function throwBall(power = 0.75, horizontalDrag = 0) {
+        if (phase !== 'ready' || paused) return;
+        const strength = clamp(power, 0.2, 1);
+        const speed = 500 + strength * 330;
+        ball.vy = -speed;
+        ball.vx = clamp(horizontalDrag * 2 + aim * 85, -235, 235);
+        ball.inGutter = false;
+        rollElapsed = 0;
+        phase = 'rolling';
+        spawnLaunchTrail();
+        updateUI();
+      }
+
+      function completeRoll() {
+        const knocked = pins.filter((pin) => pin.down).length;
+        const frame = frames[currentFrame];
+        frame.rolls.push(knocked);
+        const rolls = frame.rolls;
+
+        if (knocked === 10) {
+          showCallout('全中！', 'STRIKE · 漂亮的一球');
+        } else if (rolls.length >= 2 && rolls[rolls.length - 2] + knocked === 10) {
+          showCallout('补中！', 'SPARE · 干净利落');
+        } else if (knocked === 0) {
+          showCallout('再瞄准一点', '下一球加油');
+        } else {
+          showCallout(`击倒 ${knocked} 瓶`, 'NICE SHOT');
+        }
+
+        let finished = false;
+
+        if (currentFrame < 9) {
+          if (rolls.length === 1 && knocked < 10) {
+            clearFallenPins();
+          } else {
+            currentFrame += 1;
+            resetPins();
+          }
+        } else if (rolls.length === 1) {
+          // 第十轮第一球全中，可立即补齐十瓶继续第二球。
+          if (knocked === 10) resetPins(); else clearFallenPins();
+        } else if (rolls.length === 2) {
+          const earnedThird = rolls[0] === 10 || rolls[0] + rolls[1] === 10;
+          if (earnedThird) {
+            // 第一球全中且第二球未全中时，第三球攻击剩余球瓶。
+            if (rolls[0] === 10 && rolls[1] < 10) clearFallenPins(); else resetPins();
+          } else {
+            finished = true;
+          }
+        } else {
+          finished = true;
+        }
+
+        resetBall();
+        aim = 0;
+        phase = finished ? 'over' : 'ready';
+        updateUI();
+        if (finished) endGame();
+      }
+
+      // ---------- 轻量街机物理 ----------
+      function knockPin(pin, nx, ny, speed) {
+        if (pin.down) return;
+        pin.down = true;
+        pin.vx += nx * speed;
+        pin.vy += ny * speed;
+        pin.spin = nx >= 0 ? 1 : -1;
+        pin.fall = 0;
+        spawnHit(pin.x, pin.y);
+        updatePinDisplay();
+      }
+
+      function updateBall(dt, allowCollision) {
+        ball.x += ball.vx * dt;
+        ball.y += ball.vy * dt;
+        ball.rotation += Math.hypot(ball.vx, ball.vy) * dt / 20;
+
+        const half = laneHalfWidth(ball.y);
+        const left = CENTER - half + 8;
+        const right = CENTER + half - 8;
+        if (ball.x < left || ball.x > right) {
+          ball.inGutter = true;
+          ball.x = clamp(ball.x, left - 3, right + 3);
+          ball.vx *= 0.25;
+          ball.vy *= Math.pow(0.82, dt);
+        }
+
+        if (allowCollision && !ball.inGutter && ball.y < 255 && ball.y > 85) {
+          for (const pin of pins) {
+            if (pin.down) continue;
+            const dx = pin.x - ball.x;
+            const dy = pin.y - ball.y;
+            const distance = Math.hypot(dx, dy);
+            if (distance < 22) {
+              const nx = distance ? dx / distance : 0;
+              const ny = distance ? dy / distance : -1;
+              knockPin(pin, nx, ny, 165);
+              pin.vx += ball.vx * 0.55;
+              pin.vy += ball.vy * 0.32;
+              ball.vx *= 0.88;
+              ball.vy *= 0.94;
+            }
+          }
+        }
+
+        if (phase === 'rolling' && Math.random() < 0.8) {
+          particles.push({
+            x: ball.x + (Math.random() - 0.5) * 8,
+            y: ball.y + 12,
+            vx: (Math.random() - 0.5) * 15,
+            vy: 35 + Math.random() * 25,
+            life: 0.35,
+            maxLife: 0.35,
+            size: 2 + Math.random() * 2,
+            color: '#63f3ff'
+          });
+        }
+      }
+
+      function updatePins(dt) {
+        for (const pin of pins) {
+          if (!pin.down) continue;
+          pin.x += pin.vx * dt;
+          pin.y += pin.vy * dt;
+          pin.vx *= Math.pow(0.09, dt);
+          pin.vy *= Math.pow(0.09, dt);
+          pin.fall = Math.min(1, pin.fall + dt * 5);
+          const targetAngle = pin.spin * 1.42;
+          pin.angle += (targetAngle - pin.angle) * Math.min(1, dt * 8);
+        }
+
+        // 运动中的球瓶可以把能量传给邻近的站立球瓶，形成连锁撞击。
+        const movingPins = pins.filter((pin) => pin.down && Math.hypot(pin.vx, pin.vy) > 42);
+        for (const moving of movingPins) {
+          for (const target of pins) {
+            if (target.down) continue;
+            const dx = target.x - moving.x;
+            const dy = target.y - moving.y;
+            const distance = Math.hypot(dx, dy);
+            if (distance < 21) {
+              const nx = distance ? dx / distance : 0;
+              const ny = distance ? dy / distance : -1;
+              const speed = Math.hypot(moving.vx, moving.vy);
+              knockPin(target, nx, ny, Math.max(80, speed * 0.55));
+              target.vx += moving.vx * 0.48;
+              target.vy += moving.vy * 0.48;
+              moving.vx *= 0.72;
+              moving.vy *= 0.72;
+            }
+          }
+        }
+      }
+
+      function spawnLaunchTrail() {
+        for (let i = 0; i < 16; i += 1) {
+          particles.push({
+            x: ball.x + (Math.random() - 0.5) * 25,
+            y: ball.y + Math.random() * 20,
+            vx: (Math.random() - 0.5) * 80,
+            vy: 30 + Math.random() * 90,
+            life: 0.45 + Math.random() * 0.3,
+            maxLife: 0.75,
+            size: 1.5 + Math.random() * 3,
+            color: i % 3 ? '#63f3ff' : '#ff58d6'
+          });
+        }
+      }
+
+      function spawnHit(x, y) {
+        for (let i = 0; i < 13; i += 1) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 35 + Math.random() * 125;
+          particles.push({
+            x, y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: 0.35 + Math.random() * 0.35,
+            maxLife: 0.7,
+            size: 1 + Math.random() * 2.7,
+            color: i % 3 === 0 ? '#ff58d6' : '#8ff8ff'
+          });
+        }
+      }
+
+      function updateParticles(dt) {
+        for (const particle of particles) {
+          particle.x += particle.vx * dt;
+          particle.y += particle.vy * dt;
+          particle.vx *= Math.pow(0.2, dt);
+          particle.vy *= Math.pow(0.2, dt);
+          particle.life -= dt;
+        }
+        particles = particles.filter((particle) => particle.life > 0);
+      }
+
+      // ---------- Canvas 绘制 ----------
+      function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.max(1, Math.round(rect.width * dpr));
+        canvas.height = Math.max(1, Math.round(rect.height * dpr));
+      }
+
+      function drawBackground(time) {
+        const background = ctx.createLinearGradient(0, 0, 0, H);
+        background.addColorStop(0, '#090c20');
+        background.addColorStop(0.55, '#0c1027');
+        background.addColorStop(1, '#090b19');
+        ctx.fillStyle = background;
+        ctx.fillRect(0, 0, W, H);
+
+        for (const star of stars) {
+          ctx.globalAlpha = star.a + Math.sin(time * 0.7 + star.x) * 0.035;
+          ctx.fillStyle = '#a9baff';
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        // 球道尽头的霓虹灯带。
+        const glow = ctx.createRadialGradient(CENTER, 95, 5, CENTER, 95, 180);
+        glow.addColorStop(0, 'rgba(120, 82, 255, .2)');
+        glow.addColorStop(1, 'rgba(60, 40, 160, 0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, W, 290);
+        ctx.fillStyle = 'rgba(255, 88, 214, .65)';
+        ctx.shadowColor = '#ff58d6';
+        ctx.shadowBlur = 14;
+        ctx.fillRect(82, 69, W - 164, 2);
+        ctx.shadowBlur = 0;
+      }
+
+      function drawLane() {
+        const laneGradient = ctx.createLinearGradient(0, 70, 0, H);
+        laneGradient.addColorStop(0, '#222044');
+        laneGradient.addColorStop(0.5, '#1b2342');
+        laneGradient.addColorStop(1, '#182a43');
+        ctx.fillStyle = laneGradient;
+        ctx.beginPath();
+        ctx.moveTo(CENTER - 112, 70);
+        ctx.lineTo(CENTER + 112, 70);
+        ctx.lineTo(CENTER + 178, H);
+        ctx.lineTo(CENTER - 178, H);
+        ctx.closePath();
+        ctx.fill();
+
+        // 木板透视线。
+        for (let i = -5; i <= 5; i += 1) {
+          ctx.strokeStyle = i % 2 ? 'rgba(137, 160, 211, .055)' : 'rgba(173, 195, 230, .09)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(CENTER + i * 19, 70);
+          ctx.lineTo(CENTER + i * 31.5, H);
+          ctx.stroke();
+        }
+
+        // 两侧发光边线与球沟。
+        [-1, 1].forEach((side) => {
+          ctx.strokeStyle = side < 0 ? 'rgba(99, 243, 255, .7)' : 'rgba(155, 123, 255, .65)';
+          ctx.shadowColor = side < 0 ? '#63f3ff' : '#9b7bff';
+          ctx.shadowBlur = 9;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(CENTER + side * 112, 70);
+          ctx.lineTo(CENTER + side * 178, H);
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+
+          ctx.strokeStyle = 'rgba(4, 6, 17, .8)';
+          ctx.lineWidth = 9;
+          ctx.beginPath();
+          ctx.moveTo(CENTER + side * 120, 70);
+          ctx.lineTo(CENTER + side * 189, H);
+          ctx.stroke();
+        });
+
+        // 犯规线与瞄准箭头。
+        ctx.fillStyle = 'rgba(99, 243, 255, .15)';
+        ctx.fillRect(CENTER - 166, 523, 332, 2);
+        for (let i = -2; i <= 2; i += 1) {
+          const x = CENTER + i * 42;
+          const y = 363 + Math.abs(i) * 10;
+          ctx.fillStyle = i === 0 ? 'rgba(99, 243, 255, .28)' : 'rgba(155, 190, 226, .18)';
+          ctx.beginPath();
+          ctx.moveTo(x, y - 8);
+          ctx.lineTo(x - 5, y + 3);
+          ctx.lineTo(x + 5, y + 3);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      function drawPin(pin) {
+        const scale = 0.75 + clamp(pin.y / H, 0, 1) * 0.25;
+        ctx.save();
+        ctx.translate(pin.x, pin.y);
+        ctx.rotate(pin.angle);
+        ctx.scale(scale, scale);
+        ctx.globalAlpha = pin.down ? 1 - pin.fall * 0.12 : 1;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, .28)';
+        ctx.beginPath();
+        ctx.ellipse(2, 12, 11, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const body = ctx.createLinearGradient(-9, 0, 10, 0);
+        body.addColorStop(0, '#8c9dbc');
+        body.addColorStop(0.35, '#f8fbff');
+        body.addColorStop(0.62, '#ffffff');
+        body.addColorStop(1, '#9aaac7');
+        ctx.fillStyle = body;
+        ctx.shadowColor = pin.down ? '#ff58d6' : 'rgba(174, 221, 255, .4)';
+        ctx.shadowBlur = pin.down ? 10 : 5;
+        ctx.beginPath();
+        ctx.moveTo(0, -19);
+        ctx.bezierCurveTo(-5, -19, -6, -14, -5, -10);
+        ctx.bezierCurveTo(-4, -6, -3, -4, -5, 0);
+        ctx.bezierCurveTo(-9, 7, -8, 12, 0, 13);
+        ctx.bezierCurveTo(8, 12, 9, 7, 5, 0);
+        ctx.bezierCurveTo(3, -4, 4, -6, 5, -10);
+        ctx.bezierCurveTo(6, -14, 5, -19, 0, -19);
+        ctx.closePath();
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.strokeStyle = '#ff4fbb';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-4.6, -7);
+        ctx.quadraticCurveTo(0, -5.8, 4.6, -7);
+        ctx.moveTo(-4.1, -3.8);
+        ctx.quadraticCurveTo(0, -2.7, 4.1, -3.8);
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(255, 255, 255, .65)';
+        ctx.beginPath();
+        ctx.ellipse(-1.7, -15.5, 1.5, 2.3, -0.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawBall() {
+        if (ball.y < -35) return;
+        const radius = 9 + clamp(ball.y / H, 0, 1) * 5;
+        ctx.save();
+        ctx.translate(ball.x, ball.y);
+
+        ctx.fillStyle = 'rgba(0, 0, 0, .35)';
+        ctx.beginPath();
+        ctx.ellipse(3, radius * 0.75, radius * 1.1, radius * 0.45, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.rotate(ball.rotation);
+        const gradient = ctx.createRadialGradient(-radius * 0.35, -radius * 0.4, 1, 0, 0, radius * 1.2);
+        gradient.addColorStop(0, '#a98bff');
+        gradient.addColorStop(0.32, '#6543b5');
+        gradient.addColorStop(0.72, '#251a56');
+        gradient.addColorStop(1, '#0a0d22');
+        ctx.fillStyle = gradient;
+        ctx.shadowColor = ball.inGutter ? '#ff58d6' : '#8266ff';
+        ctx.shadowBlur = 18;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = 'rgba(174, 156, 255, .5)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = '#080a18';
+        [[-3, -4], [3, -3], [-1, 2]].forEach(([x, y]) => {
+          ctx.beginPath();
+          ctx.arc(x * radius / 14, y * radius / 14, Math.max(1.3, radius * 0.1), 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.restore();
+      }
+
+      function drawAimGuide() {
+        if (phase !== 'ready' || paused) return;
+        const drag = pointer ? pointer.x - pointer.startX : 0;
+        const guideAim = pointer ? clamp(drag / 95, -1, 1) : aim;
+        const endX = CENTER + guideAim * 120;
+        ctx.save();
+        ctx.setLineDash([5, 9]);
+        ctx.strokeStyle = 'rgba(99, 243, 255, .38)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(ball.x, ball.y - 25);
+        ctx.quadraticCurveTo(ball.x + guideAim * 35, 420, endX, 267);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(99, 243, 255, .6)';
+        ctx.beginPath();
+        ctx.moveTo(endX, 259);
+        ctx.lineTo(endX - 4, 269);
+        ctx.lineTo(endX + 4, 269);
+        ctx.closePath();
+        ctx.fill();
+
+        if (pointer) {
+          const power = clamp((pointer.startY - pointer.y) / 220, 0, 1);
+          ctx.fillStyle = 'rgba(110, 126, 177, .2)';
+          ctx.fillRect(115, 608, 190, 4);
+          const powerGradient = ctx.createLinearGradient(115, 0, 305, 0);
+          powerGradient.addColorStop(0, '#63f3ff');
+          powerGradient.addColorStop(1, '#ff58d6');
+          ctx.fillStyle = powerGradient;
+          ctx.fillRect(115, 608, 190 * power, 4);
+          ctx.fillStyle = 'rgba(205, 224, 255, .7)';
+          ctx.font = '10px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(`力量 ${Math.round(power * 100)}%`, CENTER, 628);
+        }
+        ctx.restore();
+      }
+
+      function drawParticles() {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (const particle of particles) {
+          ctx.globalAlpha = clamp(particle.life / particle.maxLife, 0, 1);
+          ctx.fillStyle = particle.color;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function render(time) {
+        ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
+        ctx.clearRect(0, 0, W, H);
+        drawBackground(time);
+        drawLane();
+        drawAimGuide();
+
+        // 先画远处球瓶，形成正确的前后遮挡。
+        [...pins].sort((a, b) => a.y - b.y).forEach(drawPin);
+        drawParticles();
+        drawBall();
+      }
+
+      // ---------- 动画主循环 ----------
+      function animate(now) {
+        const dt = Math.min(Math.max((now - lastTime) / 1000, 0), 0.033);
+        lastTime = now;
+
+        if (!paused) {
+          if (phase === 'rolling') {
+            rollElapsed += dt;
+            updateBall(dt, true);
+            updatePins(dt);
+            if (ball.y < 58 || rollElapsed > 2.8) {
+              phase = 'settling';
+              settleTimer = 1.15;
+              updateUI();
+            }
+          } else if (phase === 'settling') {
+            if (ball.y > -40) updateBall(dt, false);
+            updatePins(dt);
+            settleTimer -= dt;
+            if (settleTimer <= 0) completeRoll();
+          }
+          updateParticles(dt);
+        }
+
+        render(now / 1000);
+        requestAnimationFrame(animate);
+      }
+
+      // ---------- 触屏、鼠标与键盘 ----------
+      function canvasPoint(event) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: (event.clientX - rect.left) * W / rect.width,
+          y: (event.clientY - rect.top) * H / rect.height
+        };
+      }
+
+      canvas.addEventListener('pointerdown', (event) => {
+        if (!event.isPrimary || phase !== 'ready' || paused) return;
+        event.preventDefault();
+        const point = canvasPoint(event);
+        pointer = { id: event.pointerId, startX: point.x, startY: point.y, x: point.x, y: point.y, time: performance.now() };
+        aim = 0;
+        canvas.setPointerCapture(event.pointerId);
+      });
+
+      canvas.addEventListener('pointermove', (event) => {
+        if (!pointer || event.pointerId !== pointer.id) return;
+        event.preventDefault();
+        const point = canvasPoint(event);
+        pointer.x = point.x;
+        pointer.y = point.y;
+        aim = clamp((point.x - pointer.startX) / 95, -1, 1);
+      });
+
+      function releasePointer(event, cancelled = false) {
+        if (!pointer || event.pointerId !== pointer.id) return;
+        event.preventDefault();
+        const gesture = pointer;
+        pointer = null;
+        if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+        if (cancelled) return;
+
+        const upward = gesture.startY - gesture.y;
+        const horizontal = gesture.x - gesture.startX;
+        const duration = performance.now() - gesture.time;
+        if (upward >= 38 && duration <= 1600) {
+          throwBall(clamp(upward / 220, 0.25, 1), horizontal);
+        } else {
+          aim = 0;
+        }
+      }
+
+      canvas.addEventListener('pointerup', (event) => releasePointer(event));
+      canvas.addEventListener('pointercancel', (event) => releasePointer(event, true));
+      canvas.addEventListener('contextmenu', (event) => event.preventDefault());
+
+      window.addEventListener('keydown', (event) => {
+        const code = event.code;
+        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'Space'].includes(code)) event.preventDefault();
+
+        if (phase === 'over' && (code === 'Enter' || code === 'Space')) {
+          if (!resultModal.hidden) startGame();
+          return;
+        }
+        if (code === 'KeyP' || code === 'Escape') {
+          setPaused(!paused);
+          return;
+        }
+        if (paused || phase !== 'ready') return;
+        if (code === 'ArrowLeft') aim = clamp(aim - 0.12, -1, 1);
+        if (code === 'ArrowRight') aim = clamp(aim + 0.12, -1, 1);
+        if (code === 'ArrowUp' || code === 'Space') throwBall(0.78, 0);
+      }, { passive: false });
+
+      pauseButton.addEventListener('click', () => setPaused(!paused));
+      $('resumeButton').addEventListener('click', () => setPaused(false));
+      $('restartButton').addEventListener('click', startGame);
+      $('pauseRestartButton').addEventListener('click', startGame);
+
+      // 阻止移动浏览器滚动、双击缩放与缩放手势。
+      document.addEventListener('touchmove', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('dblclick', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && phase !== 'over' && !paused) setPaused(true);
+      });
+
+      window.addEventListener('resize', resizeCanvas);
+      if ('ResizeObserver' in window) new ResizeObserver(resizeCanvas).observe(canvas);
+
+      // ---------- 启动 ----------
+      buildFrameTrack();
+      resizeCanvas();
+      startGame();
+      requestAnimationFrame(animate);
+    })();
+  </script>
+</body>
+</html>

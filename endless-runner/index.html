@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#050713">
+  <title>霓虹疾行 · 无尽跑酷</title>
+  <style>
+    /* ---------- 基础与移动端适配 ---------- */
+    :root {
+      color-scheme: dark;
+      --cyan: #63f6ff;
+      --pink: #ff4fd8;
+      --violet: #9175ff;
+      --ink: #050713;
+      --muted: #9ba9c7;
+      --glass: rgba(10, 15, 36, .78);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      position: fixed;
+      inset: 0;
+      overscroll-behavior: none;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background: var(--ink);
+      color: #f4f7ff;
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    }
+
+    button { font: inherit; color: inherit; }
+    button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 4px; }
+
+    #game {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      isolation: isolate;
+      background: #050713;
+      touch-action: none;
+    }
+
+    canvas { display: block; width: 100%; height: 100%; }
+
+    .vignette {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at 50% 46%, transparent 35%, rgba(0, 0, 0, .48) 115%);
+      z-index: 1;
+    }
+
+    /* ---------- 游戏 HUD ---------- */
+    .hud {
+      position: absolute;
+      z-index: 3;
+      top: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+      pointer-events: none;
+    }
+
+    .score-block { display: grid; gap: 1px; }
+    .eyebrow {
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .24em;
+      text-transform: uppercase;
+    }
+
+    #score {
+      font-size: clamp(28px, 7vw, 42px);
+      line-height: 1;
+      letter-spacing: .06em;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 22px rgba(99, 246, 255, .3);
+    }
+
+    #distance { color: var(--muted); font-size: 11px; letter-spacing: .14em; margin-top: 5px; }
+    .hud-right { display: flex; align-items: center; gap: 10px; pointer-events: auto; }
+
+    .best-chip {
+      display: grid;
+      justify-items: end;
+      gap: 3px;
+      padding: 8px 12px;
+      border: 1px solid rgba(148, 163, 211, .16);
+      border-radius: 12px;
+      background: rgba(8, 12, 28, .48);
+      backdrop-filter: blur(10px);
+    }
+
+    .best-chip span { color: var(--muted); font-size: 9px; letter-spacing: .12em; }
+    .best-chip b { color: #dfe7ff; font-size: 13px; font-variant-numeric: tabular-nums; letter-spacing: .06em; }
+
+    .icon-button {
+      width: 44px;
+      height: 44px;
+      border: 1px solid rgba(99, 246, 255, .25);
+      border-radius: 14px;
+      background: rgba(9, 17, 35, .68);
+      box-shadow: inset 0 0 18px rgba(99, 246, 255, .04);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: transform .15s, border-color .15s, opacity .2s;
+    }
+
+    .icon-button:active { transform: scale(.92); }
+    .icon-button:disabled { opacity: .35; cursor: default; }
+    .pause-icon { display: flex; gap: 4px; }
+    .pause-icon i { display: block; width: 3px; height: 14px; border-radius: 3px; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+
+    .goal-wrap {
+      position: absolute;
+      z-index: 3;
+      top: max(94px, calc(env(safe-area-inset-top) + 82px));
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(44vw, 220px);
+      pointer-events: none;
+      transition: opacity .3s;
+    }
+
+    .goal-label { display: flex; justify-content: space-between; color: #8f9bb9; font-size: 8px; letter-spacing: .13em; margin-bottom: 6px; }
+    .goal-track { height: 2px; border-radius: 4px; background: rgba(255, 255, 255, .1); overflow: hidden; }
+    #goalBar { height: 100%; width: 0; background: linear-gradient(90deg, var(--violet), var(--cyan)); box-shadow: 0 0 10px var(--cyan); }
+
+    .gesture-hint {
+      position: absolute;
+      z-index: 3;
+      left: 50%;
+      bottom: max(18px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .4s;
+    }
+
+    .gesture-hint.visible { opacity: .75; }
+    .gesture-hint span {
+      padding: 7px 11px;
+      border: 1px solid rgba(255, 255, 255, .09);
+      border-radius: 20px;
+      background: rgba(5, 8, 20, .55);
+      color: #b6c1d9;
+      font-size: 10px;
+      letter-spacing: .05em;
+      backdrop-filter: blur(8px);
+    }
+
+    #toast {
+      position: absolute;
+      z-index: 4;
+      left: 50%;
+      top: 27%;
+      transform: translate(-50%, 10px);
+      color: var(--cyan);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .24em;
+      text-shadow: 0 0 16px var(--cyan);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s, transform .25s;
+    }
+
+    #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    /* ---------- 开始、暂停与结算弹层 ---------- */
+    .screen {
+      position: absolute;
+      z-index: 6;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+      background: radial-gradient(circle at 50% 40%, rgba(23, 24, 64, .22), rgba(3, 5, 15, .68));
+      backdrop-filter: blur(5px);
+      opacity: 1;
+      visibility: visible;
+      transition: opacity .25s, visibility .25s;
+    }
+
+    .screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+    .panel {
+      position: relative;
+      width: min(100%, 410px);
+      padding: 30px;
+      border: 1px solid rgba(132, 157, 255, .2);
+      border-radius: 26px;
+      background: linear-gradient(145deg, rgba(17, 23, 50, .92), rgba(6, 10, 26, .94));
+      box-shadow: 0 24px 80px rgba(0, 0, 0, .48), inset 0 1px 0 rgba(255, 255, 255, .05), 0 0 50px rgba(87, 75, 190, .08);
+      text-align: center;
+      overflow: hidden;
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 16%;
+      right: 16%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      box-shadow: 0 0 16px var(--cyan);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 10px;
+      border: 1px solid rgba(99, 246, 255, .14);
+      border-radius: 30px;
+      color: #aab8d5;
+      background: rgba(99, 246, 255, .035);
+      font-size: 9px;
+      letter-spacing: .17em;
+    }
+
+    .status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+
+    .logo { margin: 18px 0 4px; font-size: clamp(40px, 12vw, 60px); line-height: 1; font-weight: 900; letter-spacing: .05em; }
+    .logo span { color: var(--cyan); text-shadow: 0 0 26px rgba(99, 246, 255, .42); }
+    .en-title { margin: 0 0 24px; color: #7583a7; font-size: 10px; font-weight: 700; letter-spacing: .5em; text-indent: .5em; }
+
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+    .control-card {
+      padding: 14px 8px 12px;
+      border: 1px solid rgba(255, 255, 255, .07);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, .025);
+    }
+
+    .control-icon { height: 25px; color: var(--cyan); font-size: 23px; line-height: 1; text-shadow: 0 0 12px rgba(99, 246, 255, .5); }
+    .control-card:nth-child(2) .control-icon { color: var(--pink); text-shadow: 0 0 12px rgba(255, 79, 216, .5); }
+    .control-card b { display: block; margin-top: 7px; font-size: 13px; }
+    .control-card small { display: block; margin-top: 4px; color: #7f8ca9; font-size: 9px; }
+
+    .mission { margin: 0 0 20px; color: #9aa7c2; font-size: 11px; line-height: 1.7; }
+    .mission strong { color: #e8edff; font-weight: 600; }
+
+    .primary-button, .secondary-button {
+      width: 100%;
+      min-height: 52px;
+      border-radius: 15px;
+      cursor: pointer;
+      font-weight: 800;
+      letter-spacing: .08em;
+      transition: transform .15s, filter .15s;
+    }
+
+    .primary-button {
+      border: 0;
+      background: linear-gradient(105deg, #66f7ff, #75c9ff 48%, #ab8cff);
+      color: #071020;
+      box-shadow: 0 10px 28px rgba(79, 215, 255, .2), inset 0 1px 0 rgba(255, 255, 255, .55);
+    }
+
+    .primary-button span { float: right; margin-right: 8px; font-size: 20px; line-height: 18px; }
+    .secondary-button { border: 1px solid rgba(143, 158, 203, .2); background: rgba(255, 255, 255, .035); color: #c3cbe0; margin-top: 10px; }
+    .primary-button:hover { filter: brightness(1.08); }
+    .primary-button:active, .secondary-button:active { transform: scale(.975); }
+    .start-best { margin: 15px 0 0; color: #64728f; font-size: 10px; letter-spacing: .1em; }
+    .start-best b { color: #aebad4; font-variant-numeric: tabular-nums; }
+
+    .modal-symbol {
+      width: 64px;
+      height: 64px;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 18px;
+      border: 1px solid rgba(99, 246, 255, .24);
+      border-radius: 20px;
+      background: rgba(99, 246, 255, .055);
+      color: var(--cyan);
+      font-size: 27px;
+      box-shadow: 0 0 30px rgba(99, 246, 255, .08);
+    }
+
+    .modal-title { margin: 0; font-size: 27px; letter-spacing: .06em; }
+    .modal-copy { margin: 10px 0 22px; color: #8e9bb7; font-size: 12px; line-height: 1.7; }
+    .result-score { margin: 20px 0 16px; }
+    .result-score small { display: block; color: #7e8ca9; font-size: 9px; letter-spacing: .2em; }
+    .result-score strong { display: block; margin-top: 5px; color: var(--cyan); font-size: 43px; line-height: 1.1; letter-spacing: .06em; font-variant-numeric: tabular-nums; text-shadow: 0 0 24px rgba(99, 246, 255, .24); }
+
+    .result-meta { display: flex; justify-content: center; gap: 26px; margin-bottom: 22px; color: #7f8da9; font-size: 10px; }
+    .result-meta b { display: block; margin-top: 4px; color: #d9e1f5; font-size: 14px; font-variant-numeric: tabular-nums; }
+    #newRecord { display: none; margin: -5px 0 18px; color: #ff87e4; font-size: 10px; font-weight: 800; letter-spacing: .16em; text-shadow: 0 0 12px rgba(255, 79, 216, .45); }
+    #newRecord.visible { display: block; }
+    .win-panel .modal-symbol { color: #ffe786; border-color: rgba(255, 231, 134, .25); background: rgba(255, 231, 134, .05); }
+    .win-panel .result-score strong { color: #ffe786; text-shadow: 0 0 24px rgba(255, 231, 134, .2); }
+
+    /* 矮屏与横屏压缩布局，保证按钮始终可见 */
+    @media (max-height: 560px) {
+      .panel { padding: 18px 24px; border-radius: 20px; }
+      .status-badge { padding: 4px 9px; }
+      .logo { margin-top: 10px; font-size: 36px; }
+      .en-title { margin-bottom: 12px; }
+      .controls { margin-bottom: 10px; }
+      .control-card { padding: 8px; }
+      .control-icon { height: 19px; font-size: 18px; }
+      .control-card b { margin-top: 4px; }
+      .control-card small { display: none; }
+      .mission { margin-bottom: 12px; line-height: 1.4; }
+      .primary-button, .secondary-button { min-height: 44px; }
+      .start-best { margin-top: 9px; }
+      .modal-symbol { width: 45px; height: 45px; margin-bottom: 10px; border-radius: 14px; font-size: 21px; }
+      .modal-copy { margin: 6px 0 12px; }
+      .result-score { margin: 10px 0; }
+      .result-score strong { font-size: 32px; }
+      .result-meta { margin-bottom: 12px; }
+    }
+
+    @media (max-width: 350px) {
+      .best-chip { padding: 7px 9px; }
+      .hud-right { gap: 6px; }
+      .panel { padding-left: 20px; padding-right: 20px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .screen, .primary-button, .secondary-button, #toast { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <main id="game" aria-label="霓虹疾行无尽跑酷游戏">
+    <canvas id="gameCanvas" aria-label="游戏画面：点击跳跃，下滑铲行"></canvas>
+    <div class="vignette"></div>
+
+    <header class="hud" aria-label="游戏数据">
+      <div class="score-block">
+        <span class="eyebrow">Score / 得分</span>
+        <strong id="score">000000</strong>
+        <span id="distance">0000 M</span>
+      </div>
+      <div class="hud-right">
+        <div class="best-chip"><span>最高分 BEST</span><b id="best">000000</b></div>
+        <button id="pauseButton" class="icon-button" type="button" aria-label="暂停游戏" disabled>
+          <span class="pause-icon" aria-hidden="true"><i></i><i></i></span>
+        </button>
+      </div>
+    </header>
+
+    <div id="goalWrap" class="goal-wrap">
+      <div class="goal-label"><span>阶段目标</span><span id="goalText">0 / 1000 M</span></div>
+      <div class="goal-track"><div id="goalBar"></div></div>
+    </div>
+
+    <div id="gestureHint" class="gesture-hint"><span>↑ 轻触跳跃</span><span>↓ 下滑铲行</span></div>
+    <div id="toast" role="status"></div>
+
+    <section id="startScreen" class="screen" aria-label="开始游戏">
+      <div class="panel">
+        <div class="status-badge"><i class="status-dot"></i>SECTOR 07 · 信号已连接</div>
+        <h1 class="logo">霓虹<span>疾行</span></h1>
+        <p class="en-title">NEON RUNNER</p>
+        <div class="controls">
+          <div class="control-card">
+            <div class="control-icon">↥</div>
+            <b>轻触跳跃</b>
+            <small>点击屏幕 / 空格 / ↑</small>
+          </div>
+          <div class="control-card">
+            <div class="control-icon">↧</div>
+            <b>下滑铲行</b>
+            <small>向下滑动 / ↓ 键</small>
+          </div>
+        </div>
+        <p class="mission">避开路障，低空铲过无人机。<br><strong>抵达 1000 米完成挑战，之后继续无尽奔跑。</strong></p>
+        <button id="startButton" class="primary-button" type="button">开始奔跑 <span>→</span></button>
+        <p class="start-best">历史最高分 <b id="startBest">000000</b></p>
+      </div>
+    </section>
+
+    <section id="pauseScreen" class="screen hidden" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+      <div class="panel">
+        <div class="modal-symbol">Ⅱ</div>
+        <h2 id="pauseTitle" class="modal-title">疾行已暂停</h2>
+        <p class="modal-copy">喘口气，霓虹都市会等你。<br>按 P 或 Esc 也可继续。</p>
+        <button id="resumeButton" class="primary-button" type="button">继续奔跑</button>
+        <button id="pauseRestartButton" class="secondary-button" type="button">重新开始</button>
+      </div>
+    </section>
+
+    <section id="overScreen" class="screen hidden" role="dialog" aria-modal="true" aria-labelledby="overTitle">
+      <div class="panel">
+        <div class="modal-symbol">×</div>
+        <h2 id="overTitle" class="modal-title">信号中断</h2>
+        <div class="result-score"><small>本次得分</small><strong id="finalScore">000000</strong></div>
+        <div id="newRecord">✦ 新纪录 NEW RECORD ✦</div>
+        <div class="result-meta">
+          <span>奔跑距离<b id="finalDistance">0 M</b></span>
+          <span>历史最高<b id="finalBest">000000</b></span>
+        </div>
+        <button id="restartButton" class="primary-button" type="button">再跑一次 <span>↻</span></button>
+      </div>
+    </section>
+
+    <section id="winScreen" class="screen hidden" role="dialog" aria-modal="true" aria-labelledby="winTitle">
+      <div class="panel win-panel">
+        <div class="modal-symbol">◇</div>
+        <h2 id="winTitle" class="modal-title">阶段目标达成</h2>
+        <p class="modal-copy">1000 米突破！你已穿越霓虹禁区。<br>继续挑战，没有终点。</p>
+        <div class="result-score"><small>当前得分</small><strong id="winScore">000000</strong></div>
+        <button id="continueButton" class="primary-button" type="button">继续无尽模式 <span>→</span></button>
+        <button id="winRestartButton" class="secondary-button" type="button">重新挑战</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // ---------- DOM 与常量 ----------
+      const $ = (id) => document.getElementById(id);
+      const canvas = $("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const ui = {
+        score: $("score"), best: $("best"), distance: $("distance"), startBest: $("startBest"),
+        pause: $("pauseButton"), goalWrap: $("goalWrap"), goalBar: $("goalBar"), goalText: $("goalText"),
+        hint: $("gestureHint"), toast: $("toast"), finalScore: $("finalScore"),
+        finalDistance: $("finalDistance"), finalBest: $("finalBest"), newRecord: $("newRecord"), winScore: $("winScore")
+      };
+      const screens = { ready: $("startScreen"), paused: $("pauseScreen"), over: $("overScreen"), win: $("winScreen") };
+      const GOAL_DISTANCE = 1000;
+      const STORAGE_KEY = "neon-runner-best-v1";
+      const TAU = Math.PI * 2;
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const random = (min, max) => min + Math.random() * (max - min);
+      const formatScore = (value) => String(Math.max(0, Math.floor(value))).padStart(6, "0");
+
+      let width = 0;
+      let height = 0;
+      let dpr = 1;
+      let scale = 1;
+      let groundY = 0;
+      let state = "ready";
+      let lastTime = performance.now();
+      let elapsed = 0;
+      let world = 0;
+      let distance = 0;
+      let score = 0;
+      let best = 0;
+      let recordAtStart = 0;
+      let speed = 0;
+      let spawnTimer = 1.5;
+      let nextMilestone = 250;
+      let hasWon = false;
+      let hintTimer = 0;
+      let toastTimer = 0;
+      let trailTimer = 0;
+      let obstacles = [];
+      let particles = [];
+      let stars = [];
+      let farCity = { items: [], total: 1 };
+      let nearCity = { items: [], total: 1 };
+      let gesture = null;
+
+      const player = {
+        x: 100, y: 0, vy: 0, onGround: true, sliding: false,
+        slideTimer: 0, jumpBuffer: 0, runPhase: 0, dead: false
+      };
+
+      // 本地存储在隐私模式下可能不可用，需安全降级。
+      try { best = Math.max(0, Number(localStorage.getItem(STORAGE_KEY)) || 0); } catch (_) { best = 0; }
+
+      function commitBest() {
+        if (score > best) best = score;
+        try { localStorage.setItem(STORAGE_KEY, String(best)); } catch (_) { /* 无存储权限时仅保留本次会话 */ }
+        refreshBest();
+      }
+
+      function refreshBest() {
+        const text = formatScore(best);
+        ui.best.textContent = text;
+        ui.startBest.textContent = text;
+      }
+
+      // ---------- 画布尺寸与程序化城市 ----------
+      function makeCity(layer) {
+        const total = Math.max(1000, width * 2.2);
+        const items = [];
+        let x = 0;
+        while (x < total) {
+          const w = layer === "far" ? random(35, 85) : random(45, 105);
+          const h = layer === "far" ? random(height * .07, height * .28) : random(height * .04, height * .17);
+          items.push({ x, w, h, seed: Math.floor(random(0, 99)), antenna: Math.random() > .78 });
+          x += w + random(5, 19);
+        }
+        return { items, total: x };
+      }
+
+      function resize() {
+        const rect = canvas.getBoundingClientRect();
+        width = Math.max(1, rect.width);
+        height = Math.max(1, rect.height);
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        scale = clamp(height / 720, .72, 1.25) * (width < 350 ? .92 : 1);
+        groundY = height * (height < 500 ? .76 : .79);
+        player.x = clamp(width * .22, 72 * scale, 230);
+        if (player.onGround) player.y = groundY;
+        else player.y = Math.min(player.y, groundY);
+
+        const starCount = clamp(Math.floor(width * height / 14000), 24, 90);
+        stars = Array.from({ length: starCount }, () => ({
+          x: Math.random() * width, y: Math.random() * groundY * .82,
+          r: random(.4, 1.5), phase: random(0, TAU)
+        }));
+        farCity = makeCity("far");
+        nearCity = makeCity("near");
+      }
+
+      // ---------- 游戏状态 ----------
+      function showScreen(name) {
+        Object.entries(screens).forEach(([key, element]) => {
+          const visible = key === name;
+          element.classList.toggle("hidden", !visible);
+          element.setAttribute("aria-hidden", String(!visible));
+        });
+      }
+
+      function resetGame() {
+        recordAtStart = best;
+        distance = 0;
+        score = 0;
+        speed = 350 * scale;
+        world = 0;
+        spawnTimer = 1.55;
+        nextMilestone = 250;
+        hasWon = false;
+        hintTimer = 4;
+        toastTimer = 0;
+        trailTimer = 0;
+        obstacles = [];
+        particles = [];
+        Object.assign(player, {
+          y: groundY, vy: 0, onGround: true, sliding: false,
+          slideTimer: 0, jumpBuffer: 0, runPhase: 0, dead: false
+        });
+        ui.newRecord.classList.remove("visible");
+        ui.goalWrap.style.opacity = "1";
+        ui.toast.classList.remove("show");
+        updateHUD();
+      }
+
+      function startGame() {
+        resetGame();
+        state = "running";
+        showScreen(null);
+        ui.pause.disabled = false;
+        ui.pause.setAttribute("aria-label", "暂停游戏");
+        ui.hint.classList.add("visible");
+        lastTime = performance.now();
+      }
+
+      function pauseGame() {
+        if (state !== "running") return;
+        state = "paused";
+        gesture = null;
+        ui.hint.classList.remove("visible");
+        showScreen("paused");
+      }
+
+      function resumeGame() {
+        if (state !== "paused") return;
+        state = "running";
+        showScreen(null);
+        lastTime = performance.now();
+      }
+
+      function finishGame() {
+        if (state !== "running") return;
+        state = "over";
+        player.dead = true;
+        player.sliding = false;
+        gesture = null;
+        commitBest();
+        burst(player.x, player.y - 28 * scale, "#ff4fd8", 28, 230);
+        ui.hint.classList.remove("visible");
+        ui.pause.disabled = true;
+        ui.finalScore.textContent = formatScore(score);
+        ui.finalDistance.textContent = `${Math.floor(distance)} M`;
+        ui.finalBest.textContent = formatScore(best);
+        ui.newRecord.classList.toggle("visible", score > recordAtStart && score > 0);
+        showScreen("over");
+      }
+
+      function reachGoal() {
+        hasWon = true;
+        state = "win";
+        gesture = null;
+        commitBest();
+        ui.hint.classList.remove("visible");
+        ui.winScore.textContent = formatScore(score);
+        burst(player.x, player.y - 35 * scale, "#ffe786", 34, 260);
+        showScreen("win");
+      }
+
+      function continueEndless() {
+        if (state !== "win") return;
+        state = "running";
+        ui.goalWrap.style.opacity = "0";
+        showScreen(null);
+        lastTime = performance.now();
+        showToast("无尽模式 · 没有终点");
+      }
+
+      function showToast(text) {
+        ui.toast.textContent = text;
+        ui.toast.classList.add("show");
+        toastTimer = 1.7;
+      }
+
+      // ---------- 角色动作 ----------
+      function performJump() {
+        player.vy = -770 * scale;
+        player.onGround = false;
+        player.y -= 1;
+        player.sliding = false;
+        player.slideTimer = 0;
+        player.jumpBuffer = 0;
+        burst(player.x - 8 * scale, groundY, "#63f6ff", 7, 90);
+      }
+
+      function jump() {
+        if (state !== "running") return;
+        if (player.onGround) performJump();
+        else player.jumpBuffer = .13;
+      }
+
+      function slide() {
+        if (state !== "running") return;
+        player.sliding = true;
+        player.slideTimer = .68;
+        player.jumpBuffer = 0;
+        // 空中下滑会快速落地，让手势在触屏上更可靠。
+        if (!player.onGround) player.vy = Math.max(player.vy, 680 * scale);
+        burst(player.x - 18 * scale, player.y - 3 * scale, "#ff4fd8", 5, 70);
+      }
+
+      // ---------- 障碍、粒子与碰撞 ----------
+      function spawnObstacle() {
+        const droneChance = distance < 100 ? 0 : Math.min(.43, .18 + distance / 3500);
+        if (Math.random() < droneChance) {
+          obstacles.push({ type: "drone", x: width + 70 * scale, w: random(52, 64), h: 27, phase: random(0, TAU) });
+        } else {
+          const wide = distance > 400 && Math.random() < .2;
+          obstacles.push({
+            type: "barrier", x: width + 70 * scale,
+            w: wide ? random(46, 55) : random(30, 40),
+            h: wide ? random(40, 47) : random(43, 58),
+            phase: random(0, TAU)
+          });
+        }
+        spawnTimer = random(.82, 1.18) + 160 * scale / speed;
+      }
+
+      function addParticle(x, y, color, vx, vy, life, size, gravity = 0) {
+        if (particles.length > 170) particles.shift();
+        particles.push({ x, y, color, vx, vy, life, maxLife: life, size, gravity });
+      }
+
+      function burst(x, y, color, count, force) {
+        for (let i = 0; i < count; i++) {
+          const angle = random(0, TAU);
+          const power = random(force * .25, force) * scale;
+          addParticle(x, y, color, Math.cos(angle) * power, Math.sin(angle) * power, random(.25, .75), random(1.5, 4) * scale, 300 * scale);
+        }
+      }
+
+      function updateParticles(dt) {
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.life -= dt;
+          if (p.life <= 0) { particles.splice(i, 1); continue; }
+          p.vy += p.gravity * dt;
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+        }
+      }
+
+      function playerHitbox() {
+        const w = (player.sliding ? 51 : 30) * scale;
+        const h = (player.sliding ? 31 : 59) * scale;
+        return { x: player.x - w / 2, y: player.y - h, w, h };
+      }
+
+      function obstacleHitbox(o) {
+        if (o.type === "drone") {
+          const w = o.w * scale;
+          const h = o.h * scale;
+          return { x: o.x + 4 * scale, y: groundY - 72 * scale, w: w - 8 * scale, h };
+        }
+        const w = o.w * scale;
+        const h = o.h * scale;
+        return { x: o.x + 4 * scale, y: groundY - h + 4 * scale, w: w - 8 * scale, h: h - 4 * scale };
+      }
+
+      function overlaps(a, b) {
+        return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+      }
+
+      function updateHUD() {
+        ui.score.textContent = formatScore(score);
+        ui.distance.textContent = `${String(Math.floor(distance)).padStart(4, "0")} M`;
+        ui.best.textContent = formatScore(Math.max(best, score));
+        const progress = clamp(distance / GOAL_DISTANCE, 0, 1);
+        ui.goalBar.style.width = `${progress * 100}%`;
+        ui.goalText.textContent = `${Math.min(Math.floor(distance), GOAL_DISTANCE)} / ${GOAL_DISTANCE} M`;
+      }
+
+      function update(dt) {
+        speed = Math.min(650 * scale, 350 * scale + distance * .32 * scale);
+        world += speed * dt;
+        distance += speed * dt / (34 * scale);
+        score = Math.floor(distance) * 10;
+        player.runPhase += dt * speed / (37 * scale);
+
+        // 跳跃缓冲让落地前稍早点击也能起跳。
+        if (player.jumpBuffer > 0) {
+          player.jumpBuffer -= dt;
+          if (player.onGround) performJump();
+        }
+
+        if (player.sliding) {
+          player.slideTimer -= dt;
+          if (player.slideTimer <= 0) player.sliding = false;
+        }
+
+        if (!player.onGround) {
+          player.vy += 2100 * scale * dt;
+          player.y += player.vy * dt;
+          if (player.y >= groundY) {
+            player.y = groundY;
+            player.vy = 0;
+            player.onGround = true;
+            burst(player.x, groundY, "#63f6ff", 6, 65);
+          }
+        } else {
+          player.y = groundY;
+        }
+
+        // 移动拖尾在低性能设备上也保持固定数量。
+        trailTimer -= dt;
+        if (trailTimer <= 0) {
+          trailTimer = .045;
+          addParticle(player.x - 18 * scale, player.y - random(5, 35) * scale,
+            Math.random() > .45 ? "#63f6ff" : "#9175ff", -random(50, 120) * scale,
+            random(-15, 15) * scale, random(.18, .36), random(1, 2.7) * scale);
+        }
+
+        spawnTimer -= dt;
+        if (spawnTimer <= 0) spawnObstacle();
+
+        const hitbox = playerHitbox();
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+          const o = obstacles[i];
+          o.x -= speed * dt;
+          if (o.x + o.w * scale < -60) { obstacles.splice(i, 1); continue; }
+          if (overlaps(hitbox, obstacleHitbox(o))) {
+            updateHUD();
+            finishGame();
+            return;
+          }
+        }
+
+        updateParticles(dt);
+        if (hintTimer > 0) {
+          hintTimer -= dt;
+          if (hintTimer <= 0) ui.hint.classList.remove("visible");
+        }
+        if (toastTimer > 0) {
+          toastTimer -= dt;
+          if (toastTimer <= 0) ui.toast.classList.remove("show");
+        }
+
+        if (distance >= nextMilestone) {
+          if (nextMilestone < GOAL_DISTANCE) showToast(`速度提升 · ${nextMilestone} M`);
+          nextMilestone += 250;
+        }
+
+        updateHUD();
+        if (!hasWon && distance >= GOAL_DISTANCE) reachGoal();
+      }
+
+      // ---------- 霓虹场景绘制 ----------
+      function roundedRect(x, y, w, h, r) {
+        const radius = Math.min(r, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.arcTo(x + w, y, x + w, y + h, radius);
+        ctx.arcTo(x + w, y + h, x, y + h, radius);
+        ctx.arcTo(x, y + h, x, y, radius);
+        ctx.arcTo(x, y, x + w, y, radius);
+        ctx.closePath();
+      }
+
+      function drawBackground() {
+        const sky = ctx.createLinearGradient(0, 0, 0, height);
+        sky.addColorStop(0, "#040612");
+        sky.addColorStop(.58, "#10102c");
+        sky.addColorStop(1, "#080817");
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, width, height);
+
+        const glow = ctx.createRadialGradient(width * .72, height * .28, 0, width * .72, height * .28, width * .55);
+        glow.addColorStop(0, "rgba(112,63,186,.17)");
+        glow.addColorStop(1, "rgba(24,12,60,0)");
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, width, groundY);
+
+        for (const star of stars) {
+          ctx.globalAlpha = .3 + (Math.sin(elapsed * 1.7 + star.phase) + 1) * .22;
+          ctx.fillStyle = "#b8eaff";
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, star.r, 0, TAU);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        // 远景月牙与轨道环。
+        const moonX = width * .79;
+        const moonY = height * .19;
+        const moonR = clamp(height * .055, 22, 48);
+        ctx.save();
+        ctx.shadowColor = "rgba(157,126,255,.5)";
+        ctx.shadowBlur = 30;
+        ctx.fillStyle = "rgba(191,182,255,.8)";
+        ctx.beginPath();
+        ctx.arc(moonX, moonY, moonR, 0, TAU);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#09091d";
+        ctx.beginPath();
+        ctx.arc(moonX + moonR * .38, moonY - moonR * .18, moonR * .91, 0, TAU);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(99,246,255,.12)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(moonX, moonY, moonR * 1.7, moonR * .42, -.22, 0, TAU);
+        ctx.stroke();
+        ctx.restore();
+
+        drawCity(farCity, .07, "#10142d", "rgba(110,126,199,.18)", 4);
+        drawCity(nearCity, .16, "#090e22", "rgba(71,215,255,.22)", 5);
+        drawGround();
+      }
+
+      function drawCity(city, parallax, color, windowColor, windowSize) {
+        const offset = (world * parallax) % city.total;
+        ctx.save();
+        for (let repeat = 0; repeat < 2; repeat++) {
+          for (const b of city.items) {
+            const x = b.x - offset + repeat * city.total;
+            if (x + b.w < 0 || x > width) continue;
+            const y = groundY - b.h;
+            ctx.fillStyle = color;
+            ctx.fillRect(x, y, b.w, b.h + 3);
+            if (b.antenna) {
+              ctx.strokeStyle = "rgba(126,126,210,.2)";
+              ctx.beginPath();
+              ctx.moveTo(x + b.w * .65, y);
+              ctx.lineTo(x + b.w * .65, y - 18 * scale);
+              ctx.stroke();
+              ctx.fillStyle = "rgba(255,79,216,.65)";
+              ctx.fillRect(x + b.w * .65 - 1, y - 19 * scale, 2, 2);
+            }
+            ctx.fillStyle = windowColor;
+            const cols = Math.max(1, Math.floor(b.w / (windowSize * 3)));
+            const rows = Math.floor(b.h / (windowSize * 3.2));
+            for (let row = 0; row < rows; row++) {
+              for (let col = 0; col < cols; col++) {
+                if ((row * 7 + col * 3 + b.seed) % 4 !== 0) continue;
+                ctx.fillRect(x + 6 + col * windowSize * 3, y + 8 + row * windowSize * 3.2, windowSize, windowSize * .55);
+              }
+            }
+          }
+        }
+        ctx.restore();
+      }
+
+      function drawGround() {
+        const floor = ctx.createLinearGradient(0, groundY, 0, height);
+        floor.addColorStop(0, "rgba(15,18,43,.96)");
+        floor.addColorStop(1, "#040610");
+        ctx.fillStyle = floor;
+        ctx.fillRect(0, groundY, width, height - groundY);
+
+        ctx.save();
+        ctx.strokeStyle = "rgba(104,88,210,.16)";
+        ctx.lineWidth = 1;
+        const vanishX = width * .56;
+        for (let i = -8; i <= 8; i++) {
+          ctx.beginPath();
+          ctx.moveTo(vanishX, groundY);
+          ctx.lineTo(vanishX + i * width * .14, height);
+          ctx.stroke();
+        }
+        for (let i = 1; i <= 7; i++) {
+          const t = i / 7;
+          const y = groundY + (height - groundY) * t * t;
+          ctx.globalAlpha = t;
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(width, y);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        ctx.shadowColor = "#63f6ff";
+        ctx.shadowBlur = 12;
+        ctx.strokeStyle = "rgba(99,246,255,.65)";
+        ctx.beginPath();
+        ctx.moveTo(0, groundY + .5);
+        ctx.lineTo(width, groundY + .5);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawObstacles() {
+        for (const o of obstacles) {
+          if (o.type === "drone") drawDrone(o);
+          else drawBarrier(o);
+        }
+      }
+
+      function drawBarrier(o) {
+        const w = o.w * scale;
+        const h = o.h * scale;
+        const x = o.x;
+        const y = groundY - h;
+        ctx.save();
+        ctx.shadowColor = "#ff4fd8";
+        ctx.shadowBlur = 14;
+        ctx.fillStyle = "rgba(22,13,39,.96)";
+        ctx.strokeStyle = "rgba(255,79,216,.85)";
+        ctx.lineWidth = 1.5 * scale;
+        roundedRect(x, y, w, h, 5 * scale);
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.save();
+        roundedRect(x + 3, y + 4, w - 6, Math.max(6, h - 8), 3);
+        ctx.clip();
+        ctx.strokeStyle = "rgba(255,79,216,.26)";
+        ctx.lineWidth = 4 * scale;
+        for (let line = -h; line < w + h; line += 13 * scale) {
+          ctx.beginPath();
+          ctx.moveTo(x + line, y + h);
+          ctx.lineTo(x + line + h, y);
+          ctx.stroke();
+        }
+        ctx.restore();
+        ctx.fillStyle = "#ff9ce9";
+        ctx.shadowColor = "#ff4fd8";
+        ctx.shadowBlur = 8;
+        ctx.fillRect(x + 5 * scale, y + 5 * scale, w - 10 * scale, 2 * scale);
+        ctx.restore();
+      }
+
+      function drawDrone(o) {
+        const w = o.w * scale;
+        const h = o.h * scale;
+        const x = o.x;
+        const y = groundY - 72 * scale + Math.sin(elapsed * 5 + o.phase) * 2 * scale;
+        ctx.save();
+        ctx.shadowColor = "#a174ff";
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = "rgba(24,17,49,.98)";
+        ctx.strokeStyle = "rgba(174,126,255,.9)";
+        ctx.lineWidth = 1.4 * scale;
+        roundedRect(x, y, w, h, 9 * scale);
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "rgba(182,156,255,.6)";
+        ctx.lineWidth = 2 * scale;
+        ctx.beginPath();
+        ctx.moveTo(x + 8 * scale, y);
+        ctx.lineTo(x + 3 * scale, y - 7 * scale);
+        ctx.moveTo(x + w - 8 * scale, y);
+        ctx.lineTo(x + w - 3 * scale, y - 7 * scale);
+        ctx.stroke();
+        ctx.fillStyle = "rgba(211,193,255,.75)";
+        ctx.fillRect(x - 5 * scale, y - 8 * scale, 17 * scale, 2 * scale);
+        ctx.fillRect(x + w - 12 * scale, y - 8 * scale, 17 * scale, 2 * scale);
+        ctx.fillStyle = "#ff65d9";
+        ctx.shadowColor = "#ff4fd8";
+        ctx.shadowBlur = 9;
+        roundedRect(x + w * .35, y + h * .35, w * .3, 4 * scale, 2 * scale);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawPlayer() {
+        const s = scale;
+        const x = player.x;
+        const y = player.y;
+        // 地面阴影随跳跃高度收窄。
+        const air = clamp((groundY - y) / (150 * s), 0, 1);
+        ctx.save();
+        ctx.globalAlpha = .28 * (1 - air * .65);
+        ctx.fillStyle = "#63f6ff";
+        ctx.filter = "blur(4px)";
+        ctx.beginPath();
+        ctx.ellipse(x, groundY + 4 * s, (player.sliding ? 34 : 24) * s * (1 - air * .35), 4 * s, 0, 0, TAU);
+        ctx.fill();
+        ctx.filter = "none";
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(x, y);
+        if (player.dead) ctx.rotate(.32);
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        if (player.sliding) drawSlidingRunner(s);
+        else drawRunningRunner(s);
+        ctx.restore();
+      }
+
+      function drawRunningRunner(s) {
+        const phase = player.runPhase;
+        const stride = player.onGround ? Math.sin(phase) * 12 * s : 7 * s;
+        const bob = player.onGround ? Math.abs(Math.sin(phase)) * 1.5 * s : 0;
+        ctx.translate(0, -bob);
+
+        // 双腿与发光跑鞋。
+        ctx.strokeStyle = "#7284bd";
+        ctx.lineWidth = 6 * s;
+        const kneeY = player.onGround ? -12 * s : -17 * s;
+        ctx.beginPath();
+        ctx.moveTo(-3 * s, -25 * s);
+        ctx.lineTo(-7 * s + stride * .55, kneeY);
+        ctx.lineTo(-10 * s + stride, -1 * s);
+        ctx.moveTo(3 * s, -25 * s);
+        ctx.lineTo(7 * s - stride * .55, kneeY - (player.onGround ? 0 : 5 * s));
+        ctx.lineTo(8 * s - stride, player.onGround ? -1 * s : -9 * s);
+        ctx.stroke();
+        ctx.strokeStyle = "#63f6ff";
+        ctx.shadowColor = "#63f6ff";
+        ctx.shadowBlur = 9 * s;
+        ctx.lineWidth = 3 * s;
+        ctx.beginPath();
+        ctx.moveTo(-13 * s + stride, -1 * s);
+        ctx.lineTo(-5 * s + stride, -1 * s);
+        ctx.moveTo(5 * s - stride, player.onGround ? -1 * s : -9 * s);
+        ctx.lineTo(13 * s - stride, player.onGround ? -1 * s : -9 * s);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // 身体、手臂与面罩。
+        ctx.fillStyle = "#172446";
+        ctx.strokeStyle = "#8bf8ff";
+        ctx.lineWidth = 1.4 * s;
+        ctx.beginPath();
+        ctx.moveTo(-10 * s, -47 * s);
+        ctx.lineTo(8 * s, -48 * s);
+        ctx.lineTo(13 * s, -26 * s);
+        ctx.lineTo(-7 * s, -24 * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = "#ff4fd8";
+        ctx.shadowColor = "#ff4fd8";
+        ctx.shadowBlur = 7 * s;
+        ctx.beginPath();
+        ctx.moveTo(-7 * s, -43 * s);
+        ctx.lineTo(8 * s, -31 * s);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        ctx.strokeStyle = "#8193c9";
+        ctx.lineWidth = 5 * s;
+        ctx.beginPath();
+        ctx.moveTo(-7 * s, -43 * s);
+        ctx.lineTo(-15 * s - stride * .35, -32 * s);
+        ctx.moveTo(7 * s, -43 * s);
+        ctx.lineTo(14 * s + stride * .35, -34 * s);
+        ctx.stroke();
+
+        ctx.fillStyle = "#111a35";
+        ctx.strokeStyle = "#99f9ff";
+        ctx.lineWidth = 1.5 * s;
+        ctx.beginPath();
+        ctx.arc(2 * s, -56 * s, 9 * s, 0, TAU);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#63f6ff";
+        ctx.shadowColor = "#63f6ff";
+        ctx.shadowBlur = 10 * s;
+        roundedRect(1 * s, -60 * s, 10 * s, 4 * s, 2 * s);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      function drawSlidingRunner(s) {
+        ctx.rotate(-.08);
+        ctx.strokeStyle = "#7184bd";
+        ctx.lineWidth = 6 * s;
+        ctx.beginPath();
+        ctx.moveTo(-7 * s, -16 * s);
+        ctx.lineTo(-24 * s, -6 * s);
+        ctx.lineTo(-34 * s, -2 * s);
+        ctx.moveTo(-4 * s, -13 * s);
+        ctx.lineTo(-17 * s, -3 * s);
+        ctx.stroke();
+        ctx.strokeStyle = "#63f6ff";
+        ctx.shadowColor = "#63f6ff";
+        ctx.shadowBlur = 8 * s;
+        ctx.lineWidth = 3 * s;
+        ctx.beginPath();
+        ctx.moveTo(-37 * s, -2 * s);
+        ctx.lineTo(-28 * s, -2 * s);
+        ctx.moveTo(-21 * s, -3 * s);
+        ctx.lineTo(-13 * s, -3 * s);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = "#172446";
+        ctx.strokeStyle = "#8bf8ff";
+        ctx.lineWidth = 1.4 * s;
+        ctx.beginPath();
+        ctx.moveTo(-14 * s, -26 * s);
+        ctx.lineTo(10 * s, -30 * s);
+        ctx.lineTo(17 * s, -16 * s);
+        ctx.lineTo(-8 * s, -12 * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = "#ff4fd8";
+        ctx.beginPath();
+        ctx.moveTo(-9 * s, -23 * s);
+        ctx.lineTo(10 * s, -20 * s);
+        ctx.stroke();
+
+        ctx.fillStyle = "#111a35";
+        ctx.strokeStyle = "#99f9ff";
+        ctx.beginPath();
+        ctx.arc(20 * s, -23 * s, 8 * s, 0, TAU);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#63f6ff";
+        ctx.shadowColor = "#63f6ff";
+        ctx.shadowBlur = 9 * s;
+        roundedRect(20 * s, -26 * s, 9 * s, 4 * s, 2 * s);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      function drawParticles() {
+        ctx.save();
+        for (const p of particles) {
+          ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+        }
+        ctx.restore();
+      }
+
+      function render() {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, width, height);
+        drawBackground();
+        drawObstacles();
+        drawParticles();
+        drawPlayer();
+      }
+
+      // ---------- 触屏、鼠标与键盘输入 ----------
+      function onPointerDown(event) {
+        if (event.target.closest("button") || state !== "running") return;
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        event.preventDefault();
+        if (gesture) return;
+        gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now(), used: false };
+      }
+
+      function onPointerMove(event) {
+        if (!gesture || gesture.id !== event.pointerId || state !== "running") return;
+        event.preventDefault();
+        const dx = event.clientX - gesture.x;
+        const dy = event.clientY - gesture.y;
+        // 向下位移超过阈值且明显为纵向滑动时，立即铲行且不触发跳跃。
+        if (!gesture.used && dy > Math.max(28, 24 * scale) && dy > Math.abs(dx) * 1.12) {
+          gesture.used = true;
+          slide();
+        }
+      }
+
+      function onPointerUp(event) {
+        if (!gesture || gesture.id !== event.pointerId) return;
+        event.preventDefault();
+        const current = gesture;
+        gesture = null;
+        if (state !== "running" || current.used) return;
+        const dx = event.clientX - current.x;
+        const dy = event.clientY - current.y;
+        const moved = Math.hypot(dx, dy);
+        if (moved < 24 && performance.now() - current.time < 500) jump();
+      }
+
+      window.addEventListener("pointerdown", onPointerDown, { passive: false });
+      window.addEventListener("pointermove", onPointerMove, { passive: false });
+      window.addEventListener("pointerup", onPointerUp, { passive: false });
+      window.addEventListener("pointercancel", () => { gesture = null; }, { passive: true });
+
+      window.addEventListener("keydown", (event) => {
+        const gameKeys = ["Space", "ArrowUp", "ArrowDown", "KeyW", "KeyS", "KeyP", "Escape", "Enter"];
+        if (gameKeys.includes(event.code)) event.preventDefault();
+        if (event.target.closest("button") && (event.code === "Space" || event.code === "Enter")) return;
+        if (event.repeat && event.code !== "ArrowDown" && event.code !== "KeyS") return;
+
+        if (event.code === "KeyP" || event.code === "Escape") {
+          if (state === "running") pauseGame();
+          else if (state === "paused") resumeGame();
+          return;
+        }
+        if (event.code === "Enter") {
+          if (state === "ready" || state === "over") startGame();
+          else if (state === "paused") resumeGame();
+          else if (state === "win") continueEndless();
+          return;
+        }
+        if (event.code === "ArrowDown" || event.code === "KeyS") { slide(); return; }
+        if (event.code === "Space" || event.code === "ArrowUp" || event.code === "KeyW") {
+          if (state === "ready") startGame();
+          else if (state === "over") startGame();
+          else jump();
+        }
+      }, { passive: false });
+
+      // 阻止浏览器双击缩放、橡皮筋滚动与长按菜单。
+      document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("dblclick", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
+      canvas.addEventListener("contextmenu", (event) => event.preventDefault());
+
+      $("startButton").addEventListener("click", startGame);
+      $("restartButton").addEventListener("click", startGame);
+      $("pauseRestartButton").addEventListener("click", startGame);
+      $("winRestartButton").addEventListener("click", startGame);
+      $("resumeButton").addEventListener("click", resumeGame);
+      $("continueButton").addEventListener("click", continueEndless);
+      ui.pause.addEventListener("click", () => {
+        if (state === "running") pauseGame();
+        else if (state === "paused") resumeGame();
+      });
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && state === "running") pauseGame();
+      });
+      window.addEventListener("resize", resize, { passive: true });
+      window.addEventListener("orientationchange", resize, { passive: true });
+      window.addEventListener("beforeunload", commitBest);
+
+      // ---------- 主循环 ----------
+      function frame(now) {
+        const dt = Math.min(Math.max((now - lastTime) / 1000, 0), .034);
+        lastTime = now;
+        elapsed += dt;
+        if (state === "running") update(dt);
+        else {
+          updateParticles(dt);
+          if (state === "ready") world += 15 * dt;
+        }
+        render();
+        requestAnimationFrame(frame);
+      }
+
+      refreshBest();
+      resize();
+      resetGame();
+      showScreen("ready");
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>

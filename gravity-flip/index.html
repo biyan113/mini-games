@@ -1,0 +1,1447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070915">
+  <title>重力反转 · 霓虹跑酷</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070915;
+      --panel: rgba(16, 20, 42, 0.78);
+      --line: rgba(139, 157, 255, 0.16);
+      --cyan: #62f6ff;
+      --violet: #9b7bff;
+      --pink: #ff5c9a;
+      --text: #f2f5ff;
+      --muted: #8992b3;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 5%, rgba(90, 64, 180, 0.2), transparent 38%),
+        radial-gradient(circle at 90% 90%, rgba(0, 218, 255, 0.1), transparent 38%),
+        var(--bg);
+      font-family: ui-rounded, "SF Pro Rounded", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    button {
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    .app {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      max-width: 580px;
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+      isolation: isolate;
+    }
+
+    .topbar {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 44px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .brand-mark {
+      position: relative;
+      width: 38px;
+      height: 38px;
+      flex: 0 0 auto;
+      border: 1px solid rgba(98, 246, 255, 0.42);
+      border-radius: 12px;
+      background: linear-gradient(145deg, rgba(98, 246, 255, 0.14), rgba(155, 123, 255, 0.12));
+      box-shadow: inset 0 0 18px rgba(98, 246, 255, 0.06), 0 0 24px rgba(98, 246, 255, 0.08);
+      transform: rotate(45deg);
+    }
+
+    .brand-mark::before,
+    .brand-mark::after {
+      position: absolute;
+      left: 50%;
+      width: 8px;
+      height: 8px;
+      content: "";
+      border-top: 2px solid var(--cyan);
+      border-left: 2px solid var(--cyan);
+      filter: drop-shadow(0 0 4px var(--cyan));
+    }
+
+    .brand-mark::before {
+      top: 8px;
+      transform: translateX(-50%);
+    }
+
+    .brand-mark::after {
+      bottom: 8px;
+      transform: translateX(-50%) rotate(180deg);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      line-height: 1.2;
+    }
+
+    .brand-subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+    }
+
+    .icon-button {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(17, 22, 44, 0.8);
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.04);
+      font-size: 17px;
+      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+    }
+
+    .icon-button:active {
+      transform: scale(0.94);
+      background: rgba(98, 246, 255, 0.12);
+    }
+
+    .icon-button:disabled {
+      cursor: default;
+      opacity: 0.38;
+    }
+
+    .stats {
+      display: grid;
+      flex: 0 0 auto;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .stat-card {
+      position: relative;
+      min-width: 0;
+      padding: 11px 15px 10px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(20, 26, 52, 0.88), rgba(12, 16, 35, 0.76));
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.035);
+    }
+
+    .stat-card::after {
+      position: absolute;
+      top: 0;
+      left: 15px;
+      width: 38px;
+      height: 1px;
+      content: "";
+      background: var(--cyan);
+      box-shadow: 0 0 10px var(--cyan);
+    }
+
+    .stat-card.best::after {
+      background: var(--violet);
+      box-shadow: 0 0 10px var(--violet);
+    }
+
+    .stat-label {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+    }
+
+    .stat-value {
+      display: block;
+      overflow: hidden;
+      font-size: clamp(22px, 6vw, 28px);
+      font-variant-numeric: tabular-nums;
+      font-weight: 800;
+      letter-spacing: 0.055em;
+      line-height: 1.1;
+      text-overflow: ellipsis;
+      text-shadow: 0 0 18px rgba(98, 246, 255, 0.22);
+    }
+
+    .best .stat-value {
+      color: #c5b6ff;
+      text-shadow: 0 0 18px rgba(155, 123, 255, 0.22);
+    }
+
+    .game-frame {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid rgba(120, 144, 255, 0.24);
+      border-radius: 22px;
+      background: #090d1e;
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.34), inset 0 0 40px rgba(66, 84, 180, 0.05);
+      touch-action: none;
+    }
+
+    .game-frame::before {
+      position: absolute;
+      z-index: 3;
+      inset: 0;
+      border-radius: inherit;
+      content: "";
+      pointer-events: none;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025), inset 0 0 30px rgba(3, 5, 16, 0.3);
+    }
+
+    .game-frame::after {
+      position: absolute;
+      z-index: 2;
+      inset: 0;
+      content: "";
+      pointer-events: none;
+      opacity: 0.12;
+      background: repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(140, 180, 255, 0.09) 4px);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    .run-hud {
+      position: absolute;
+      z-index: 4;
+      top: 12px;
+      right: 12px;
+      left: 12px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .mission,
+    .gravity-chip {
+      border: 1px solid rgba(137, 157, 255, 0.15);
+      background: rgba(7, 11, 27, 0.62);
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.035);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .mission {
+      width: min(58%, 230px);
+      padding: 8px 10px 9px;
+      border-radius: 11px;
+    }
+
+    .mission-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+      color: #a4afd0;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+    }
+
+    #distanceText {
+      color: #eafcff;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0;
+      white-space: nowrap;
+    }
+
+    .progress-track {
+      height: 3px;
+      overflow: hidden;
+      border-radius: 99px;
+      background: rgba(137, 157, 255, 0.14);
+    }
+
+    .progress-bar {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--violet), var(--cyan));
+      box-shadow: 0 0 8px var(--cyan);
+      transition: width 100ms linear;
+    }
+
+    .gravity-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 9px;
+      border-radius: 11px;
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .gravity-arrow {
+      display: inline-block;
+      font-size: 17px;
+      line-height: 1;
+      text-shadow: 0 0 8px currentColor;
+      transition: transform 180ms ease;
+    }
+
+    .gravity-chip.up {
+      color: #c0abff;
+    }
+
+    .gravity-chip.up .gravity-arrow {
+      transform: rotate(180deg);
+    }
+
+    .overlay {
+      position: absolute;
+      z-index: 8;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgba(5, 8, 22, 0.54);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+    }
+
+    .overlay-card {
+      width: min(100%, 330px);
+      padding: 24px 22px;
+      border: 1px solid rgba(122, 151, 255, 0.22);
+      border-radius: 22px;
+      text-align: center;
+      background: linear-gradient(150deg, rgba(23, 29, 58, 0.94), rgba(10, 14, 32, 0.94));
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35), inset 0 1px rgba(255, 255, 255, 0.05);
+    }
+
+    .overlay-symbol {
+      display: grid;
+      width: 54px;
+      height: 54px;
+      margin: 0 auto 15px;
+      place-items: center;
+      border: 1px solid rgba(98, 246, 255, 0.3);
+      border-radius: 17px;
+      color: var(--cyan);
+      background: rgba(98, 246, 255, 0.07);
+      box-shadow: 0 0 30px rgba(98, 246, 255, 0.09);
+      font-size: 27px;
+      font-weight: 300;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--cyan);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.2em;
+    }
+
+    .overlay h2 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 0.04em;
+    }
+
+    .overlay-description {
+      margin: 11px 0 18px;
+      color: #a5aecb;
+      font-size: 13px;
+      line-height: 1.75;
+    }
+
+    .primary-button {
+      width: 100%;
+      min-height: 48px;
+      padding: 12px 18px;
+      border: 1px solid rgba(149, 251, 255, 0.48);
+      border-radius: 14px;
+      color: #07101b;
+      background: linear-gradient(110deg, #8bfaff, #78e9ff 48%, #b4a0ff);
+      box-shadow: 0 8px 26px rgba(98, 246, 255, 0.17), inset 0 1px rgba(255, 255, 255, 0.6);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      transition: transform 150ms ease, filter 150ms ease;
+    }
+
+    .primary-button:active {
+      transform: translateY(1px) scale(0.98);
+      filter: brightness(0.9);
+    }
+
+    .key-hint {
+      margin: 12px 0 0;
+      color: #717b9c;
+      font-size: 10px;
+    }
+
+    .footer-tip {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 24px;
+      margin: 0;
+      color: #8f99b9;
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .tap-icon {
+      position: relative;
+      width: 15px;
+      height: 15px;
+      flex: 0 0 auto;
+      border: 1px solid var(--cyan);
+      border-radius: 50%;
+      box-shadow: 0 0 8px rgba(98, 246, 255, 0.25);
+    }
+
+    .tap-icon::after {
+      position: absolute;
+      inset: 4px;
+      border-radius: 50%;
+      background: var(--cyan);
+      content: "";
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: max(22px, env(safe-area-inset-top)) max(22px, env(safe-area-inset-right)) max(22px, env(safe-area-inset-bottom)) max(22px, env(safe-area-inset-left));
+      background: rgba(3, 5, 15, 0.78);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .result-card {
+      width: min(100%, 360px);
+      padding: 28px 24px 24px;
+      border: 1px solid rgba(142, 155, 255, 0.25);
+      border-radius: 26px;
+      text-align: center;
+      background:
+        radial-gradient(circle at 50% 0, rgba(255, 92, 154, 0.12), transparent 42%),
+        linear-gradient(150deg, #181e3a, #0b0f22);
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.52), inset 0 1px rgba(255, 255, 255, 0.05);
+      animation: card-in 260ms ease-out both;
+    }
+
+    .result-card.victory {
+      background:
+        radial-gradient(circle at 50% 0, rgba(98, 246, 255, 0.16), transparent 45%),
+        linear-gradient(150deg, #181e3a, #0b0f22);
+    }
+
+    @keyframes card-in {
+      from { opacity: 0; transform: translateY(14px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .result-icon {
+      display: grid;
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 16px;
+      place-items: center;
+      border: 1px solid rgba(255, 92, 154, 0.35);
+      border-radius: 20px;
+      color: var(--pink);
+      background: rgba(255, 92, 154, 0.08);
+      box-shadow: 0 0 32px rgba(255, 92, 154, 0.1);
+      font-size: 30px;
+    }
+
+    .victory .result-icon {
+      border-color: rgba(98, 246, 255, 0.4);
+      color: var(--cyan);
+      background: rgba(98, 246, 255, 0.08);
+      box-shadow: 0 0 32px rgba(98, 246, 255, 0.12);
+    }
+
+    .result-card h2 {
+      margin: 0;
+      font-size: 27px;
+      letter-spacing: 0.06em;
+    }
+
+    .result-message {
+      margin: 10px 0 20px;
+      color: #a2accb;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .result-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+      margin-bottom: 16px;
+    }
+
+    .result-stat {
+      padding: 12px 8px;
+      border: 1px solid rgba(137, 157, 255, 0.13);
+      border-radius: 14px;
+      background: rgba(6, 10, 25, 0.42);
+    }
+
+    .result-stat span {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+    }
+
+    .result-stat strong {
+      color: #effdff;
+      font-size: 22px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .record-badge {
+      margin: -3px 0 16px;
+      color: var(--cyan);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-shadow: 0 0 10px rgba(98, 246, 255, 0.4);
+    }
+
+    @media (max-height: 660px) {
+      .app { gap: 8px; padding-top: max(8px, env(safe-area-inset-top)); }
+      .brand-subtitle { display: none; }
+      .brand-mark { width: 34px; height: 34px; }
+      .topbar { min-height: 38px; }
+      .stat-card { padding-top: 8px; padding-bottom: 8px; }
+      .stat-value { font-size: 21px; }
+      .overlay-card { padding: 17px 19px; }
+      .overlay-symbol { width: 43px; height: 43px; margin-bottom: 10px; }
+      .overlay-description { margin: 8px 0 12px; line-height: 1.55; }
+      .key-hint { display: none; }
+      .footer-tip { font-size: 10px; }
+    }
+
+    @media (max-height: 450px) {
+      .stats { position: absolute; z-index: 6; top: 10px; left: 60px; width: 230px; gap: 6px; }
+      .stat-card { padding: 6px 9px; border-radius: 11px; background: rgba(10, 14, 32, 0.8); }
+      .stat-label { margin: 0; font-size: 8px; }
+      .stat-value { font-size: 16px; }
+      .app { padding-bottom: max(7px, env(safe-area-inset-bottom)); }
+      .footer-tip { display: none; }
+      .run-hud { top: 62px; }
+      .overlay-card { max-width: 310px; padding: 12px 18px; }
+      .overlay-symbol { display: none; }
+      .overlay h2 { font-size: 20px; }
+      .overlay-description { margin: 6px 0 9px; font-size: 11px; }
+      .primary-button { min-height: 40px; padding: 8px 14px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="重力反转小游戏">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div>
+          <h1>重力反转</h1>
+          <p class="brand-subtitle">霓虹跑酷 · 突破引力边界</p>
+        </div>
+      </div>
+      <button id="pauseButton" class="icon-button" type="button" aria-label="暂停游戏" title="暂停（P）" disabled>Ⅱ</button>
+    </header>
+
+    <section class="stats" aria-label="分数面板">
+      <div class="stat-card">
+        <span class="stat-label">当前得分</span>
+        <strong id="scoreValue" class="stat-value">00000</strong>
+      </div>
+      <div class="stat-card best">
+        <span class="stat-label">最高分</span>
+        <strong id="bestValue" class="stat-value">00000</strong>
+      </div>
+    </section>
+
+    <section id="gameFrame" class="game-frame" aria-label="游戏区域">
+      <canvas id="gameCanvas" role="img" aria-label="轻触屏幕翻转重力，在天花板与地板间躲避障碍"></canvas>
+
+      <div class="run-hud" aria-hidden="true">
+        <div class="mission">
+          <div class="mission-row">
+            <span>终点 1000 米</span>
+            <span id="distanceText">0 米</span>
+          </div>
+          <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+        </div>
+        <div id="gravityChip" class="gravity-chip">
+          <span class="gravity-arrow">↓</span>
+          <span id="gravityText">重力向下</span>
+        </div>
+      </div>
+
+      <div id="startOverlay" class="overlay">
+        <div class="overlay-card">
+          <div class="overlay-symbol" aria-hidden="true">⇅</div>
+          <p class="eyebrow">重力协议 · 已就绪</p>
+          <h2>准备反转世界</h2>
+          <p class="overlay-description">轻触屏幕切换引力方向<br>避开尖刺，收集晶体，抵达终点</p>
+          <button id="startButton" class="primary-button" type="button">启动跑酷</button>
+          <p class="key-hint">也可按空格键开始</p>
+        </div>
+      </div>
+
+      <div id="pauseOverlay" class="overlay" hidden>
+        <div class="overlay-card">
+          <div class="overlay-symbol" aria-hidden="true">Ⅱ</div>
+          <p class="eyebrow">跑酷已暂停</p>
+          <h2>时间已冻结</h2>
+          <p class="overlay-description">稍作休息，准备好后继续突破引力边界</p>
+          <button id="resumeButton" class="primary-button" type="button">继续跑酷</button>
+          <p class="key-hint">按 P 或空格键继续</p>
+        </div>
+      </div>
+    </section>
+
+    <p class="footer-tip"><span class="tap-icon" aria-hidden="true"></span>轻触 / 点击 / 空格键：翻转重力</p>
+  </main>
+
+  <div id="resultModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="resultTitle" hidden>
+    <section id="resultCard" class="result-card">
+      <div id="resultIcon" class="result-icon" aria-hidden="true">×</div>
+      <p id="resultEyebrow" class="eyebrow">本次跑酷结束</p>
+      <h2 id="resultTitle">信号中断</h2>
+      <p id="resultMessage" class="result-message"></p>
+      <div class="result-stats">
+        <div class="result-stat"><span>本次得分</span><strong id="resultScore">0</strong></div>
+        <div class="result-stat"><span>最高分</span><strong id="resultBest">0</strong></div>
+      </div>
+      <p id="recordBadge" class="record-badge" hidden>✦ 新的最高分 ✦</p>
+      <button id="restartButton" class="primary-button" type="button">再试一次</button>
+      <p class="key-hint">按空格键快速重开</p>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // ---------- 常量与页面元素 ----------
+      const GOAL_DISTANCE = 1000;
+      const STORAGE_KEY = 'gravity-flip-best-v1';
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      const gameFrame = document.getElementById('gameFrame');
+      const scoreValue = document.getElementById('scoreValue');
+      const bestValue = document.getElementById('bestValue');
+      const distanceText = document.getElementById('distanceText');
+      const progressBar = document.getElementById('progressBar');
+      const gravityChip = document.getElementById('gravityChip');
+      const gravityText = document.getElementById('gravityText');
+      const pauseButton = document.getElementById('pauseButton');
+      const startOverlay = document.getElementById('startOverlay');
+      const pauseOverlay = document.getElementById('pauseOverlay');
+      const resultModal = document.getElementById('resultModal');
+      const resultCard = document.getElementById('resultCard');
+      const resultIcon = document.getElementById('resultIcon');
+      const resultEyebrow = document.getElementById('resultEyebrow');
+      const resultTitle = document.getElementById('resultTitle');
+      const resultMessage = document.getElementById('resultMessage');
+      const resultScore = document.getElementById('resultScore');
+      const resultBest = document.getElementById('resultBest');
+      const recordBadge = document.getElementById('recordBadge');
+
+      // ---------- 游戏状态 ----------
+      let state = 'ready'; // ready / running / paused / over / won
+      let width = 0;
+      let height = 0;
+      let dpr = 1;
+      let unit = 1;
+      let ceilingY = 32;
+      let floorY = 400;
+      let lastTime = performance.now();
+      let worldOffset = 0;
+      let distance = 0;
+      let score = 0;
+      let bonusScore = 0;
+      let bestScore = loadBestScore();
+      let speed = 230;
+      let spawnRemaining = 0;
+      let lastObstacleSide = 'floor';
+      let repeatedSides = 0;
+      let trailTimer = 0;
+      let flash = 0;
+      let shake = 0;
+      let stars = [];
+      let obstacles = [];
+      let crystals = [];
+      let particles = [];
+      let floatingTexts = [];
+
+      const player = {
+        x: 70,
+        y: 0,
+        w: 27,
+        h: 35,
+        vy: 0,
+        gravity: 1, // 1 表示朝地板，-1 表示朝天花板
+        onSurface: true,
+        flipPulse: 0
+      };
+
+      function loadBestScore() {
+        try {
+          return Math.max(0, Number.parseInt(localStorage.getItem(STORAGE_KEY), 10) || 0);
+        } catch (error) {
+          // 隐私模式可能禁用本地存储，游戏仍可正常运行。
+          return 0;
+        }
+      }
+
+      function saveBestScore() {
+        try {
+          localStorage.setItem(STORAGE_KEY, String(bestScore));
+        } catch (error) {
+          // 存储失败时不打断本局游戏。
+        }
+      }
+
+      function random(min, max) {
+        return min + Math.random() * (max - min);
+      }
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function formatScore(value) {
+        return String(Math.max(0, Math.floor(value))).padStart(5, '0');
+      }
+
+      // ---------- 自适应画布 ----------
+      function resizeCanvas() {
+        const rect = gameFrame.getBoundingClientRect();
+        if (rect.width < 1 || rect.height < 1) return;
+
+        width = rect.width;
+        height = rect.height;
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        unit = clamp(height / 460, 0.76, 1.12);
+        ceilingY = clamp(height * 0.07, 25, 36);
+        floorY = height - ceilingY;
+        player.w = 27 * unit;
+        player.h = 35 * unit;
+        player.x = clamp(width * 0.21, 58, 112);
+
+        if (state === 'ready') {
+          player.y = floorY - player.h;
+        } else if (player.onSurface) {
+          player.y = player.gravity === 1 ? floorY - player.h : ceilingY;
+        } else {
+          player.y = clamp(player.y, ceilingY, Math.max(ceilingY, floorY - player.h));
+        }
+
+        // 星点只负责营造空间感，不参与碰撞。
+        const starCount = Math.floor((width * height) / 8500);
+        stars = Array.from({ length: Math.max(18, starCount) }, () => ({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          size: random(0.5, 1.6),
+          depth: random(0.03, 0.14),
+          alpha: random(0.15, 0.65)
+        }));
+      }
+
+      // ---------- 开始、暂停与结束 ----------
+      function resetWorld() {
+        distance = 0;
+        score = 0;
+        bonusScore = 0;
+        speed = 230;
+        worldOffset = 0;
+        spawnRemaining = width + 170;
+        lastObstacleSide = 'floor';
+        repeatedSides = 0;
+        trailTimer = 0;
+        flash = 0;
+        shake = 0;
+        obstacles = [];
+        crystals = [];
+        particles = [];
+        floatingTexts = [];
+        player.gravity = 1;
+        player.vy = 0;
+        player.y = floorY - player.h;
+        player.onSurface = true;
+        player.flipPulse = 0;
+        updateHud();
+      }
+
+      function beginRun() {
+        resetWorld();
+        state = 'running';
+        startOverlay.hidden = true;
+        pauseOverlay.hidden = true;
+        resultModal.hidden = true;
+        pauseButton.disabled = false;
+        pauseButton.textContent = 'Ⅱ';
+        pauseButton.setAttribute('aria-label', '暂停游戏');
+        lastTime = performance.now();
+        if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      }
+
+      function togglePause() {
+        if (state === 'running') {
+          state = 'paused';
+          pauseOverlay.hidden = false;
+          pauseButton.textContent = '▶';
+          pauseButton.setAttribute('aria-label', '继续游戏');
+        } else if (state === 'paused') {
+          state = 'running';
+          pauseOverlay.hidden = true;
+          pauseButton.textContent = 'Ⅱ';
+          pauseButton.setAttribute('aria-label', '暂停游戏');
+          lastTime = performance.now();
+          if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+        }
+      }
+
+      function finishRun(victory) {
+        if (state !== 'running') return;
+
+        const isNewRecord = score > bestScore;
+        bestScore = Math.max(bestScore, score);
+        saveBestScore();
+        state = victory ? 'won' : 'over';
+        pauseButton.disabled = true;
+        pauseOverlay.hidden = true;
+        updateHud();
+
+        resultCard.classList.toggle('victory', victory);
+        resultIcon.textContent = victory ? '◇' : '×';
+        resultEyebrow.textContent = victory ? '重力协议 · 已完成' : '本次跑酷结束';
+        resultTitle.textContent = victory ? '反转大师' : '信号中断';
+        resultMessage.textContent = victory
+          ? `你突破了引力边界，成功抵达 ${GOAL_DISTANCE} 米终点！`
+          : `你坚持了 ${Math.floor(distance)} 米。观察尖刺位置，提前反转再试一次。`;
+        resultScore.textContent = Math.floor(score).toLocaleString('zh-CN');
+        resultBest.textContent = Math.floor(bestScore).toLocaleString('zh-CN');
+        recordBadge.hidden = !isNewRecord;
+        resultModal.hidden = false;
+
+        if (victory) {
+          burst(width * 0.5, height * 0.42, '#62f6ff', 42, 250);
+          burst(width * 0.5, height * 0.42, '#b49aff', 30, 210);
+        } else {
+          flash = 1;
+          shake = 10;
+          burst(player.x + player.w / 2, player.y + player.h / 2, '#ff5c9a', 30, 230);
+        }
+
+        requestAnimationFrame(() => document.getElementById('restartButton').focus());
+      }
+
+      function updateHud() {
+        scoreValue.textContent = formatScore(score);
+        bestValue.textContent = formatScore(Math.max(bestScore, score));
+        distanceText.textContent = `${Math.min(GOAL_DISTANCE, Math.floor(distance))} 米`;
+        progressBar.style.width = `${Math.min(100, distance / GOAL_DISTANCE * 100)}%`;
+        const isUp = player.gravity === -1;
+        gravityChip.classList.toggle('up', isUp);
+        gravityText.textContent = isUp ? '重力向上' : '重力向下';
+      }
+
+      // 轻触游戏区域是唯一的翻转手势，避免复杂操作影响跑酷节奏。
+      function primaryAction() {
+        if (state === 'ready') {
+          beginRun();
+        } else if (state === 'running') {
+          flipGravity();
+        } else if (state === 'paused') {
+          togglePause();
+        }
+      }
+
+      function flipGravity() {
+        player.gravity *= -1;
+        player.vy = player.gravity * 190 * unit;
+        player.onSurface = false;
+        player.flipPulse = 1;
+        const px = player.x + player.w / 2;
+        const py = player.y + player.h / 2;
+        burst(px, py, player.gravity === 1 ? '#62f6ff' : '#ad91ff', 10, 105);
+        updateHud();
+      }
+
+      // ---------- 关卡生成 ----------
+      function spawnObstacle() {
+        let side = Math.random() < 0.5 ? 'floor' : 'ceiling';
+        if (side === lastObstacleSide && repeatedSides >= 2) {
+          side = side === 'floor' ? 'ceiling' : 'floor';
+        }
+        repeatedSides = side === lastObstacleSide ? repeatedSides + 1 : 1;
+        lastObstacleSide = side;
+
+        const playableHeight = floorY - ceilingY;
+        const obstacle = {
+          x: width + 45,
+          w: random(29, 43) * unit,
+          h: Math.min(random(46, 76) * unit, playableHeight * 0.34),
+          side,
+          hue: Math.random() < 0.5 ? 'pink' : 'violet'
+        };
+        obstacles.push(obstacle);
+
+        // 晶体放在安全一侧，奖励果断且准确的重力切换。
+        if (Math.random() < 0.72) {
+          const crystalY = side === 'floor'
+            ? ceilingY + player.h * 0.9
+            : floorY - player.h * 0.9;
+          crystals.push({
+            x: obstacle.x + obstacle.w / 2,
+            y: crystalY,
+            r: 7 * unit,
+            phase: Math.random() * Math.PI * 2
+          });
+        }
+      }
+
+      function update(dt) {
+        speed = Math.min(410, 230 + distance * 0.17);
+        worldOffset += speed * dt;
+        distance += speed * dt / 10;
+        score = Math.floor(distance * 10) + bonusScore;
+
+        // 重力加速度随画布高度缩放，兼顾不同尺寸的手机。
+        player.vy += player.gravity * 1720 * unit * dt;
+        player.vy = clamp(player.vy, -900 * unit, 900 * unit);
+        player.y += player.vy * dt;
+        player.flipPulse = Math.max(0, player.flipPulse - dt * 3.5);
+
+        if (player.gravity === 1 && player.y + player.h >= floorY) {
+          player.y = floorY - player.h;
+          player.vy = 0;
+          player.onSurface = true;
+        } else if (player.gravity === -1 && player.y <= ceilingY) {
+          player.y = ceilingY;
+          player.vy = 0;
+          player.onSurface = true;
+        }
+
+        spawnRemaining -= speed * dt;
+        if (spawnRemaining <= 0) {
+          spawnObstacle();
+          spawnRemaining += speed * random(1.08, 1.4);
+        }
+
+        for (const obstacle of obstacles) obstacle.x -= speed * dt;
+        for (const crystal of crystals) crystal.x -= speed * dt;
+        obstacles = obstacles.filter(obstacle => obstacle.x + obstacle.w > -60);
+        crystals = crystals.filter(crystal => crystal.x + crystal.r > -30 && !crystal.collected);
+
+        // 机器人的轻微推进器尾焰。
+        trailTimer -= dt;
+        if (trailTimer <= 0) {
+          trailTimer += 0.035;
+          particles.push({
+            x: player.x - 2,
+            y: player.y + player.h * random(0.35, 0.7),
+            vx: random(-95, -55),
+            vy: random(-18, 18),
+            life: 0.34,
+            maxLife: 0.34,
+            size: random(1.5, 3.2) * unit,
+            color: player.gravity === 1 ? '#62f6ff' : '#a88aff'
+          });
+        }
+
+        checkCollisions();
+        if (distance >= GOAL_DISTANCE && state === 'running') finishRun(true);
+        updateHud();
+      }
+
+      function playerHitbox() {
+        return {
+          x: player.x + 4 * unit,
+          y: player.y + 3 * unit,
+          w: player.w - 8 * unit,
+          h: player.h - 6 * unit
+        };
+      }
+
+      function boxesOverlap(a, b) {
+        return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+      }
+
+      function checkCollisions() {
+        const hitbox = playerHitbox();
+        for (const obstacle of obstacles) {
+          // 碰撞箱略小于尖刺图案，减少视觉上“擦边却失败”的挫败感。
+          const danger = {
+            x: obstacle.x + 4 * unit,
+            y: obstacle.side === 'floor' ? floorY - obstacle.h + 5 * unit : ceilingY,
+            w: obstacle.w - 8 * unit,
+            h: obstacle.h - 5 * unit
+          };
+          if (boxesOverlap(hitbox, danger)) {
+            finishRun(false);
+            return;
+          }
+        }
+
+        for (const crystal of crystals) {
+          const nearestX = clamp(crystal.x, hitbox.x, hitbox.x + hitbox.w);
+          const nearestY = clamp(crystal.y, hitbox.y, hitbox.y + hitbox.h);
+          const dx = crystal.x - nearestX;
+          const dy = crystal.y - nearestY;
+          if (dx * dx + dy * dy < (crystal.r + 3) ** 2) {
+            crystal.collected = true;
+            bonusScore += 100;
+            score += 100;
+            burst(crystal.x, crystal.y, '#62f6ff', 14, 145);
+            floatingTexts.push({ x: crystal.x, y: crystal.y - 8, text: '+100', life: 0.8, maxLife: 0.8 });
+          }
+        }
+      }
+
+      // ---------- 粒子与反馈 ----------
+      function burst(x, y, color, count, force) {
+        for (let i = 0; i < count; i += 1) {
+          const angle = Math.random() * Math.PI * 2;
+          const velocity = random(force * 0.25, force);
+          const life = random(0.3, 0.75);
+          particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * velocity,
+            vy: Math.sin(angle) * velocity,
+            life,
+            maxLife: life,
+            size: random(1.5, 4) * unit,
+            color
+          });
+        }
+      }
+
+      function updateEffects(dt) {
+        for (const particle of particles) {
+          particle.x += particle.vx * dt;
+          particle.y += particle.vy * dt;
+          particle.vx *= 0.985;
+          particle.vy *= 0.985;
+          particle.life -= dt;
+        }
+        particles = particles.filter(particle => particle.life > 0);
+
+        for (const item of floatingTexts) {
+          item.y -= 35 * dt;
+          item.life -= dt;
+        }
+        floatingTexts = floatingTexts.filter(item => item.life > 0);
+        flash = Math.max(0, flash - dt * 2.8);
+        shake = Math.max(0, shake - dt * 24);
+      }
+
+      // ---------- Canvas 绘制 ----------
+      function roundedRectPath(context, x, y, w, h, radius) {
+        const r = Math.min(radius, w / 2, h / 2);
+        context.beginPath();
+        context.moveTo(x + r, y);
+        context.arcTo(x + w, y, x + w, y + h, r);
+        context.arcTo(x + w, y + h, x, y + h, r);
+        context.arcTo(x, y + h, x, y, r);
+        context.arcTo(x, y, x + w, y, r);
+        context.closePath();
+      }
+
+      function drawBackground(time) {
+        const gradient = ctx.createLinearGradient(0, 0, 0, height);
+        gradient.addColorStop(0, '#0d1229');
+        gradient.addColorStop(0.52, '#090e20');
+        gradient.addColorStop(1, '#0d1227');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+
+        const glow = ctx.createRadialGradient(width * 0.78, height * 0.42, 0, width * 0.78, height * 0.42, width * 0.65);
+        glow.addColorStop(0, 'rgba(84, 70, 180, 0.11)');
+        glow.addColorStop(1, 'rgba(20, 20, 60, 0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, width, height);
+
+        for (const star of stars) {
+          const x = ((star.x - worldOffset * star.depth) % width + width) % width;
+          const pulse = 0.75 + Math.sin(time * 1.8 + star.x) * 0.25;
+          ctx.fillStyle = `rgba(155, 190, 255, ${star.alpha * pulse})`;
+          ctx.fillRect(x, star.y, star.size, star.size);
+        }
+
+        // 缓慢后退的透视网格强化速度感。
+        const gridGap = 58;
+        const offset = -(worldOffset * 0.18 % gridGap);
+        ctx.strokeStyle = 'rgba(112, 133, 215, 0.055)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = offset; x < width + gridGap; x += gridGap) {
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, height);
+        }
+        for (let y = height * 0.25; y < height; y += height * 0.25) {
+          ctx.moveTo(0, y);
+          ctx.lineTo(width, y);
+        }
+        ctx.stroke();
+      }
+
+      function drawRails() {
+        ctx.fillStyle = 'rgba(4, 7, 18, 0.66)';
+        ctx.fillRect(0, 0, width, ceilingY);
+        ctx.fillRect(0, floorY, width, height - floorY);
+
+        drawRailLine(ceilingY, false);
+        drawRailLine(floorY, true);
+
+        const tickGap = 34;
+        const offset = -(worldOffset * 0.65 % tickGap);
+        ctx.strokeStyle = 'rgba(105, 155, 224, 0.16)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = offset; x < width + tickGap; x += tickGap) {
+          ctx.moveTo(x, ceilingY - 8);
+          ctx.lineTo(x + 8, ceilingY - 2);
+          ctx.moveTo(x, floorY + 8);
+          ctx.lineTo(x + 8, floorY + 2);
+        }
+        ctx.stroke();
+      }
+
+      function drawRailLine(y, floor) {
+        ctx.save();
+        ctx.shadowColor = floor ? '#62f6ff' : '#8f79ff';
+        ctx.shadowBlur = 12;
+        const line = ctx.createLinearGradient(0, 0, width, 0);
+        line.addColorStop(0, floor ? 'rgba(98,246,255,0.28)' : 'rgba(155,123,255,0.28)');
+        line.addColorStop(0.5, floor ? '#62f6ff' : '#a68aff');
+        line.addColorStop(1, floor ? 'rgba(98,246,255,0.28)' : 'rgba(155,123,255,0.28)');
+        ctx.strokeStyle = line;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawObstacle(obstacle) {
+        const baseY = obstacle.side === 'floor' ? floorY : ceilingY;
+        const direction = obstacle.side === 'floor' ? -1 : 1;
+        const color = obstacle.hue === 'pink' ? '#ff5c9a' : '#a078ff';
+        ctx.save();
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 13;
+        const gradient = ctx.createLinearGradient(0, baseY, 0, baseY + direction * obstacle.h);
+        gradient.addColorStop(0, obstacle.hue === 'pink' ? '#ff91b9' : '#c1a6ff');
+        gradient.addColorStop(1, obstacle.hue === 'pink' ? '#a62361' : '#5033a2');
+        ctx.fillStyle = gradient;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+
+        const spikes = 3;
+        const spikeWidth = obstacle.w / spikes;
+        for (let i = 0; i < spikes; i += 1) {
+          const left = obstacle.x + i * spikeWidth;
+          const tipHeight = obstacle.h * (i === 1 ? 1 : 0.78);
+          ctx.beginPath();
+          ctx.moveTo(left, baseY);
+          ctx.lineTo(left + spikeWidth * 0.52, baseY + direction * tipHeight);
+          ctx.lineTo(left + spikeWidth, baseY);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(obstacle.x - 2, baseY);
+        ctx.lineTo(obstacle.x + obstacle.w + 2, baseY);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawCrystal(crystal, time) {
+        ctx.save();
+        ctx.translate(crystal.x, crystal.y);
+        ctx.rotate(time * 1.8 + crystal.phase);
+        ctx.shadowColor = '#62f6ff';
+        ctx.shadowBlur = 17;
+        const gradient = ctx.createLinearGradient(-crystal.r, -crystal.r, crystal.r, crystal.r);
+        gradient.addColorStop(0, '#e4ffff');
+        gradient.addColorStop(0.45, '#62f6ff');
+        gradient.addColorStop(1, '#7586ff');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.moveTo(0, -crystal.r * 1.35);
+        ctx.lineTo(crystal.r, 0);
+        ctx.lineTo(0, crystal.r * 1.35);
+        ctx.lineTo(-crystal.r, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(235,255,255,0.8)';
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.strokeStyle = 'rgba(98,246,255,0.2)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(crystal.x, crystal.y, crystal.r * (1.8 + Math.sin(time * 3 + crystal.phase) * 0.15), 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawPlayer(time) {
+        const idleBob = state === 'ready' ? Math.sin(time * 3) * 2 : 0;
+        const px = player.x;
+        const py = player.y + idleBob;
+        const cx = px + player.w / 2;
+        const cy = py + player.h / 2;
+
+        if (player.flipPulse > 0) {
+          ctx.save();
+          ctx.globalAlpha = player.flipPulse * 0.5;
+          ctx.strokeStyle = player.gravity === 1 ? '#62f6ff' : '#ac91ff';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(cx, cy, player.w * (1.3 - player.flipPulse * 0.35), 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        if (player.gravity === -1) ctx.rotate(Math.PI);
+        ctx.rotate(clamp(player.vy / 5000, -0.12, 0.12));
+        ctx.translate(-player.w / 2, -player.h / 2);
+        ctx.shadowColor = player.gravity === 1 ? '#62f6ff' : '#9b7bff';
+        ctx.shadowBlur = 18;
+
+        const body = ctx.createLinearGradient(0, 0, player.w, player.h);
+        body.addColorStop(0, '#b9fcff');
+        body.addColorStop(0.42, '#5de5f4');
+        body.addColorStop(1, '#6474e8');
+        roundedRectPath(ctx, 0, 0, player.w, player.h, 7 * unit);
+        ctx.fillStyle = body;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = 'rgba(229,255,255,0.8)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // 深色面罩与双眼让角色在不同方向下都清晰可辨。
+        roundedRectPath(ctx, 4 * unit, 6 * unit, player.w - 8 * unit, 11 * unit, 4 * unit);
+        ctx.fillStyle = '#111b38';
+        ctx.fill();
+        ctx.fillStyle = '#eaffff';
+        ctx.shadowColor = '#eaffff';
+        ctx.shadowBlur = 6;
+        ctx.fillRect(7 * unit, 10 * unit, 3.2 * unit, 3 * unit);
+        ctx.fillRect(player.w - 10.2 * unit, 10 * unit, 3.2 * unit, 3 * unit);
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = 'rgba(12,35,66,0.5)';
+        roundedRectPath(ctx, 7 * unit, 22 * unit, player.w - 14 * unit, 6 * unit, 2 * unit);
+        ctx.fill();
+        ctx.fillStyle = '#ff83bd';
+        ctx.fillRect(10 * unit, 24 * unit, player.w - 20 * unit, 2 * unit);
+        ctx.restore();
+      }
+
+      function drawEffects() {
+        for (const particle of particles) {
+          const alpha = clamp(particle.life / particle.maxLife, 0, 1);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = particle.color;
+          ctx.shadowColor = particle.color;
+          ctx.shadowBlur = 7;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        for (const item of floatingTexts) {
+          ctx.save();
+          ctx.globalAlpha = clamp(item.life / item.maxLife, 0, 1);
+          ctx.fillStyle = '#c9fdff';
+          ctx.shadowColor = '#62f6ff';
+          ctx.shadowBlur = 8;
+          ctx.font = `700 ${13 * unit}px system-ui`;
+          ctx.textAlign = 'center';
+          ctx.fillText(item.text, item.x, item.y);
+          ctx.restore();
+        }
+      }
+
+      function render(time) {
+        ctx.clearRect(0, 0, width, height);
+        ctx.save();
+        if (shake > 0) ctx.translate(random(-shake, shake), random(-shake, shake));
+        drawBackground(time);
+        drawRails();
+        for (const crystal of crystals) drawCrystal(crystal, time);
+        for (const obstacle of obstacles) drawObstacle(obstacle);
+        drawEffects();
+        drawPlayer(time);
+        ctx.restore();
+
+        if (flash > 0) {
+          ctx.fillStyle = `rgba(255, 64, 135, ${flash * 0.2})`;
+          ctx.fillRect(0, 0, width, height);
+        }
+      }
+
+      function frame(now) {
+        const dt = Math.min(Math.max((now - lastTime) / 1000, 0), 0.033);
+        lastTime = now;
+        if (state === 'running') update(dt);
+        if (state !== 'paused') updateEffects(dt);
+        render(now / 1000);
+        requestAnimationFrame(frame);
+      }
+
+      // ---------- 触屏、鼠标与键盘操作 ----------
+      gameFrame.addEventListener('pointerdown', event => {
+        if (event.target.closest('button')) return;
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        event.preventDefault();
+        primaryAction();
+      });
+
+      document.getElementById('startButton').addEventListener('click', beginRun);
+      document.getElementById('resumeButton').addEventListener('click', togglePause);
+      document.getElementById('restartButton').addEventListener('click', beginRun);
+      pauseButton.addEventListener('click', togglePause);
+
+      window.addEventListener('keydown', event => {
+        const actionKeys = ['Space', 'ArrowUp', 'ArrowDown', 'KeyW'];
+        if (actionKeys.includes(event.code)) {
+          event.preventDefault();
+          if (event.repeat) return;
+          if (state === 'over' || state === 'won') beginRun();
+          else primaryAction();
+        } else if ((event.code === 'KeyP' || event.code === 'Escape') && !event.repeat) {
+          event.preventDefault();
+          togglePause();
+        } else if (event.code === 'KeyR' && !event.repeat) {
+          event.preventDefault();
+          beginRun();
+        } else if (event.code === 'Enter' && !event.repeat && (state === 'ready' || state === 'over' || state === 'won')) {
+          event.preventDefault();
+          beginRun();
+        }
+      });
+
+      // 禁止移动端页面滚动、双击缩放与双指缩放手势。
+      document.addEventListener('touchmove', event => event.preventDefault(), { passive: false });
+      document.addEventListener('dblclick', event => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', event => event.preventDefault(), { passive: false });
+
+      // 切到后台时自动暂停，避免回来后因时间差直接撞上障碍。
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state === 'running') togglePause();
+      });
+
+      window.addEventListener('resize', resizeCanvas);
+      if ('ResizeObserver' in window) {
+        new ResizeObserver(resizeCanvas).observe(gameFrame);
+      }
+
+      resizeCanvas();
+      resetWorld();
+      updateHud();
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>

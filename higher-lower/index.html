@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070914">
+  <meta name="color-scheme" content="dark">
+  <title>猜大小 · 霓虹连击挑战</title>
+  <style>
+    /* ---------- 基础与移动端约束 ---------- */
+    :root {
+      color-scheme: dark;
+      --bg: #070914;
+      --panel: rgba(17, 22, 43, 0.72);
+      --line: rgba(160, 180, 255, 0.13);
+      --text: #f4f6ff;
+      --muted: #8b93b2;
+      --cyan: #36e4ff;
+      --pink: #ff4fa3;
+      --green: #63f5bd;
+      --card-width: clamp(146px, 43vw, 190px);
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 8%, rgba(52, 77, 180, 0.2), transparent 35%),
+        radial-gradient(circle at 88% 88%, rgba(160, 37, 125, 0.15), transparent 38%),
+        var(--bg);
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    button {
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    button:disabled {
+      cursor: default;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    .ambient {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .ambient::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: 0.17;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: linear-gradient(to bottom, black, transparent 80%);
+    }
+
+    .orb {
+      position: absolute;
+      width: 260px;
+      height: 260px;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.12;
+    }
+
+    .orb--cyan {
+      top: -120px;
+      right: -100px;
+      background: var(--cyan);
+    }
+
+    .orb--pink {
+      bottom: -130px;
+      left: -100px;
+      background: var(--pink);
+    }
+
+    /* ---------- 页面骨架 ---------- */
+    .game-shell {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: min(100%, 460px);
+      height: 100dvh;
+      max-height: 900px;
+      padding: max(14px, env(safe-area-inset-top)) 18px max(12px, env(safe-area-inset-bottom));
+    }
+
+    .game-content {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+      min-height: 0;
+    }
+
+    .topbar {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 44px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      border: 1px solid rgba(54, 228, 255, 0.35);
+      border-radius: 13px;
+      color: var(--cyan);
+      background: linear-gradient(145deg, rgba(54, 228, 255, 0.13), rgba(54, 228, 255, 0.03));
+      box-shadow: inset 0 0 18px rgba(54, 228, 255, 0.06), 0 0 24px rgba(54, 228, 255, 0.08);
+      font-size: 22px;
+      transform: rotate(-5deg);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 750;
+      letter-spacing: 0.12em;
+      line-height: 1.2;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.18em;
+    }
+
+    .icon-button {
+      display: grid;
+      width: 44px;
+      height: 44px;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(18, 23, 43, 0.75);
+      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+    }
+
+    .icon-button:not(:disabled):active {
+      transform: scale(0.93);
+      background: rgba(42, 51, 83, 0.85);
+    }
+
+    .icon-button:disabled {
+      opacity: 0.4;
+    }
+
+    .icon-button svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+
+    /* ---------- 数据与进度 ---------- */
+    .stats {
+      display: grid;
+      flex: 0 0 auto;
+      grid-template-columns: 1fr 1fr 0.9fr;
+      gap: 8px;
+    }
+
+    .stat-card {
+      position: relative;
+      min-width: 0;
+      padding: 10px 11px 9px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: linear-gradient(145deg, rgba(24, 30, 55, 0.82), rgba(13, 17, 34, 0.75));
+      box-shadow: inset 0 1px rgba(255,255,255,0.025);
+    }
+
+    .stat-card::after {
+      content: "";
+      position: absolute;
+      right: -18px;
+      bottom: -26px;
+      width: 55px;
+      height: 55px;
+      border-radius: 50%;
+      background: var(--stat-color, var(--cyan));
+      filter: blur(25px);
+      opacity: 0.12;
+    }
+
+    .stat-card--best { --stat-color: #a78bfa; }
+    .stat-card--streak { --stat-color: var(--pink); }
+
+    .stat-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+
+    .multiplier {
+      color: #ff8cc1;
+      font-size: 9px;
+      letter-spacing: 0;
+    }
+
+    .stat-value {
+      display: block;
+      margin-top: 3px;
+      overflow: hidden;
+      font-size: 23px;
+      font-variant-numeric: tabular-nums;
+      font-weight: 750;
+      line-height: 1.15;
+      text-overflow: ellipsis;
+    }
+
+    .stat-card--best .stat-value { color: #c5b5ff; }
+    .stat-card--streak .stat-value { color: #ff8cc1; }
+
+    .stat-value.bump {
+      animation: number-bump 280ms ease;
+    }
+
+    .progress-row {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 10px;
+      padding: 0 2px;
+      color: var(--muted);
+      font-size: 10px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .progress-track {
+      position: relative;
+      flex: 1;
+      height: 4px;
+      overflow: hidden;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.07);
+    }
+
+    .progress-fill {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cyan), #8b7cff, var(--pink));
+      box-shadow: 0 0 10px rgba(54, 228, 255, 0.45);
+      transition: width 350ms ease;
+    }
+
+    /* ---------- 提示与牌桌 ---------- */
+    .prompt {
+      flex: 0 0 auto;
+      padding-top: 2px;
+      text-align: center;
+    }
+
+    .prompt h2 {
+      margin: 0;
+      font-size: clamp(17px, 4.8vw, 21px);
+      font-weight: 650;
+      letter-spacing: 0.025em;
+    }
+
+    .prompt p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .live-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      margin-right: 7px;
+      border-radius: 50%;
+      vertical-align: 2px;
+      background: var(--cyan);
+      box-shadow: 0 0 9px var(--cyan);
+      animation: dot-pulse 1.8s ease-in-out infinite;
+    }
+
+    .card-table {
+      position: relative;
+      display: grid;
+      flex: 1 1 auto;
+      min-height: 205px;
+      place-items: center;
+      isolation: isolate;
+    }
+
+    .table-halo {
+      position: absolute;
+      z-index: -1;
+      width: min(82vw, 340px);
+      aspect-ratio: 1;
+      border: 1px solid rgba(92, 117, 196, 0.1);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(66, 82, 153, 0.12), transparent 66%);
+      box-shadow: inset 0 0 60px rgba(54, 228, 255, 0.025);
+    }
+
+    .table-halo::before,
+    .table-halo::after {
+      content: "";
+      position: absolute;
+      border: 1px dashed rgba(119, 139, 207, 0.08);
+      border-radius: 50%;
+      inset: 12%;
+    }
+
+    .table-halo::after { inset: 27%; }
+
+    .card-back,
+    .card-swipe {
+      width: var(--card-width);
+      aspect-ratio: 5 / 7;
+    }
+
+    .card-back {
+      position: absolute;
+      z-index: 0;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      border: 5px solid #dfe5ff;
+      border-radius: 20px;
+      background-color: #111a3d;
+      background-image:
+        linear-gradient(45deg, rgba(54,228,255,0.08) 25%, transparent 25%, transparent 75%, rgba(54,228,255,0.08) 75%),
+        linear-gradient(45deg, rgba(255,79,163,0.07) 25%, transparent 25%, transparent 75%, rgba(255,79,163,0.07) 75%);
+      background-position: 0 0, 8px 8px;
+      background-size: 16px 16px;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.45);
+      transform: translate(13px, -8px) rotate(5deg);
+    }
+
+    .card-back::before {
+      content: "";
+      position: absolute;
+      border: 1px solid rgba(119, 222, 255, 0.35);
+      border-radius: 12px;
+      inset: 5px;
+    }
+
+    .back-mark {
+      display: grid;
+      width: 48%;
+      aspect-ratio: 1;
+      place-items: center;
+      border: 1px solid rgba(54, 228, 255, 0.45);
+      color: var(--cyan);
+      background: rgba(7, 10, 27, 0.75);
+      box-shadow: 0 0 28px rgba(54, 228, 255, 0.15), inset 0 0 18px rgba(54, 228, 255, 0.08);
+      font-size: 34px;
+      transform: rotate(45deg);
+    }
+
+    .back-mark span { transform: rotate(-45deg); }
+
+    .card-swipe {
+      position: relative;
+      z-index: 2;
+      cursor: grab;
+      touch-action: none;
+      transition: transform 180ms ease;
+      will-change: transform;
+    }
+
+    .card-swipe.is-dragging {
+      cursor: grabbing;
+      transition: none;
+    }
+
+    .playing-card {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.8);
+      border-radius: 20px;
+      color: #171a2b;
+      background:
+        radial-gradient(circle at 50% 38%, rgba(255,255,255,0.95), transparent 45%),
+        linear-gradient(145deg, #f9faff, #dfe4f3);
+      box-shadow:
+        0 22px 55px rgba(0,0,0,0.52),
+        0 0 0 1px rgba(54,228,255,0.12),
+        0 0 35px rgba(54,228,255,0.12);
+      transform-style: preserve-3d;
+      backface-visibility: hidden;
+    }
+
+    .playing-card::before {
+      content: "";
+      position: absolute;
+      border: 1px solid rgba(44, 52, 89, 0.07);
+      border-radius: 14px;
+      inset: 7px;
+      pointer-events: none;
+    }
+
+    .playing-card.red {
+      color: #ef315f;
+      box-shadow:
+        0 22px 55px rgba(0,0,0,0.52),
+        0 0 0 1px rgba(255,79,163,0.12),
+        0 0 35px rgba(255,79,163,0.13);
+    }
+
+    .card-corner {
+      position: absolute;
+      top: 14px;
+      left: 15px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-weight: 800;
+      line-height: 0.92;
+    }
+
+    .card-corner--bottom {
+      top: auto;
+      right: 15px;
+      bottom: 14px;
+      left: auto;
+      transform: rotate(180deg);
+    }
+
+    .corner-rank { font-size: clamp(23px, 7vw, 31px); }
+    .corner-suit { margin-top: 5px; font-size: clamp(18px, 5vw, 24px); }
+
+    .card-center {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      flex-direction: column;
+      inset: 50% auto auto 50%;
+      transform: translate(-50%, -50%);
+      line-height: 1;
+    }
+
+    .center-rank {
+      font-size: clamp(58px, 18vw, 80px);
+      font-weight: 800;
+      letter-spacing: -0.07em;
+      text-shadow: 0 2px 0 rgba(255,255,255,0.7);
+    }
+
+    .center-suit {
+      margin-top: 9px;
+      font-size: clamp(38px, 12vw, 54px);
+      opacity: 0.92;
+    }
+
+    .playing-card.flip-out { animation: flip-out 160ms ease-in forwards; }
+    .playing-card.flip-in { animation: flip-in 280ms cubic-bezier(0.2, 0.8, 0.25, 1.2); }
+    .playing-card.correct { animation: correct-glow 520ms ease; }
+    .playing-card.wrong { animation: wrong-shake 420ms ease; }
+
+    .swipe-cue {
+      position: absolute;
+      z-index: 3;
+      left: 50%;
+      padding: 5px 10px;
+      border: 1px solid currentColor;
+      border-radius: 20px;
+      opacity: 0;
+      font-size: 11px;
+      font-weight: 700;
+      pointer-events: none;
+      transform: translateX(-50%);
+      transition: opacity 120ms ease;
+    }
+
+    .swipe-cue--up { top: 3%; color: var(--cyan); }
+    .swipe-cue--down { bottom: 3%; color: var(--pink); }
+    .card-table.drag-up .swipe-cue--up,
+    .card-table.drag-down .swipe-cue--down { opacity: 0.85; }
+
+    .outcome-badge {
+      position: absolute;
+      z-index: 5;
+      top: 8%;
+      left: 50%;
+      padding: 7px 14px;
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      opacity: 0;
+      color: var(--text);
+      background: rgba(10, 14, 30, 0.9);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+      font-size: 13px;
+      font-weight: 750;
+      white-space: nowrap;
+      pointer-events: none;
+      transform: translate(-50%, 8px) scale(0.9);
+    }
+
+    .outcome-badge.show { animation: badge-in 480ms ease forwards; }
+    .outcome-badge.good { border-color: rgba(99,245,189,0.4); color: var(--green); }
+    .outcome-badge.bad { border-color: rgba(255,79,120,0.45); color: #ff6b8d; }
+    .outcome-badge.tie { border-color: rgba(196,181,255,0.4); color: #c5b5ff; }
+
+    .gesture-help {
+      flex: 0 0 auto;
+      margin: -2px 0 0;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-align: center;
+    }
+
+    .gesture-help span { color: #c3c9e1; }
+
+    /* ---------- 猜大小按钮 ---------- */
+    .guess-controls {
+      display: grid;
+      flex: 0 0 auto;
+      grid-template-columns: 1fr 1fr;
+      gap: 11px;
+    }
+
+    .guess-button {
+      position: relative;
+      display: flex;
+      min-height: 62px;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      overflow: hidden;
+      border: 1px solid var(--button-color);
+      border-radius: 18px;
+      background: linear-gradient(145deg, var(--button-bg), rgba(15,19,37,0.9));
+      box-shadow: inset 0 0 22px var(--button-bg), 0 7px 25px rgba(0,0,0,0.25);
+      transition: transform 130ms ease, filter 130ms ease, opacity 130ms ease;
+    }
+
+    .guess-button::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 15%;
+      width: 70%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--button-color), transparent);
+      opacity: 0.75;
+    }
+
+    .guess-button--higher {
+      --button-color: rgba(54,228,255,0.45);
+      --button-bg: rgba(54,228,255,0.1);
+      color: #82efff;
+    }
+
+    .guess-button--lower {
+      --button-color: rgba(255,79,163,0.45);
+      --button-bg: rgba(255,79,163,0.1);
+      color: #ff91c4;
+    }
+
+    .guess-button:not(:disabled):active {
+      filter: brightness(1.25);
+      transform: scale(0.96);
+    }
+
+    .guess-button:disabled { opacity: 0.42; }
+
+    .button-arrow {
+      font-family: system-ui, sans-serif;
+      font-size: 30px;
+      font-weight: 300;
+      line-height: 1;
+    }
+
+    .button-copy {
+      display: flex;
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .button-copy strong {
+      color: var(--text);
+      font-size: 17px;
+      letter-spacing: 0.12em;
+    }
+
+    .button-copy small {
+      color: currentColor;
+      font-size: 9px;
+      opacity: 0.7;
+    }
+
+    .rules-footer {
+      flex: 0 0 auto;
+      margin: 0;
+      color: #69718f;
+      font-size: 9px;
+      letter-spacing: 0.04em;
+      text-align: center;
+    }
+
+    /* ---------- 暂停与结算弹窗 ---------- */
+    .modal-layer {
+      position: fixed;
+      z-index: 100;
+      display: grid;
+      padding: max(22px, env(safe-area-inset-top)) 22px max(22px, env(safe-area-inset-bottom));
+      background: rgba(3, 5, 14, 0.76);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      inset: 0;
+      place-items: center;
+      animation: fade-in 180ms ease;
+    }
+
+    .modal {
+      position: relative;
+      width: min(100%, 360px);
+      padding: 29px 24px 23px;
+      overflow: hidden;
+      border: 1px solid rgba(141, 160, 230, 0.2);
+      border-radius: 26px;
+      background:
+        radial-gradient(circle at 50% 0, rgba(89, 81, 178, 0.16), transparent 45%),
+        linear-gradient(155deg, rgba(25,31,57,0.98), rgba(10,14,29,0.98));
+      box-shadow: 0 30px 100px rgba(0,0,0,0.65), inset 0 1px rgba(255,255,255,0.04);
+      text-align: center;
+      animation: modal-in 260ms cubic-bezier(0.2, 0.85, 0.25, 1.1);
+    }
+
+    .modal::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 20%;
+      width: 60%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), var(--pink), transparent);
+    }
+
+    .modal-icon {
+      display: grid;
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 17px;
+      place-items: center;
+      border: 1px solid rgba(54,228,255,0.35);
+      border-radius: 21px;
+      color: var(--cyan);
+      background: rgba(54,228,255,0.08);
+      box-shadow: 0 0 30px rgba(54,228,255,0.1);
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .modal-icon--win {
+      border-color: rgba(99,245,189,0.4);
+      color: var(--green);
+      background: rgba(99,245,189,0.08);
+      box-shadow: 0 0 35px rgba(99,245,189,0.13);
+    }
+
+    .modal-icon--lose {
+      border-color: rgba(255,79,120,0.4);
+      color: #ff6b8d;
+      background: rgba(255,79,120,0.08);
+      box-shadow: 0 0 35px rgba(255,79,120,0.12);
+    }
+
+    .modal-eyebrow {
+      margin: 0 0 6px;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.2em;
+    }
+
+    .modal h2 {
+      margin: 0;
+      font-size: 27px;
+      letter-spacing: 0.05em;
+    }
+
+    .modal-description {
+      min-height: 38px;
+      margin: 11px auto 18px;
+      color: #a5acc7;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .record-badge {
+      display: inline-block;
+      margin: -5px 0 14px;
+      padding: 5px 12px;
+      border: 1px solid rgba(255, 208, 99, 0.35);
+      border-radius: 20px;
+      color: #ffd977;
+      background: rgba(255, 208, 99, 0.08);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+    }
+
+    .modal-summary {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      margin-bottom: 19px;
+      padding: 14px 0;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,0.025);
+    }
+
+    .summary-item + .summary-item { border-left: 1px solid var(--line); }
+
+    .summary-item span {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .summary-item strong {
+      font-size: 23px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .modal-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .modal-button {
+      min-height: 52px;
+      border-radius: 15px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      transition: transform 130ms ease, filter 130ms ease;
+    }
+
+    .modal-button:active { transform: scale(0.97); }
+
+    .modal-button--primary {
+      color: #07131a;
+      background: linear-gradient(100deg, #57e9ff, #8af4d4);
+      box-shadow: 0 8px 25px rgba(54,228,255,0.16);
+    }
+
+    .modal-button--secondary {
+      border: 1px solid var(--line);
+      color: #aab1cc;
+      background: rgba(255,255,255,0.035);
+    }
+
+    /* ---------- 动画 ---------- */
+    @keyframes dot-pulse {
+      50% { opacity: 0.4; box-shadow: 0 0 3px var(--cyan); }
+    }
+
+    @keyframes number-bump {
+      45% { color: var(--green); transform: translateY(-2px) scale(1.08); }
+    }
+
+    @keyframes flip-out {
+      to { opacity: 0.5; transform: rotateY(88deg) scale(0.96); }
+    }
+
+    @keyframes flip-in {
+      from { opacity: 0.5; transform: rotateY(-88deg) scale(0.96); }
+      to { opacity: 1; transform: rotateY(0) scale(1); }
+    }
+
+    @keyframes correct-glow {
+      45% { box-shadow: 0 22px 55px rgba(0,0,0,0.52), 0 0 45px rgba(99,245,189,0.65); }
+    }
+
+    @keyframes wrong-shake {
+      20%, 60% { transform: translateX(-7px) rotate(-1deg); }
+      40%, 80% { transform: translateX(7px) rotate(1deg); }
+      50% { box-shadow: 0 22px 55px rgba(0,0,0,0.52), 0 0 45px rgba(255,79,120,0.55); }
+    }
+
+    @keyframes badge-in {
+      25%, 75% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -8px) scale(0.98); }
+    }
+
+    @keyframes fade-in { from { opacity: 0; } }
+
+    @keyframes modal-in {
+      from { opacity: 0; transform: translateY(18px) scale(0.96); }
+    }
+
+    /* ---------- 小屏与减少动态效果 ---------- */
+    @media (max-height: 700px) {
+      :root { --card-width: clamp(124px, 36vw, 152px); }
+      .game-content { gap: 7px; }
+      .game-shell { padding-top: max(9px, env(safe-area-inset-top)); }
+      .brand p { display: none; }
+      .brand-mark { width: 38px; height: 38px; }
+      .stat-card { padding: 7px 9px; }
+      .stat-value { font-size: 20px; }
+      .prompt p { margin-top: 3px; }
+      .card-table { min-height: 168px; }
+      .gesture-help { margin: 0; }
+      .guess-button { min-height: 56px; border-radius: 16px; }
+      .rules-footer { font-size: 8px; }
+    }
+
+    @media (min-width: 600px) {
+      .game-shell { padding-right: 24px; padding-left: 24px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true">
+    <div class="orb orb--cyan"></div>
+    <div class="orb orb--pink"></div>
+  </div>
+
+  <main class="game-shell">
+    <div id="gameContent" class="game-content">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">♦</div>
+          <div>
+            <h1>猜大小</h1>
+            <p>霓虹连击挑战</p>
+          </div>
+        </div>
+        <button id="pauseButton" class="icon-button" type="button" aria-label="暂停游戏" title="暂停游戏（P）">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4v16H6zm8 0h4v16h-4z"/></svg>
+        </button>
+      </header>
+
+      <section class="stats" aria-label="本局数据">
+        <div class="stat-card">
+          <span class="stat-label">本局得分</span>
+          <strong id="scoreValue" class="stat-value">0</strong>
+        </div>
+        <div class="stat-card stat-card--best">
+          <span class="stat-label">最高纪录</span>
+          <strong id="bestValue" class="stat-value">0</strong>
+        </div>
+        <div class="stat-card stat-card--streak">
+          <span class="stat-label">连击 <span id="multiplierValue" class="multiplier">×1</span></span>
+          <strong id="streakValue" class="stat-value">0</strong>
+        </div>
+      </section>
+
+      <div class="progress-row">
+        <span id="progressText">0 / 51</span>
+        <div id="progressTrack" class="progress-track" role="progressbar" aria-label="牌局进度" aria-valuemin="0" aria-valuemax="51" aria-valuenow="0">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+        <span id="remainingText">剩余 51 张</span>
+      </div>
+
+      <section class="prompt" aria-live="polite" aria-atomic="true">
+        <h2><span class="live-dot" aria-hidden="true"></span><span id="promptText">下一张更大，还是更小？</span></h2>
+        <p id="promptSubtitle">看清当前牌，做出你的判断</p>
+      </section>
+
+      <section id="cardTable" class="card-table" aria-label="猜大小牌桌">
+        <div class="table-halo" aria-hidden="true"></div>
+        <div class="card-back" aria-hidden="true">
+          <div class="back-mark"><span>♦</span></div>
+        </div>
+        <span class="swipe-cue swipe-cue--up" aria-hidden="true">↑ 更大</span>
+        <span class="swipe-cue swipe-cue--down" aria-hidden="true">↓ 更小</span>
+        <div id="swipeCard" class="card-swipe" aria-label="在牌面上上滑猜更大，下滑猜更小">
+          <article id="currentCard" class="playing-card" role="img" aria-label="当前牌">
+            <div class="card-corner">
+              <span class="corner-rank" data-rank></span>
+              <span class="corner-suit" data-suit></span>
+            </div>
+            <div class="card-center" aria-hidden="true">
+              <span class="center-rank" data-rank></span>
+              <span class="center-suit" data-suit></span>
+            </div>
+            <div class="card-corner card-corner--bottom" aria-hidden="true">
+              <span class="corner-rank" data-rank></span>
+              <span class="corner-suit" data-suit></span>
+            </div>
+          </article>
+        </div>
+        <div id="outcomeBadge" class="outcome-badge" aria-hidden="true"></div>
+      </section>
+
+      <p class="gesture-help"><span>在牌面上滑动</span>，或点按下方按钮</p>
+
+      <section class="guess-controls" aria-label="选择下一张牌的大小">
+        <button id="higherButton" class="guess-button guess-button--higher" type="button" aria-label="猜下一张更大，快捷键 W 或上方向键">
+          <span class="button-arrow" aria-hidden="true">↑</span>
+          <span class="button-copy"><strong>更大</strong><small>上滑 · W / ↑</small></span>
+        </button>
+        <button id="lowerButton" class="guess-button guess-button--lower" type="button" aria-label="猜下一张更小，快捷键 S 或下方向键">
+          <span class="button-arrow" aria-hidden="true">↓</span>
+          <span class="button-copy"><strong>更小</strong><small>下滑 · S / ↓</small></span>
+        </button>
+      </section>
+
+      <p class="rules-footer">A 最大 · 2 最小 · 同点平局，连击保留 · 每 3 连击提升倍率</p>
+    </div>
+
+    <div id="modalLayer" class="modal-layer" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDescription">
+        <div id="modalIcon" class="modal-icon" aria-hidden="true">Ⅱ</div>
+        <p id="modalEyebrow" class="modal-eyebrow">稍作休息</p>
+        <h2 id="modalTitle">牌局已暂停</h2>
+        <p id="modalDescription" class="modal-description">牌局已为你保留，准备好后继续。</p>
+        <div id="recordBadge" class="record-badge" hidden>★ 新的最高纪录</div>
+        <div class="modal-summary">
+          <div class="summary-item"><span>本局得分</span><strong id="modalScore">0</strong></div>
+          <div class="summary-item"><span>最高连击</span><strong id="modalStreak">0</strong></div>
+        </div>
+        <div class="modal-actions">
+          <button id="modalPrimaryButton" class="modal-button modal-button--primary" type="button">继续游戏</button>
+          <button id="modalSecondaryButton" class="modal-button modal-button--secondary" type="button">重新开局</button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // ---------- 常量与 DOM ----------
+      const TOTAL_GUESSES = 51;
+      const STORAGE_KEY = "neon-higher-lower-best-v1";
+      const SUITS = [
+        { symbol: "♠", name: "黑桃", red: false },
+        { symbol: "♥", name: "红桃", red: true },
+        { symbol: "♣", name: "梅花", red: false },
+        { symbol: "♦", name: "方块", red: true }
+      ];
+
+      const byId = (id) => document.getElementById(id);
+      const elements = {
+        gameContent: byId("gameContent"),
+        score: byId("scoreValue"),
+        best: byId("bestValue"),
+        streak: byId("streakValue"),
+        multiplier: byId("multiplierValue"),
+        progressText: byId("progressText"),
+        progressTrack: byId("progressTrack"),
+        progressFill: byId("progressFill"),
+        remaining: byId("remainingText"),
+        prompt: byId("promptText"),
+        promptSubtitle: byId("promptSubtitle"),
+        cardTable: byId("cardTable"),
+        swipeCard: byId("swipeCard"),
+        card: byId("currentCard"),
+        outcome: byId("outcomeBadge"),
+        higher: byId("higherButton"),
+        lower: byId("lowerButton"),
+        pause: byId("pauseButton"),
+        modalLayer: byId("modalLayer"),
+        modalIcon: byId("modalIcon"),
+        modalEyebrow: byId("modalEyebrow"),
+        modalTitle: byId("modalTitle"),
+        modalDescription: byId("modalDescription"),
+        modalScore: byId("modalScore"),
+        modalStreak: byId("modalStreak"),
+        recordBadge: byId("recordBadge"),
+        modalPrimary: byId("modalPrimaryButton"),
+        modalSecondary: byId("modalSecondaryButton")
+      };
+
+      // 某些隐私模式会禁用本地存储，读取失败时退回本次会话纪录。
+      function readBest() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(STORAGE_KEY), 10);
+          return Number.isFinite(value) && value >= 0 ? value : 0;
+        } catch (error) {
+          return 0;
+        }
+      }
+
+      const state = {
+        round: 0,
+        deck: [],
+        current: null,
+        score: 0,
+        best: readBest(),
+        streak: 0,
+        bestStreak: 0,
+        correct: 0,
+        status: "playing",
+        busy: false,
+        newRecord: false,
+        pauseWhenReady: false
+      };
+
+      // ---------- 牌组与计分规则 ----------
+      function rankLabel(rank) {
+        return ({ 11: "J", 12: "Q", 13: "K", 14: "A" })[rank] || String(rank);
+      }
+
+      function cardName(card) {
+        return `${card.suit.name}${rankLabel(card.rank)}`;
+      }
+
+      function createShuffledDeck() {
+        const deck = SUITS.flatMap((suit) =>
+          Array.from({ length: 13 }, (_, index) => ({ rank: index + 2, suit }))
+        );
+
+        // Fisher–Yates 洗牌，确保每局都是完整且不重复的 52 张牌。
+        for (let index = deck.length - 1; index > 0; index -= 1) {
+          const target = Math.floor(Math.random() * (index + 1));
+          [deck[index], deck[target]] = [deck[target], deck[index]];
+        }
+        return deck;
+      }
+
+      function getMultiplier(streak) {
+        return Math.min(3, 1 + Math.floor(Math.max(0, streak - 1) / 3) * 0.5);
+      }
+
+      function formatNumber(value) {
+        return value.toLocaleString("zh-CN");
+      }
+
+      function saveBest() {
+        try {
+          localStorage.setItem(STORAGE_KEY, String(state.best));
+        } catch (error) {
+          // 存储不可用时保留内存中的最高分，不影响游戏。
+        }
+      }
+
+      // ---------- 界面渲染 ----------
+      function renderCard() {
+        const card = state.current;
+        elements.card.classList.toggle("red", card.suit.red);
+        elements.card.querySelectorAll("[data-rank]").forEach((node) => {
+          node.textContent = rankLabel(card.rank);
+        });
+        elements.card.querySelectorAll("[data-suit]").forEach((node) => {
+          node.textContent = card.suit.symbol;
+        });
+        elements.card.setAttribute("aria-label", `当前牌：${cardName(card)}`);
+      }
+
+      function bump(node) {
+        node.classList.remove("bump");
+        void node.offsetWidth;
+        node.classList.add("bump");
+      }
+
+      function updateStats(animate = false) {
+        elements.score.textContent = formatNumber(state.score);
+        elements.best.textContent = formatNumber(state.best);
+        elements.streak.textContent = String(state.streak);
+        elements.multiplier.textContent = `×${getMultiplier(state.streak)}`;
+        if (animate) {
+          bump(elements.score);
+          bump(elements.streak);
+        }
+      }
+
+      function updateProgress() {
+        const completed = TOTAL_GUESSES - state.deck.length;
+        const percent = (completed / TOTAL_GUESSES) * 100;
+        elements.progressText.textContent = `${completed} / ${TOTAL_GUESSES}`;
+        elements.remaining.textContent = `剩余 ${state.deck.length} 张`;
+        elements.progressFill.style.width = `${percent}%`;
+        elements.progressTrack.setAttribute("aria-valuenow", String(completed));
+      }
+
+      function updateControls() {
+        const disabled = state.status !== "playing" || state.busy;
+        elements.higher.disabled = disabled;
+        elements.lower.disabled = disabled;
+        elements.pause.disabled = disabled;
+      }
+
+      function resetPrompt() {
+        elements.prompt.textContent = "下一张更大，还是更小？";
+        elements.promptSubtitle.textContent = "看清当前牌，做出你的判断";
+      }
+
+      function showOutcome(text, type) {
+        elements.outcome.className = `outcome-badge show ${type}`;
+        elements.outcome.textContent = text;
+      }
+
+      function hideOutcome() {
+        elements.outcome.className = "outcome-badge";
+        elements.outcome.textContent = "";
+      }
+
+      // ---------- 弹窗与牌局状态 ----------
+      function showModal() {
+        elements.modalScore.textContent = formatNumber(state.score);
+        elements.modalStreak.textContent = String(state.bestStreak);
+        elements.gameContent.setAttribute("inert", "");
+        elements.modalLayer.hidden = false;
+        window.setTimeout(() => {
+          if (!elements.modalLayer.hidden) {
+            elements.modalPrimary.focus({ preventScroll: true });
+          }
+        }, 40);
+      }
+
+      function hideModal() {
+        elements.modalLayer.hidden = true;
+        elements.gameContent.removeAttribute("inert");
+      }
+
+      function pauseGame() {
+        if (state.status !== "playing" || state.busy) return;
+        state.status = "paused";
+        updateControls();
+        elements.modalIcon.className = "modal-icon";
+        elements.modalIcon.textContent = "Ⅱ";
+        elements.modalEyebrow.textContent = "稍作休息";
+        elements.modalTitle.textContent = "牌局已暂停";
+        elements.modalDescription.textContent = "牌局已为你保留，准备好后继续。";
+        elements.recordBadge.hidden = true;
+        elements.modalPrimary.textContent = "继续游戏";
+        elements.modalSecondary.hidden = false;
+        showModal();
+      }
+
+      function resumeGame() {
+        if (state.status !== "paused") return;
+        state.status = "playing";
+        hideModal();
+        updateControls();
+        elements.pause.focus({ preventScroll: true });
+      }
+
+      function showEndModal(won, previous, revealed) {
+        state.status = won ? "won" : "over";
+        updateControls();
+        elements.modalIcon.className = `modal-icon ${won ? "modal-icon--win" : "modal-icon--lose"}`;
+        elements.modalIcon.textContent = won ? "★" : "×";
+        elements.modalEyebrow.textContent = won ? "完美通关" : "本局结算";
+        elements.modalTitle.textContent = won ? "霓虹之巅！" : "牌局结束";
+
+        if (won) {
+          elements.modalDescription.textContent = "你翻完了整副牌，51 次判断全部安全通过！";
+        } else {
+          const relation = revealed.rank > previous.rank ? "更大" : "更小";
+          elements.modalDescription.textContent = `翻出了${cardName(revealed)}，它比${cardName(previous)}${relation}。`;
+        }
+
+        elements.recordBadge.hidden = !state.newRecord;
+        elements.modalPrimary.textContent = "再来一局";
+        elements.modalSecondary.hidden = true;
+        showModal();
+      }
+
+      function resetSwipe() {
+        activePointer = null;
+        elements.swipeCard.classList.remove("is-dragging");
+        elements.swipeCard.style.transform = "";
+        elements.cardTable.classList.remove("drag-up", "drag-down");
+      }
+
+      function newGame() {
+        state.round += 1;
+        state.deck = createShuffledDeck();
+        state.current = state.deck.pop();
+        state.score = 0;
+        state.streak = 0;
+        state.bestStreak = 0;
+        state.correct = 0;
+        state.status = "playing";
+        state.busy = false;
+        state.newRecord = false;
+        state.pauseWhenReady = false;
+
+        hideModal();
+        resetSwipe();
+        hideOutcome();
+        resetPrompt();
+        elements.card.classList.remove("flip-out", "flip-in", "correct", "wrong");
+        renderCard();
+        updateStats();
+        updateProgress();
+        updateControls();
+      }
+
+      // ---------- 核心比牌流程 ----------
+      function makeGuess(guess) {
+        if (state.status !== "playing" || state.busy || !elements.modalLayer.hidden) return;
+
+        state.busy = true;
+        updateControls();
+        resetSwipe();
+        hideOutcome();
+        elements.card.classList.remove("flip-in", "correct", "wrong");
+        elements.card.classList.add("flip-out");
+        elements.prompt.textContent = "正在翻牌…";
+        elements.promptSubtitle.textContent = guess === "higher" ? "你选择了更大" : "你选择了更小";
+
+        const round = state.round;
+        const previous = state.current;
+        const revealed = state.deck.pop();
+        const difference = revealed.rank - previous.rank;
+        const tie = difference === 0;
+        const correct = !tie && ((guess === "higher" && difference > 0) || (guess === "lower" && difference < 0));
+        let gain = 0;
+
+        window.setTimeout(() => {
+          if (round !== state.round) return;
+
+          state.current = revealed;
+          elements.card.classList.remove("flip-out");
+          elements.card.classList.add("flip-in");
+          renderCard();
+
+          if (correct) {
+            state.streak += 1;
+            state.bestStreak = Math.max(state.bestStreak, state.streak);
+            state.correct += 1;
+            gain = Math.round(100 * getMultiplier(state.streak));
+            state.score += gain;
+            if (state.score > state.best) {
+              state.best = state.score;
+              state.newRecord = true;
+              saveBest();
+            }
+            elements.card.classList.add("correct");
+            elements.prompt.textContent = `猜对了！+${gain} 分`;
+            elements.promptSubtitle.textContent = `${state.streak} 连击 · 当前倍率 ×${getMultiplier(state.streak)}`;
+            showOutcome(`漂亮！+${gain}`, "good");
+            if (navigator.vibrate) navigator.vibrate(18);
+          } else if (tie) {
+            elements.prompt.textContent = "同点，平局！";
+            elements.promptSubtitle.textContent = "本次不得分，连击保留";
+            showOutcome("平局 · 连击保留", "tie");
+          } else {
+            state.streak = 0;
+            state.status = "over";
+            elements.card.classList.add("wrong");
+            elements.prompt.textContent = "这次没猜中";
+            elements.promptSubtitle.textContent = `${cardName(revealed)} 已揭晓`;
+            showOutcome("猜错了", "bad");
+            if (navigator.vibrate) navigator.vibrate([45, 35, 45]);
+          }
+
+          updateStats(correct);
+          updateProgress();
+        }, 160);
+
+        window.setTimeout(() => {
+          if (round !== state.round) return;
+
+          state.busy = false;
+          elements.card.classList.remove("flip-in", "correct", "wrong");
+          updateControls();
+
+          if (!correct && !tie) {
+            showEndModal(false, previous, revealed);
+            return;
+          }
+          if (state.deck.length === 0) {
+            showEndModal(true, previous, revealed);
+            return;
+          }
+
+          resetPrompt();
+          if (state.pauseWhenReady) {
+            state.pauseWhenReady = false;
+            pauseGame();
+          }
+        }, 650);
+      }
+
+      // ---------- 触屏、鼠标与键盘输入 ----------
+      let activePointer = null;
+
+      elements.swipeCard.addEventListener("pointerdown", (event) => {
+        if (state.status !== "playing" || state.busy) return;
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        activePointer = { id: event.pointerId, x: event.clientX, y: event.clientY, dx: 0, dy: 0 };
+        elements.swipeCard.setPointerCapture(event.pointerId);
+        elements.swipeCard.classList.add("is-dragging");
+        event.preventDefault();
+      });
+
+      elements.swipeCard.addEventListener("pointermove", (event) => {
+        if (!activePointer || activePointer.id !== event.pointerId) return;
+        activePointer.dx = event.clientX - activePointer.x;
+        activePointer.dy = event.clientY - activePointer.y;
+        const offset = Math.max(-58, Math.min(58, activePointer.dy)) * 0.38;
+        const rotation = Math.max(-3, Math.min(3, activePointer.dx / 35));
+        elements.swipeCard.style.transform = `translateY(${offset}px) rotate(${rotation}deg)`;
+        elements.cardTable.classList.toggle("drag-up", activePointer.dy < -12);
+        elements.cardTable.classList.toggle("drag-down", activePointer.dy > 12);
+      });
+
+      function finishSwipe(event, cancelled = false) {
+        if (!activePointer || activePointer.id !== event.pointerId) return;
+        const gesture = { ...activePointer };
+        if (elements.swipeCard.hasPointerCapture(event.pointerId)) {
+          elements.swipeCard.releasePointerCapture(event.pointerId);
+        }
+        resetSwipe();
+
+        // 纵向位移超过 44px 且明显大于横向位移时提交选择。
+        if (!cancelled && Math.abs(gesture.dy) >= 44 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.1) {
+          makeGuess(gesture.dy < 0 ? "higher" : "lower");
+        }
+      }
+
+      elements.swipeCard.addEventListener("pointerup", (event) => finishSwipe(event));
+      elements.swipeCard.addEventListener("pointercancel", (event) => finishSwipe(event, true));
+      elements.swipeCard.addEventListener("contextmenu", (event) => event.preventDefault());
+
+      elements.higher.addEventListener("click", () => makeGuess("higher"));
+      elements.lower.addEventListener("click", () => makeGuess("lower"));
+      elements.pause.addEventListener("click", pauseGame);
+      elements.modalPrimary.addEventListener("click", () => {
+        if (state.status === "paused") resumeGame();
+        else newGame();
+      });
+      elements.modalSecondary.addEventListener("click", newGame);
+
+      document.addEventListener("keydown", (event) => {
+        const key = event.key;
+        if (["ArrowUp", "ArrowDown"].includes(key)) event.preventDefault();
+        if (event.repeat) return;
+
+        if (state.status === "paused") {
+          if (key === "p" || key === "P" || key === "Escape") {
+            event.preventDefault();
+            resumeGame();
+          }
+          return;
+        }
+        if (state.status !== "playing") return;
+
+        if (key === "ArrowUp" || key === "w" || key === "W") makeGuess("higher");
+        if (key === "ArrowDown" || key === "s" || key === "S") makeGuess("lower");
+        if (key === "p" || key === "P" || key === "Escape") {
+          event.preventDefault();
+          pauseGame();
+        }
+      });
+
+      // 切到后台时自动暂停；若正在翻牌，则在动画结束后暂停。
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden || state.status !== "playing") return;
+        if (state.busy) state.pauseWhenReady = true;
+        else pauseGame();
+      });
+
+      window.addEventListener("pagehide", saveBest);
+
+      // 禁止双击缩放、双指缩放手势和页面拖动。
+      document.addEventListener("dblclick", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("touchmove", (event) => {
+        if (event.cancelable) event.preventDefault();
+      }, { passive: false });
+
+      newGame();
+    })();
+  </script>
+</body>
+</html>

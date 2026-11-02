@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070b18">
+  <title>霓虹猜词</title>
+  <style>
+    /* ---------- 基础与移动端限制 ---------- */
+    :root {
+      color-scheme: dark;
+      --bg: #070b18;
+      --panel: rgba(15, 23, 44, 0.82);
+      --panel-border: rgba(133, 164, 255, 0.14);
+      --text: #f2f6ff;
+      --muted: #8592b2;
+      --cyan: #55f6ff;
+      --purple: #aa83ff;
+      --pink: #ff638f;
+      --green: #62f5ac;
+      --amber: #ffd166;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      justify-content: center;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(104, 74, 220, 0.19), transparent 34%),
+        radial-gradient(circle at 90% 90%, rgba(20, 197, 214, 0.12), transparent 36%),
+        var(--bg);
+      color: var(--text);
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    body::before {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background-image:
+        linear-gradient(rgba(109, 141, 210, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(109, 141, 210, 0.025) 1px, transparent 1px);
+      background-size: 28px 28px;
+      content: "";
+      pointer-events: none;
+      mask-image: linear-gradient(to bottom, black, transparent 85%);
+    }
+
+    button {
+      margin: 0;
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    button:disabled {
+      cursor: default;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    /* ---------- 整体布局 ---------- */
+    .app {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      max-width: 580px;
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    }
+
+    .topbar {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .brand {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-mark {
+      display: grid;
+      flex: 0 0 42px;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      border: 1px solid rgba(85, 246, 255, 0.45);
+      border-radius: 13px;
+      background: linear-gradient(145deg, rgba(85, 246, 255, 0.14), rgba(170, 131, 255, 0.14));
+      box-shadow: inset 0 0 18px rgba(85, 246, 255, 0.07), 0 0 20px rgba(85, 246, 255, 0.08);
+      color: var(--cyan);
+      font: 800 23px/1 ui-monospace, monospace;
+      text-shadow: 0 0 12px rgba(85, 246, 255, 0.7);
+      transform: rotate(-5deg);
+    }
+
+    .brand-copy {
+      min-width: 0;
+    }
+
+    .brand-eyebrow {
+      margin: 0 0 2px;
+      color: var(--purple);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 2px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 21px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      line-height: 1.15;
+    }
+
+    .header-actions {
+      display: flex;
+      flex: 0 0 auto;
+      gap: 7px;
+    }
+
+    .tool-button {
+      display: flex;
+      min-width: 50px;
+      height: 42px;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 0 10px;
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      background: rgba(18, 27, 50, 0.78);
+      color: #c2cbe2;
+      font-size: 12px;
+      transition: border-color 160ms ease, background 160ms ease, transform 120ms ease;
+    }
+
+    .tool-button svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    .tool-button:active {
+      transform: scale(0.94);
+    }
+
+    .tool-button:disabled {
+      opacity: 0.42;
+    }
+
+    @media (hover: hover) {
+      .tool-button:hover:not(:disabled) {
+        border-color: rgba(85, 246, 255, 0.38);
+        background: rgba(29, 42, 72, 0.9);
+      }
+    }
+
+    /* ---------- 分数栏 ---------- */
+    .stats {
+      display: grid;
+      flex: 0 0 auto;
+      grid-template-columns: 1fr 1fr 1.25fr;
+      gap: 8px;
+    }
+
+    .stat {
+      position: relative;
+      min-width: 0;
+      padding: 9px 11px;
+      overflow: hidden;
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(20, 30, 55, 0.9), rgba(12, 19, 38, 0.82));
+    }
+
+    .stat::after {
+      position: absolute;
+      top: 0;
+      left: 12px;
+      width: 28px;
+      height: 1px;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+      content: "";
+      opacity: 0.65;
+    }
+
+    .stat:nth-child(2)::after {
+      background: var(--purple);
+      box-shadow: 0 0 8px var(--purple);
+    }
+
+    .stat:nth-child(3)::after {
+      background: var(--pink);
+      box-shadow: 0 0 8px var(--pink);
+    }
+
+    .stat-label {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .stat-value {
+      color: var(--text);
+      font: 750 21px/1.2 ui-monospace, "SFMono-Regular", Consolas, monospace;
+    }
+
+    .stat-value.bump {
+      animation: bump 320ms ease;
+    }
+
+    .stat-value small {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .chance-dots {
+      display: flex;
+      gap: 4px;
+      margin-top: 5px;
+    }
+
+    .chance-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: rgba(133, 146, 178, 0.25);
+      transition: background 200ms ease, box-shadow 200ms ease;
+    }
+
+    .chance-dot.used {
+      background: var(--pink);
+      box-shadow: 0 0 7px rgba(255, 99, 143, 0.85);
+    }
+
+    .game-layout {
+      display: flex;
+      flex: 1 1 auto;
+      min-height: 0;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .panel {
+      border: 1px solid var(--panel-border);
+      border-radius: 20px;
+      background: linear-gradient(145deg, rgba(18, 27, 51, 0.88), rgba(10, 16, 33, 0.9));
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.2), inset 0 1px rgba(255, 255, 255, 0.025);
+      backdrop-filter: blur(12px);
+    }
+
+    /* ---------- 上吊小人与单词 ---------- */
+    .play-panel {
+      display: flex;
+      flex: 1 1 auto;
+      min-height: 0;
+      flex-direction: column;
+      padding: 12px 14px;
+      overflow: hidden;
+    }
+
+    .play-panel.shake {
+      animation: shake 330ms ease;
+    }
+
+    .round-line {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .category {
+      padding: 4px 9px;
+      border: 1px solid rgba(170, 131, 255, 0.23);
+      border-radius: 99px;
+      background: rgba(170, 131, 255, 0.08);
+      color: #c8b2ff;
+      font-weight: 650;
+    }
+
+    .figure-wrap {
+      display: grid;
+      flex: 1 1 auto;
+      min-height: 100px;
+      place-items: center;
+      padding: 2px 0;
+    }
+
+    .hangman {
+      display: block;
+      width: auto;
+      max-width: 100%;
+      height: 100%;
+      min-height: 100px;
+      max-height: 210px;
+      overflow: visible;
+    }
+
+    .gallows {
+      fill: none;
+      stroke: #526a96;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 6;
+      filter: drop-shadow(0 0 5px rgba(85, 246, 255, 0.18));
+    }
+
+    .gallows-accent {
+      stroke: var(--cyan);
+      stroke-width: 2;
+      opacity: 0.55;
+    }
+
+    .body-part {
+      fill: none;
+      stroke: var(--pink);
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 5;
+      opacity: 0;
+      filter: drop-shadow(0 0 5px rgba(255, 99, 143, 0.7));
+      transform-origin: center;
+      transition: opacity 260ms ease;
+    }
+
+    .body-part.visible {
+      opacity: 1;
+      animation: draw-in 350ms ease;
+    }
+
+    .word-zone {
+      flex: 0 0 auto;
+      text-align: center;
+    }
+
+    .hint {
+      margin: 2px 0 9px;
+      overflow: hidden;
+      color: #aeb9d3;
+      font-size: 12px;
+      line-height: 1.4;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .hint strong {
+      color: var(--amber);
+      font-weight: 600;
+    }
+
+    .word-display {
+      display: flex;
+      min-height: 43px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(4px, 1.5vw, 8px);
+    }
+
+    .letter-slot {
+      display: grid;
+      width: clamp(20px, 6.2vw, 33px);
+      height: 40px;
+      place-items: center;
+      border-bottom: 2px solid #415170;
+      color: var(--cyan);
+      font: 800 clamp(20px, 6vw, 28px)/1 ui-monospace, "SFMono-Regular", Consolas, monospace;
+      text-shadow: 0 0 12px rgba(85, 246, 255, 0.45);
+      transition: border-color 200ms ease, color 200ms ease;
+    }
+
+    .letter-slot span {
+      opacity: 0;
+      transform: translateY(5px) scale(0.8);
+      transition: opacity 200ms ease, transform 240ms cubic-bezier(0.2, 1.6, 0.4, 1);
+    }
+
+    .letter-slot.revealed {
+      border-color: rgba(85, 246, 255, 0.72);
+    }
+
+    .letter-slot.revealed span {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    .letter-slot.missed {
+      border-color: var(--pink);
+      color: var(--pink);
+      text-shadow: 0 0 12px rgba(255, 99, 143, 0.4);
+    }
+
+    .status-message {
+      min-height: 17px;
+      margin: 9px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.5;
+      transition: color 180ms ease;
+    }
+
+    .status-message[data-type="success"] {
+      color: var(--green);
+    }
+
+    .status-message[data-type="error"] {
+      color: var(--pink);
+    }
+
+    .status-message[data-type="warning"] {
+      color: var(--amber);
+    }
+
+    /* ---------- 字母键盘 ---------- */
+    .keyboard-panel {
+      flex: 0 0 auto;
+      padding: 12px;
+    }
+
+    .keyboard-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 9px;
+    }
+
+    .keyboard-heading h2 {
+      margin: 0;
+      color: #c9d2e8;
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: 1px;
+    }
+
+    .remaining {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .keyboard {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 7px;
+    }
+
+    .key {
+      position: relative;
+      min-width: 0;
+      height: 44px;
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid rgba(133, 164, 255, 0.16);
+      border-radius: 10px;
+      background: linear-gradient(150deg, rgba(36, 48, 79, 0.94), rgba(23, 32, 57, 0.94));
+      box-shadow: 0 3px 0 rgba(3, 7, 17, 0.65), inset 0 1px rgba(255, 255, 255, 0.04);
+      color: #e0e7f8;
+      font: 700 16px/1 ui-monospace, "SFMono-Regular", Consolas, monospace;
+      transition: transform 100ms ease, border-color 160ms ease, color 160ms ease, background 160ms ease, opacity 160ms ease;
+    }
+
+    .key:active:not(:disabled) {
+      box-shadow: 0 1px 0 rgba(3, 7, 17, 0.65);
+      transform: translateY(2px) scale(0.96);
+    }
+
+    .key.correct {
+      border-color: rgba(98, 245, 172, 0.42);
+      background: rgba(98, 245, 172, 0.1);
+      box-shadow: 0 2px 0 rgba(3, 7, 17, 0.55), inset 0 0 14px rgba(98, 245, 172, 0.06);
+      color: var(--green);
+      opacity: 0.75;
+    }
+
+    .key.wrong {
+      border-color: rgba(255, 99, 143, 0.22);
+      background: rgba(255, 99, 143, 0.055);
+      box-shadow: none;
+      color: #805167;
+      opacity: 0.58;
+      text-decoration: line-through;
+    }
+
+    .key.attention {
+      animation: key-shake 280ms ease;
+    }
+
+    @media (hover: hover) {
+      .key:hover:not(:disabled) {
+        z-index: 1;
+        border-color: rgba(85, 246, 255, 0.6);
+        background: linear-gradient(150deg, rgba(42, 66, 96, 0.98), rgba(25, 44, 68, 0.98));
+        color: var(--cyan);
+        box-shadow: 0 3px 0 rgba(3, 7, 17, 0.65), 0 0 14px rgba(85, 246, 255, 0.12);
+      }
+    }
+
+    .input-tip {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin: 10px 0 0;
+      color: #667491;
+      font-size: 10px;
+    }
+
+    .input-tip::before {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 7px var(--cyan);
+      content: "";
+    }
+
+    /* ---------- 暂停与结算弹窗 ---------- */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      place-items: center;
+      padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+      background: rgba(3, 6, 16, 0.76);
+      backdrop-filter: blur(10px);
+      animation: fade-in 180ms ease;
+    }
+
+    .dialog {
+      position: relative;
+      width: min(100%, 390px);
+      max-height: calc(100dvh - 32px);
+      padding: 27px 24px 23px;
+      overflow: hidden;
+      border: 1px solid rgba(133, 164, 255, 0.23);
+      border-radius: 25px;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(170, 131, 255, 0.13), transparent 43%),
+        linear-gradient(150deg, #151f3a, #0c1327);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55), 0 0 40px rgba(85, 246, 255, 0.05);
+      text-align: center;
+      animation: dialog-in 260ms cubic-bezier(0.2, 1.25, 0.4, 1);
+    }
+
+    .dialog::before {
+      position: absolute;
+      top: 0;
+      left: 25%;
+      width: 50%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      box-shadow: 0 0 12px var(--cyan);
+      content: "";
+    }
+
+    .modal-icon {
+      display: grid;
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 14px;
+      place-items: center;
+      border: 1px solid rgba(85, 246, 255, 0.32);
+      border-radius: 19px;
+      background: rgba(85, 246, 255, 0.08);
+      box-shadow: 0 0 24px rgba(85, 246, 255, 0.09);
+      color: var(--cyan);
+      font-size: 28px;
+      font-weight: 800;
+    }
+
+    .modal-icon.success {
+      border-color: rgba(98, 245, 172, 0.36);
+      background: rgba(98, 245, 172, 0.08);
+      color: var(--green);
+    }
+
+    .modal-icon.failure {
+      border-color: rgba(255, 99, 143, 0.36);
+      background: rgba(255, 99, 143, 0.08);
+      color: var(--pink);
+    }
+
+    .modal-kicker {
+      margin: 0 0 5px;
+      color: var(--purple);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 2.5px;
+    }
+
+    .dialog h2 {
+      margin: 0;
+      font-size: 25px;
+      letter-spacing: 1px;
+    }
+
+    .modal-text {
+      margin: 10px auto 0;
+      color: #9ba8c4;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .answer-box {
+      margin-top: 17px;
+      padding: 11px 14px;
+      border: 1px solid rgba(85, 246, 255, 0.13);
+      border-radius: 13px;
+      background: rgba(4, 10, 23, 0.38);
+    }
+
+    .answer-box span {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .answer-box strong {
+      color: var(--cyan);
+      font: 800 23px/1.2 ui-monospace, "SFMono-Regular", Consolas, monospace;
+      letter-spacing: 4px;
+      text-shadow: 0 0 12px rgba(85, 246, 255, 0.35);
+    }
+
+    .modal-score {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 13px;
+      padding: 0 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .modal-score strong {
+      color: var(--green);
+      font: 750 18px/1 ui-monospace, monospace;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .action-button {
+      flex: 1;
+      min-height: 47px;
+      padding: 0 16px;
+      border-radius: 13px;
+      font-size: 14px;
+      font-weight: 700;
+      transition: transform 100ms ease, filter 160ms ease;
+    }
+
+    .action-button:active {
+      transform: scale(0.97);
+    }
+
+    .action-button.primary {
+      background: linear-gradient(110deg, #6debf2, #8b9cff);
+      box-shadow: 0 7px 22px rgba(85, 246, 255, 0.16);
+      color: #081121;
+    }
+
+    .action-button.secondary {
+      border: 1px solid rgba(133, 164, 255, 0.2);
+      background: rgba(37, 49, 79, 0.7);
+      color: #b4c0d9;
+    }
+
+    @media (hover: hover) {
+      .action-button:hover {
+        filter: brightness(1.1);
+      }
+    }
+
+    /* ---------- 小屏与横屏适配 ---------- */
+    @media (max-width: 359px) and (min-height: 701px) {
+      .keyboard {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+      }
+
+      .tool-button {
+        min-width: 43px;
+        padding: 0 8px;
+      }
+
+      .tool-button span {
+        display: none;
+      }
+    }
+
+    @media (max-height: 700px) {
+      .app {
+        gap: 8px;
+        padding-top: max(8px, env(safe-area-inset-top));
+        padding-bottom: max(8px, env(safe-area-inset-bottom));
+      }
+
+      .brand-mark {
+        flex-basis: 36px;
+        width: 36px;
+        height: 36px;
+        border-radius: 11px;
+        font-size: 20px;
+      }
+
+      h1 {
+        font-size: 18px;
+      }
+
+      .brand-eyebrow {
+        display: none;
+      }
+
+      .tool-button {
+        height: 36px;
+      }
+
+      .stats {
+        gap: 6px;
+      }
+
+      .stat {
+        padding: 6px 9px;
+        border-radius: 11px;
+      }
+
+      .stat-value {
+        font-size: 18px;
+      }
+
+      .chance-dots {
+        margin-top: 3px;
+      }
+
+      .game-layout {
+        gap: 8px;
+      }
+
+      .play-panel {
+        padding: 8px 11px;
+        border-radius: 16px;
+      }
+
+      .figure-wrap {
+        min-height: 75px;
+      }
+
+      .hangman {
+        min-height: 75px;
+        max-height: 145px;
+      }
+
+      .hint {
+        margin-bottom: 5px;
+      }
+
+      .letter-slot {
+        height: 34px;
+      }
+
+      .word-display {
+        min-height: 35px;
+      }
+
+      .status-message {
+        margin-top: 5px;
+      }
+
+      .keyboard-panel {
+        padding: 9px;
+        border-radius: 16px;
+      }
+
+      .keyboard-heading {
+        margin-bottom: 7px;
+      }
+
+      .keyboard {
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 5px;
+      }
+
+      .key {
+        height: 38px;
+        border-radius: 8px;
+        font-size: 14px;
+      }
+
+      .input-tip {
+        margin-top: 7px;
+      }
+    }
+
+    @media (max-height: 570px) {
+      .input-tip {
+        display: none;
+      }
+
+      .stat-label {
+        font-size: 9px;
+      }
+
+      .round-line {
+        font-size: 10px;
+      }
+
+      .category {
+        padding: 2px 7px;
+      }
+    }
+
+    @media (orientation: landscape) and (max-height: 600px) {
+      .app {
+        max-width: 920px;
+      }
+
+      .game-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(290px, 1.12fr);
+        gap: 9px;
+      }
+
+      .play-panel,
+      .keyboard-panel {
+        min-height: 0;
+      }
+
+      .keyboard-panel {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .hangman {
+        max-height: 125px;
+      }
+
+      .letter-slot {
+        width: clamp(17px, 3vw, 27px);
+      }
+    }
+
+    @media (max-height: 440px) {
+      .modal-icon {
+        display: none;
+      }
+
+      .dialog {
+        padding: 18px 20px;
+      }
+
+      .dialog h2 {
+        font-size: 21px;
+      }
+
+      .modal-text {
+        margin-top: 6px;
+      }
+
+      .answer-box {
+        margin-top: 10px;
+        padding: 7px 12px;
+      }
+
+      .modal-actions {
+        margin-top: 12px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* ---------- 动画 ---------- */
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes dialog-in {
+      from { opacity: 0; transform: translateY(12px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes bump {
+      0%, 100% { transform: scale(1); }
+      50% { color: var(--green); transform: scale(1.2); text-shadow: 0 0 12px rgba(98, 245, 172, 0.5); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      50% { transform: translateX(4px); }
+      75% { transform: translateX(-2px); }
+    }
+
+    @keyframes key-shake {
+      0%, 100% { transform: translateX(0); }
+      33% { transform: translateX(-3px); }
+      66% { transform: translateX(3px); }
+    }
+
+    @keyframes draw-in {
+      from { opacity: 0; transform: scale(0.85); }
+      to { opacity: 1; transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">?</span>
+        <div class="brand-copy">
+          <p class="brand-eyebrow">NEON HANGMAN</p>
+          <h1>霓虹猜词</h1>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="tool-button" id="newWordButton" type="button" aria-label="换一个单词" title="换一个单词">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 7v5h-5"></path><path d="M4 17v-5h5"></path>
+            <path d="M6.1 8a7 7 0 0 1 11.5-1L20 12M4 12l2.4 5a7 7 0 0 0 11.5-1"></path>
+          </svg>
+          <span>新词</span>
+        </button>
+        <button class="tool-button" id="pauseButton" type="button" aria-label="暂停游戏" title="暂停游戏（Esc）">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect>
+          </svg>
+          <span>暂停</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="stats" aria-label="游戏数据">
+      <div class="stat">
+        <span class="stat-label">当前得分</span>
+        <strong class="stat-value" id="scoreValue">0</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">最高分</span>
+        <strong class="stat-value" id="highScoreValue">0</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">错误次数</span>
+        <strong class="stat-value"><span id="wrongValue">0</span><small> / 6</small></strong>
+        <div class="chance-dots" id="chanceDots" aria-hidden="true">
+          <span class="chance-dot"></span><span class="chance-dot"></span><span class="chance-dot"></span>
+          <span class="chance-dot"></span><span class="chance-dot"></span><span class="chance-dot"></span>
+        </div>
+      </div>
+    </section>
+
+    <main class="game-layout">
+      <section class="panel play-panel" id="playPanel" aria-label="猜词区域">
+        <div class="round-line">
+          <span class="category" id="categoryLabel">分类</span>
+          <span id="roundLabel">第 1 局</span>
+        </div>
+
+        <div class="figure-wrap">
+          <svg class="hangman" id="hangman" viewBox="0 0 260 230" role="img" aria-label="上吊小人：当前错误 0 次，最多允许 6 次">
+            <g class="gallows" aria-hidden="true">
+              <path d="M20 214H145"></path>
+              <path d="M53 214V23H181"></path>
+              <path d="M54 59L88 24"></path>
+              <path class="gallows-accent" d="M181 24V55"></path>
+            </g>
+            <g class="body-part" data-part="1" aria-hidden="true">
+              <circle cx="181" cy="75" r="20"></circle>
+              <path d="M173 70L177 74M177 70L173 74M185 70L189 74M189 70L185 74" stroke-width="2.5"></path>
+            </g>
+            <path class="body-part" data-part="2" d="M181 95V151" aria-hidden="true"></path>
+            <path class="body-part" data-part="3" d="M181 109L151 134" aria-hidden="true"></path>
+            <path class="body-part" data-part="4" d="M181 109L211 134" aria-hidden="true"></path>
+            <path class="body-part" data-part="5" d="M181 151L156 191" aria-hidden="true"></path>
+            <path class="body-part" data-part="6" d="M181 151L206 191" aria-hidden="true"></path>
+          </svg>
+        </div>
+
+        <div class="word-zone">
+          <p class="hint" id="hintText"><strong>提示：</strong>准备好开始了吗？</p>
+          <div class="word-display" id="wordDisplay" aria-label="待猜单词"></div>
+          <p class="status-message" id="statusMessage" role="status" aria-live="polite">轻点下方字母，猜出完整单词</p>
+        </div>
+      </section>
+
+      <section class="panel keyboard-panel" aria-label="字母键盘">
+        <div class="keyboard-heading">
+          <h2>选择字母</h2>
+          <span class="remaining" id="remainingText">还可错 6 次</span>
+        </div>
+        <div class="keyboard" id="keyboard"></div>
+        <p class="input-tip">轻点字母，或使用键盘 A–Z</p>
+      </section>
+    </main>
+  </div>
+
+  <div class="overlay" id="overlay" hidden>
+    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalText">
+      <div class="modal-icon" id="modalIcon" aria-hidden="true">Ⅱ</div>
+      <p class="modal-kicker" id="modalKicker">TAKE A BREAK</p>
+      <h2 id="modalTitle">游戏已暂停</h2>
+      <p class="modal-text" id="modalText">休息一下，准备好后继续挑战。</p>
+      <div class="answer-box" id="answerBox" hidden>
+        <span id="answerLabel">本局答案</span>
+        <strong id="modalAnswer"></strong>
+      </div>
+      <div class="modal-score" id="modalScore" hidden>
+        <span>本局获得</span>
+        <strong id="earnedScore">+0</strong>
+      </div>
+      <div class="modal-actions">
+        <button class="action-button secondary" id="secondaryAction" type="button">重新开始</button>
+        <button class="action-button primary" id="primaryAction" type="button">继续游戏</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // ---------- 词库与常量 ----------
+      const WORDS = [
+        { word: "APPLE", category: "水果", hint: "一种常见水果，常与牛顿联系在一起" },
+        { word: "BANANA", category: "水果", hint: "黄色弯弯的水果，猴子很喜欢" },
+        { word: "ORANGE", category: "水果", hint: "既是一种颜色，也是一种柑橘类水果" },
+        { word: "GRAPE", category: "水果", hint: "成串生长，可以用来酿酒" },
+        { word: "LEMON", category: "水果", hint: "味道很酸的黄色水果" },
+        { word: "PEACH", category: "水果", hint: "表面有细绒毛，孙悟空也爱吃" },
+        { word: "CHERRY", category: "水果", hint: "小巧红润，常成对挂在枝头" },
+        { word: "MANGO", category: "水果", hint: "香甜的热带水果，果肉呈橙黄色" },
+        { word: "TIGER", category: "动物", hint: "身上有黑色条纹的森林之王" },
+        { word: "PANDA", category: "动物", hint: "黑白配色，以竹子为主食" },
+        { word: "RABBIT", category: "动物", hint: "长耳朵，擅长跳跃，爱吃胡萝卜" },
+        { word: "MONKEY", category: "动物", hint: "机灵好动，擅长爬树的灵长类动物" },
+        { word: "DOLPHIN", category: "动物", hint: "聪明友善、生活在海里的哺乳动物" },
+        { word: "PENGUIN", category: "动物", hint: "不会飞，却擅长游泳的南极鸟类" },
+        { word: "GIRAFFE", category: "动物", hint: "拥有超长脖子的非洲动物" },
+        { word: "ZEBRA", category: "动物", hint: "仿佛穿着黑白条纹衫的马科动物" },
+        { word: "SUMMER", category: "自然", hint: "一年中最炎热的季节" },
+        { word: "WINTER", category: "自然", hint: "可能下雪、需要穿厚衣服的季节" },
+        { word: "RAINBOW", category: "自然", hint: "雨后空中出现的七彩圆弧" },
+        { word: "THUNDER", category: "自然", hint: "闪电之后常听到的巨大声响" },
+        { word: "OCEAN", category: "自然", hint: "覆盖地球表面大部分的咸水区域" },
+        { word: "FOREST", category: "自然", hint: "树木茂密生长的大片区域" },
+        { word: "PLANET", category: "太空", hint: "围绕恒星运行的天体" },
+        { word: "ROCKET", category: "太空", hint: "能把航天器送入太空的运载工具" },
+        { word: "GALAXY", category: "太空", hint: "由大量恒星与星际物质组成的系统" },
+        { word: "COFFEE", category: "生活", hint: "许多人早晨用来提神的饮品" },
+        { word: "CAMERA", category: "生活", hint: "用来记录影像和拍照的设备" },
+        { word: "GUITAR", category: "生活", hint: "通常有六根弦的拨弦乐器" },
+        { word: "BICYCLE", category: "生活", hint: "靠脚踏驱动、通常有两个轮子" },
+        { word: "DIAMOND", category: "生活", hint: "硬度很高、常被制成珠宝的宝石" },
+        { word: "JOURNEY", category: "生活", hint: "从一处前往另一处的旅行过程" },
+        { word: "FREEDOM", category: "抽象", hint: "不受拘束、能够自主选择的状态" },
+        { word: "COURAGE", category: "抽象", hint: "面对困难或危险仍敢向前的品质" },
+        { word: "FUTURE", category: "抽象", hint: "尚未到来的时间" },
+        { word: "PUZZLE", category: "游戏", hint: "需要动脑筋解开的谜题" },
+        { word: "VICTORY", category: "游戏", hint: "在比赛或挑战中取得的成功" }
+      ];
+
+      const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+      const MAX_WRONG = 6;
+      const STORAGE_KEY = "neon-hangman-high-score-v1";
+
+      // ---------- DOM 引用 ----------
+      const $ = (id) => document.getElementById(id);
+      const elements = {
+        app: $("app"),
+        score: $("scoreValue"),
+        highScore: $("highScoreValue"),
+        wrong: $("wrongValue"),
+        chanceDots: [...$("chanceDots").children],
+        category: $("categoryLabel"),
+        round: $("roundLabel"),
+        hint: $("hintText"),
+        word: $("wordDisplay"),
+        message: $("statusMessage"),
+        keyboard: $("keyboard"),
+        remaining: $("remainingText"),
+        hangman: $("hangman"),
+        parts: [...document.querySelectorAll(".body-part")],
+        playPanel: $("playPanel"),
+        newWordButton: $("newWordButton"),
+        pauseButton: $("pauseButton"),
+        overlay: $("overlay"),
+        modalIcon: $("modalIcon"),
+        modalKicker: $("modalKicker"),
+        modalTitle: $("modalTitle"),
+        modalText: $("modalText"),
+        answerBox: $("answerBox"),
+        answerLabel: $("answerLabel"),
+        modalAnswer: $("modalAnswer"),
+        modalScore: $("modalScore"),
+        earnedScore: $("earnedScore"),
+        primaryAction: $("primaryAction"),
+        secondaryAction: $("secondaryAction")
+      };
+
+      // ---------- 游戏状态 ----------
+      const state = {
+        entry: null,
+        guessed: new Set(),
+        wrongCount: 0,
+        score: 0,
+        highScore: loadHighScore(),
+        round: 0,
+        status: "playing",
+        modal: null,
+        lastGain: 0,
+        modalTimer: null,
+        previousFocus: null
+      };
+
+      // 读取最高分；隐私模式或存储不可用时自动退化为内存计分。
+      function loadHighScore() {
+        try {
+          const saved = Number.parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10);
+          return Number.isFinite(saved) && saved > 0 ? saved : 0;
+        } catch (error) {
+          return 0;
+        }
+      }
+
+      function saveHighScore() {
+        try {
+          localStorage.setItem(STORAGE_KEY, String(state.highScore));
+        } catch (error) {
+          // 存储失败不影响当前游戏。
+        }
+      }
+
+      // ---------- 初始化与渲染 ----------
+      function buildKeyboard() {
+        const fragment = document.createDocumentFragment();
+        LETTERS.forEach((letter) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "key";
+          button.dataset.letter = letter;
+          button.textContent = letter;
+          button.setAttribute("aria-label", `猜字母 ${letter}`);
+          button.addEventListener("click", () => handleGuess(letter));
+          fragment.appendChild(button);
+        });
+        elements.keyboard.appendChild(fragment);
+      }
+
+      function renderScores(animate = false) {
+        elements.score.textContent = state.score;
+        elements.highScore.textContent = state.highScore;
+        if (animate) {
+          replayAnimation(elements.score, "bump");
+          if (state.score === state.highScore && state.score > 0) {
+            replayAnimation(elements.highScore, "bump");
+          }
+        }
+      }
+
+      function renderWord(revealAll = false) {
+        const answer = state.entry.word;
+        elements.word.replaceChildren();
+
+        [...answer].forEach((letter) => {
+          const slot = document.createElement("span");
+          const text = document.createElement("span");
+          const revealed = revealAll || state.guessed.has(letter);
+          slot.className = "letter-slot";
+          text.textContent = letter;
+          slot.appendChild(text);
+          if (revealed) slot.classList.add("revealed");
+          if (revealAll && !state.guessed.has(letter)) slot.classList.add("missed");
+          elements.word.appendChild(slot);
+        });
+
+        const spokenWord = [...answer]
+          .map((letter) => (revealAll || state.guessed.has(letter) ? letter : "空"))
+          .join(" ");
+        elements.word.setAttribute("aria-label", `单词：${spokenWord}`);
+      }
+
+      function renderKeyboard() {
+        const locked = state.status !== "playing";
+        elements.keyboard.querySelectorAll(".key").forEach((button) => {
+          const letter = button.dataset.letter;
+          const guessed = state.guessed.has(letter);
+          button.disabled = locked || guessed;
+          button.classList.toggle("correct", guessed && state.entry.word.includes(letter));
+          button.classList.toggle("wrong", guessed && !state.entry.word.includes(letter));
+          button.setAttribute("aria-pressed", String(guessed));
+        });
+      }
+
+      function renderMistakes() {
+        elements.wrong.textContent = state.wrongCount;
+        elements.remaining.textContent = `还可错 ${MAX_WRONG - state.wrongCount} 次`;
+        elements.parts.forEach((part) => {
+          part.classList.toggle("visible", Number(part.dataset.part) <= state.wrongCount);
+        });
+        elements.chanceDots.forEach((dot, index) => {
+          dot.classList.toggle("used", index < state.wrongCount);
+        });
+        elements.hangman.setAttribute(
+          "aria-label",
+          `上吊小人：当前错误 ${state.wrongCount} 次，最多允许 ${MAX_WRONG} 次`
+        );
+      }
+
+      function setMessage(text, type = "") {
+        elements.message.textContent = text;
+        if (type) {
+          elements.message.dataset.type = type;
+        } else {
+          elements.message.removeAttribute("data-type");
+        }
+      }
+
+      function replayAnimation(element, className) {
+        element.classList.remove(className);
+        void element.offsetWidth;
+        element.classList.add(className);
+        element.addEventListener("animationend", () => element.classList.remove(className), { once: true });
+      }
+
+      // ---------- 回合控制 ----------
+      function pickWord() {
+        if (WORDS.length === 1) return WORDS[0];
+        let next = state.entry;
+        while (next === state.entry) {
+          next = WORDS[Math.floor(Math.random() * WORDS.length)];
+        }
+        return next;
+      }
+
+      function startRound(resetScore = false) {
+        if (state.modalTimer !== null) {
+          clearTimeout(state.modalTimer);
+          state.modalTimer = null;
+        }
+
+        closeModal(false);
+        if (resetScore) {
+          state.score = 0;
+          state.round = 0;
+        }
+
+        state.entry = pickWord();
+        state.guessed.clear();
+        state.wrongCount = 0;
+        state.lastGain = 0;
+        state.status = "playing";
+        state.round += 1;
+
+        elements.category.textContent = state.entry.category;
+        elements.round.textContent = `第 ${state.round} 局`;
+        elements.hint.replaceChildren();
+        const hintPrefix = document.createElement("strong");
+        hintPrefix.textContent = "提示：";
+        elements.hint.append(hintPrefix, document.createTextNode(state.entry.hint));
+        elements.pauseButton.disabled = false;
+        setMessage("轻点下方字母，猜出完整单词");
+
+        renderScores();
+        renderWord();
+        renderKeyboard();
+        renderMistakes();
+      }
+
+      function handleGuess(letter) {
+        if (state.status !== "playing" || !/^[A-Z]$/.test(letter)) return;
+
+        if (state.guessed.has(letter)) {
+          setMessage(`字母 ${letter} 已经猜过了，换一个试试`, "warning");
+          const key = elements.keyboard.querySelector(`[data-letter="${letter}"]`);
+          replayAnimation(key, "attention");
+          return;
+        }
+
+        state.guessed.add(letter);
+        const isCorrect = state.entry.word.includes(letter);
+
+        if (isCorrect) {
+          setMessage(`猜对了！单词中有字母 ${letter}`, "success");
+          renderWord();
+          renderKeyboard();
+          const solved = [...state.entry.word].every((char) => state.guessed.has(char));
+          if (solved) finishRound(true);
+        } else {
+          state.wrongCount += 1;
+          setMessage(`字母 ${letter} 不在单词中，再想想`, "error");
+          renderMistakes();
+          renderKeyboard();
+          replayAnimation(elements.playPanel, "shake");
+          if (state.wrongCount >= MAX_WRONG) finishRound(false);
+        }
+      }
+
+      function finishRound(won) {
+        state.status = won ? "won" : "lost";
+        elements.pauseButton.disabled = true;
+
+        if (won) {
+          // 猜对基础 100 分，每剩余一次容错机会额外奖励 20 分。
+          state.lastGain = 100 + (MAX_WRONG - state.wrongCount) * 20;
+          state.score += state.lastGain;
+          if (state.score > state.highScore) {
+            state.highScore = state.score;
+            saveHighScore();
+          }
+          setMessage(`漂亮！你猜出了 ${state.entry.word}，获得 ${state.lastGain} 分`, "success");
+          renderScores(true);
+        } else {
+          setMessage(`挑战失败，正确答案是 ${state.entry.word}`, "error");
+        }
+
+        renderWord(true);
+        renderKeyboard();
+        state.modalTimer = window.setTimeout(() => {
+          state.modalTimer = null;
+          showModal(won ? "won" : "lost");
+        }, 520);
+      }
+
+      // ---------- 暂停与弹窗 ----------
+      function pauseGame() {
+        if (state.status !== "playing") return;
+        state.status = "paused";
+        renderKeyboard();
+        showModal("paused");
+      }
+
+      function resumeGame() {
+        if (state.status !== "paused") return;
+        state.status = "playing";
+        closeModal();
+        renderKeyboard();
+        setMessage("游戏继续，选择一个字母吧");
+      }
+
+      function showModal(type) {
+        state.modal = type;
+        state.previousFocus = document.activeElement;
+        elements.modalIcon.className = "modal-icon";
+        elements.answerBox.hidden = type === "paused";
+        elements.modalScore.hidden = type !== "won";
+        elements.secondaryAction.hidden = type !== "paused";
+
+        if (type === "paused") {
+          elements.modalIcon.textContent = "Ⅱ";
+          elements.modalKicker.textContent = "TAKE A BREAK";
+          elements.modalTitle.textContent = "游戏已暂停";
+          elements.modalText.textContent = "休息一下，准备好后继续挑战。";
+          elements.answerLabel.textContent = "本局答案";
+          elements.primaryAction.textContent = "继续游戏";
+          elements.secondaryAction.textContent = "重新开始";
+        } else if (type === "won") {
+          elements.modalIcon.classList.add("success");
+          elements.modalIcon.textContent = "✓";
+          elements.modalKicker.textContent = "WORD COMPLETE";
+          elements.modalTitle.textContent = "猜对了！";
+          elements.modalText.textContent = "出色的判断！带着得分继续挑战下一个单词吧。";
+          elements.answerLabel.textContent = "正确单词";
+          elements.earnedScore.textContent = `+${state.lastGain}`;
+          elements.primaryAction.textContent = "下一词";
+        } else {
+          elements.modalIcon.classList.add("failure");
+          elements.modalIcon.textContent = "×";
+          elements.modalKicker.textContent = "GAME OVER";
+          elements.modalTitle.textContent = "挑战失败";
+          elements.modalText.textContent = "六次机会已用完。别灰心，重新开始刷新纪录吧！";
+          elements.answerLabel.textContent = "正确答案";
+          elements.primaryAction.textContent = "重新开始";
+        }
+
+        elements.modalAnswer.textContent = state.entry.word;
+        elements.overlay.hidden = false;
+        elements.app.inert = true;
+        window.requestAnimationFrame(() => elements.primaryAction.focus({ preventScroll: true }));
+      }
+
+      function closeModal(restoreFocus = true) {
+        if (elements.overlay.hidden) return;
+        elements.overlay.hidden = true;
+        elements.app.inert = false;
+        state.modal = null;
+        if (restoreFocus && state.previousFocus instanceof HTMLElement) {
+          state.previousFocus.focus({ preventScroll: true });
+        }
+        state.previousFocus = null;
+      }
+
+      // ---------- 事件绑定 ----------
+      elements.newWordButton.addEventListener("click", () => startRound(false));
+      elements.pauseButton.addEventListener("click", pauseGame);
+
+      elements.primaryAction.addEventListener("click", () => {
+        if (state.modal === "paused") {
+          resumeGame();
+        } else if (state.modal === "won") {
+          startRound(false);
+        } else if (state.modal === "lost") {
+          startRound(true);
+        }
+      });
+
+      elements.secondaryAction.addEventListener("click", () => {
+        if (state.modal === "paused") startRound(true);
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          if (state.status === "playing") pauseGame();
+          else if (state.status === "paused") resumeGame();
+          return;
+        }
+
+        if (state.status !== "playing" || event.ctrlKey || event.metaKey || event.altKey) return;
+        const letter = event.key.toUpperCase();
+        if (/^[A-Z]$/.test(letter)) {
+          event.preventDefault();
+          handleGuess(letter);
+        }
+      });
+
+      // 页面切到后台时自动暂停，返回后由玩家主动继续。
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && state.status === "playing") pauseGame();
+      });
+
+      // 禁止双击缩放、双指缩放手势与橡皮筋滚动。
+      document.addEventListener("dblclick", (event) => event.preventDefault());
+      document.addEventListener("gesturestart", (event) => event.preventDefault());
+      document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
+
+      buildKeyboard();
+      startRound(true);
+    })();
+  </script>
+</body>
+</html>

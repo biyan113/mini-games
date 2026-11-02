@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070812">
+  <title>霓虹鼓场 · Neon Beat</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070812;
+      --panel: rgba(18, 21, 39, .72);
+      --line: rgba(255, 255, 255, .09);
+      --text: #f5f7ff;
+      --muted: #858ca8;
+      --cyan: #58f6ff;
+      --pink: #ff5bd8;
+      --violet: #9a7bff;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(75, 44, 153, .22), transparent 35%),
+        radial-gradient(circle at 90% 90%, rgba(0, 202, 221, .12), transparent 38%),
+        var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .2;
+      background-image:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: linear-gradient(to bottom, black, transparent 80%);
+    }
+
+    button { font: inherit; touch-action: none; -webkit-tap-highlight-color: transparent; }
+    button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+
+    .ambient {
+      position: fixed;
+      width: 260px;
+      height: 260px;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: .13;
+      pointer-events: none;
+    }
+    .ambient-a { top: -90px; right: -70px; background: var(--pink); }
+    .ambient-b { bottom: -100px; left: -80px; background: var(--cyan); }
+
+    .game-shell {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+      width: min(100%, 540px);
+      height: min(100dvh, 940px);
+      padding: calc(14px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+      overflow: hidden;
+    }
+
+    .topbar, .brand, .header-actions, .mission-line, .mission-meta, .target-status {
+      display: flex;
+      align-items: center;
+    }
+
+    .topbar { justify-content: space-between; flex: 0 0 auto; min-height: 44px; }
+    .brand { gap: 10px; }
+    .brand-mark {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      border: 1px solid rgba(88, 246, 255, .28);
+      border-radius: 13px;
+      background: linear-gradient(145deg, rgba(88,246,255,.14), rgba(154,123,255,.08));
+      box-shadow: inset 0 0 16px rgba(88,246,255,.06), 0 0 20px rgba(88,246,255,.06);
+    }
+    .brand-mark::before, .brand-mark::after {
+      content: "";
+      position: absolute;
+      width: 4px;
+      border-radius: 4px;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+    }
+    .brand-mark::before { height: 12px; transform: translateX(-6px); }
+    .brand-mark::after { height: 22px; transform: translateX(6px); background: var(--pink); box-shadow: 0 0 8px var(--pink); }
+    .brand-mark span { width: 4px; height: 17px; border-radius: 4px; background: #fff; box-shadow: 0 0 8px #fff; }
+    .brand p { margin: 0 0 2px; color: var(--cyan); font-size: 8px; font-weight: 800; letter-spacing: 2.3px; }
+    .brand h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 2px; }
+    .header-actions { gap: 8px; }
+
+    .icon-btn {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(255,255,255,.045);
+      color: #c8cee5;
+      cursor: pointer;
+      transition: border-color .2s, background .2s, color .2s, transform .15s;
+    }
+    .icon-btn:active { transform: scale(.92); background: rgba(255,255,255,.1); }
+    .icon-btn:disabled { opacity: .35; cursor: default; }
+    .icon-btn svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+    .scoreboard {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: 1.45fr 1fr .85fr;
+      padding: 13px 15px;
+      border: 1px solid var(--line);
+      border-radius: 19px;
+      background: linear-gradient(115deg, rgba(255,255,255,.065), rgba(255,255,255,.025));
+      box-shadow: inset 0 1px rgba(255,255,255,.04), 0 12px 40px rgba(0,0,0,.14);
+      backdrop-filter: blur(16px);
+    }
+    .score-cell { min-width: 0; padding-left: 14px; border-left: 1px solid var(--line); }
+    .score-cell:first-child { padding-left: 0; border-left: 0; }
+    .score-cell span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 10px; letter-spacing: 1px; }
+    .score-cell strong {
+      display: block;
+      overflow: hidden;
+      color: #e9edff;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: clamp(18px, 5vw, 25px);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      text-overflow: ellipsis;
+    }
+    .score-cell:first-child strong { color: var(--cyan); text-shadow: 0 0 16px rgba(88,246,255,.3); }
+    .score-cell:last-child strong { color: #ff83e3; }
+
+    .mission {
+      flex: 0 0 auto;
+      padding: 12px 15px 11px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(12, 15, 29, .65);
+    }
+    .mission-line { justify-content: space-between; gap: 12px; }
+    .target-status { min-width: 0; gap: 8px; color: #cbd2eb; font-size: 12px; font-weight: 600; }
+    .target-status span:last-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .live-dot {
+      flex: 0 0 auto;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 9px var(--cyan);
+      animation: dotPulse 1.4s ease-in-out infinite;
+    }
+    .timer { flex: 0 0 auto; color: #fff; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .timer small { margin-left: 2px; color: var(--muted); font-size: 10px; font-weight: 500; }
+    .timer.is-urgent { color: #ff6f91; text-shadow: 0 0 12px rgba(255,80,120,.45); }
+    .progress-track { height: 5px; margin: 11px 0 9px; overflow: hidden; border-radius: 9px; background: rgba(255,255,255,.07); }
+    .progress-fill {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--violet), var(--pink), var(--cyan));
+      box-shadow: 0 0 12px rgba(88,246,255,.5);
+      transition: width .18s ease-out;
+    }
+    .mission-meta { justify-content: space-between; color: var(--muted); font-size: 10px; letter-spacing: .5px; }
+    .mission-meta b { color: #e8ecff; font-weight: 700; }
+    .lives { display: flex; gap: 5px; }
+    .life {
+      width: 16px;
+      height: 7px;
+      border-radius: 5px;
+      background: var(--pink);
+      box-shadow: 0 0 8px rgba(255,91,216,.45);
+      transition: opacity .25s, background .25s, box-shadow .25s;
+    }
+    .life.is-lost { opacity: .25; background: #545a72; box-shadow: none; }
+
+    .pad-area { flex: 1 1 auto; display: grid; place-items: stretch; min-height: 0; }
+    .pad-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-rows: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      width: 100%;
+      height: 100%;
+      max-height: 510px;
+      margin: auto;
+    }
+    .pad {
+      --rgb: 88, 246, 255;
+      position: relative;
+      isolation: isolate;
+      min-width: 0;
+      min-height: 0;
+      padding: 11px;
+      overflow: hidden;
+      border: 1px solid rgba(var(--rgb), .18);
+      border-radius: 20px;
+      background:
+        radial-gradient(circle at 50% 115%, rgba(var(--rgb), .12), transparent 60%),
+        linear-gradient(145deg, rgba(255,255,255,.065), rgba(255,255,255,.018));
+      box-shadow: inset 0 1px rgba(255,255,255,.06), inset 0 -12px 28px rgba(0,0,0,.16), 0 6px 14px rgba(0,0,0,.12);
+      color: rgb(var(--rgb));
+      text-align: left;
+      cursor: pointer;
+      transform: translateZ(0);
+      transition: border-color .16s, box-shadow .16s, background .16s, filter .16s;
+    }
+    .pad::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      inset: 0;
+      opacity: 0;
+      background: radial-gradient(circle at 50% 45%, rgba(var(--rgb), .26), transparent 72%);
+      transition: opacity .18s;
+    }
+    .pad::after {
+      content: "";
+      position: absolute;
+      inset: 5px;
+      border: 1px solid transparent;
+      border-radius: 15px;
+      pointer-events: none;
+    }
+    .pad-key {
+      position: absolute;
+      top: 10px;
+      left: 11px;
+      display: grid;
+      place-items: center;
+      width: 20px;
+      height: 20px;
+      border: 1px solid rgba(var(--rgb), .2);
+      border-radius: 6px;
+      background: rgba(0,0,0,.14);
+      color: rgba(255,255,255,.48);
+      font-family: ui-monospace, monospace;
+      font-size: 10px;
+    }
+    .pad-hit {
+      position: absolute;
+      top: 11px;
+      right: 11px;
+      color: rgb(var(--rgb));
+      font-size: 8px;
+      font-weight: 900;
+      letter-spacing: 1.5px;
+      opacity: 0;
+      transform: translateY(3px);
+      transition: opacity .15s, transform .15s;
+    }
+    .pad-content {
+      position: absolute;
+      inset: 35px 10px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+    .pad-glyph {
+      display: grid;
+      place-items: center;
+      width: clamp(34px, 9vw, 48px);
+      height: clamp(34px, 9vw, 48px);
+      margin-bottom: 7px;
+      border: 1px solid rgba(var(--rgb), .28);
+      border-radius: 50%;
+      background: rgba(var(--rgb), .055);
+      box-shadow: inset 0 0 15px rgba(var(--rgb), .07);
+      font-size: clamp(18px, 5vw, 25px);
+      line-height: 1;
+      text-shadow: 0 0 13px rgba(var(--rgb), .5);
+    }
+    .pad-name { color: #e9edfb; font-size: clamp(12px, 3.5vw, 15px); font-weight: 700; letter-spacing: 1px; }
+    .pad-en { margin-top: 3px; color: rgba(255,255,255,.34); font-size: 7px; font-weight: 700; letter-spacing: 1.6px; }
+    .pad.is-target {
+      border-color: rgba(var(--rgb), .9);
+      background:
+        radial-gradient(circle at 50% 45%, rgba(var(--rgb), .2), transparent 72%),
+        linear-gradient(145deg, rgba(var(--rgb), .12), rgba(255,255,255,.025));
+      box-shadow: inset 0 0 25px rgba(var(--rgb), .1), 0 0 9px rgba(var(--rgb), .32), 0 0 28px rgba(var(--rgb), .16);
+      filter: brightness(1.16);
+    }
+    .pad.is-target::before { opacity: 1; }
+    .pad.is-target::after { border-color: rgba(var(--rgb), .34); animation: targetRing .85s ease-in-out infinite; }
+    .pad.is-target .pad-hit { opacity: 1; transform: translateY(0); text-shadow: 0 0 8px rgba(var(--rgb), .7); }
+    .pad.is-target .pad-glyph { background: rgba(var(--rgb), .15); box-shadow: 0 0 20px rgba(var(--rgb), .2), inset 0 0 14px rgba(var(--rgb), .12); }
+    .pad.is-miss { animation: missShake .25s linear; border-color: #ff527d; }
+
+    .tap-ripple {
+      position: absolute;
+      z-index: 3;
+      left: 50%;
+      top: 50%;
+      width: 24px;
+      height: 24px;
+      border: 2px solid rgba(var(--rgb), .85);
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      animation: ripple .38s ease-out forwards;
+    }
+    .score-pop {
+      position: absolute;
+      z-index: 5;
+      left: 50%;
+      top: 42%;
+      color: #fff;
+      font-family: ui-monospace, monospace;
+      font-size: 15px;
+      font-weight: 800;
+      text-shadow: 0 0 10px rgb(var(--rgb));
+      pointer-events: none;
+      animation: scoreFloat .55s ease-out forwards;
+    }
+
+    .footer-tip {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-height: 18px;
+      margin: 0;
+      color: #666e89;
+      font-size: 10px;
+      letter-spacing: .5px;
+      text-align: center;
+    }
+    .footer-tip svg { width: 13px; height: 13px; fill: none; stroke: #828ba9; stroke-width: 1.5; }
+
+    .overlay {
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: calc(18px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));
+      background: rgba(4, 5, 13, .76);
+      backdrop-filter: blur(14px);
+      opacity: 1;
+      visibility: visible;
+      transition: opacity .22s, visibility .22s;
+    }
+    .overlay.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    .modal {
+      position: relative;
+      width: min(100%, 400px);
+      max-height: calc(100dvh - 36px);
+      padding: 30px 25px 24px;
+      overflow: hidden;
+      border: 1px solid rgba(133, 128, 255, .25);
+      border-radius: 28px;
+      background:
+        radial-gradient(circle at 50% 0, rgba(117, 86, 223, .18), transparent 46%),
+        linear-gradient(150deg, rgba(26,29,52,.98), rgba(11,13,27,.98));
+      box-shadow: 0 25px 90px rgba(0,0,0,.55), inset 0 1px rgba(255,255,255,.07), 0 0 40px rgba(107,85,211,.08);
+      text-align: center;
+    }
+    .modal::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 22%;
+      width: 56%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), var(--pink), transparent);
+      box-shadow: 0 0 12px var(--violet);
+    }
+    .modal-icon {
+      display: grid;
+      place-items: center;
+      width: 65px;
+      height: 65px;
+      margin: 0 auto 17px;
+      border: 1px solid rgba(88,246,255,.3);
+      border-radius: 21px;
+      background: linear-gradient(145deg, rgba(88,246,255,.12), rgba(255,91,216,.09));
+      box-shadow: 0 0 28px rgba(88,246,255,.09), inset 0 0 18px rgba(88,246,255,.06);
+      color: var(--cyan);
+      font-size: 30px;
+      text-shadow: 0 0 16px currentColor;
+      transform: rotate(-4deg);
+    }
+    .modal-eyebrow { margin: 0 0 8px; color: var(--cyan); font-size: 9px; font-weight: 800; letter-spacing: 2.6px; }
+    .modal h2 { margin: 0; color: #f7f8ff; font-size: clamp(25px, 7vw, 32px); line-height: 1.25; letter-spacing: 1px; }
+    .modal-description { margin: 13px auto 18px; max-width: 310px; color: #9ba3bf; font-size: 13px; line-height: 1.8; }
+    .how-to { display: flex; justify-content: center; gap: 7px; margin-bottom: 22px; }
+    .how-to span { padding: 6px 9px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.035); color: #aeb6d1; font-size: 9px; white-space: nowrap; }
+    .how-to b { color: #e8ecff; font-weight: 700; }
+    .result-stats { display: none; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 2px 0 18px; }
+    .result-stats.is-visible { display: grid; }
+    .result-stats div { padding: 11px 4px; border: 1px solid var(--line); border-radius: 13px; background: rgba(255,255,255,.025); }
+    .result-stats span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 9px; }
+    .result-stats strong { color: #fff; font-family: ui-monospace, monospace; font-size: 19px; }
+    .new-record { display: none; width: fit-content; margin: -5px auto 16px; padding: 5px 11px; border: 1px solid rgba(255,91,216,.25); border-radius: 20px; background: rgba(255,91,216,.08); color: #ff8ce3; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+    .new-record.is-visible { display: block; }
+    .primary-btn, .secondary-btn {
+      width: 100%;
+      min-height: 50px;
+      border-radius: 15px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: transform .14s, filter .14s;
+    }
+    .primary-btn {
+      border: 0;
+      background: linear-gradient(100deg, #6eefff, #9b8cff 52%, #ff72d9);
+      box-shadow: 0 8px 25px rgba(127,108,239,.25), inset 0 1px rgba(255,255,255,.45);
+      color: #0b0c19;
+      font-size: 15px;
+    }
+    .primary-btn:active, .secondary-btn:active { transform: scale(.97); filter: brightness(1.1); }
+    .secondary-btn { display: none; min-height: 42px; margin-top: 9px; border: 1px solid var(--line); background: transparent; color: #939bb8; font-size: 12px; }
+    .secondary-btn.is-visible { display: block; }
+    .modal-foot { margin: 14px 0 0; color: #555d77; font-size: 9px; letter-spacing: .5px; }
+
+    @keyframes dotPulse { 50% { opacity: .4; box-shadow: 0 0 3px var(--cyan); } }
+    @keyframes targetRing { 50% { inset: 8px; border-color: rgba(var(--rgb), .08); } }
+    @keyframes ripple { to { width: 150px; height: 150px; opacity: 0; border-width: 1px; } }
+    @keyframes scoreFloat { 0% { opacity: 0; transform: translate(-50%, 5px) scale(.8); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -45px) scale(1.08); } }
+    @keyframes missShake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+    @media (max-height: 700px) {
+      .game-shell { gap: 8px; padding-top: calc(9px + env(safe-area-inset-top)); padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+      .topbar { min-height: 38px; }
+      .brand-mark, .icon-btn { width: 36px; height: 36px; }
+      .brand h1 { font-size: 17px; }
+      .scoreboard { padding: 10px 13px; }
+      .mission { padding: 9px 13px; }
+      .progress-track { margin: 8px 0 7px; }
+      .pad-grid { gap: 8px; }
+      .pad { border-radius: 17px; }
+      .pad-content { inset: 31px 8px 9px; }
+      .pad-glyph { margin-bottom: 4px; }
+      .modal { padding-top: 23px; padding-bottom: 20px; }
+      .modal-icon { width: 55px; height: 55px; margin-bottom: 12px; }
+      .modal-description { margin: 10px auto 13px; }
+      .how-to { margin-bottom: 16px; }
+    }
+
+    @media (orientation: landscape) and (max-height: 600px) {
+      .game-shell {
+        display: grid;
+        grid-template-columns: minmax(190px, .72fr) minmax(330px, 1.28fr);
+        grid-template-rows: auto auto 1fr;
+        gap: 9px 18px;
+        width: min(100%, 920px);
+        height: 100dvh;
+        padding: calc(10px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+      }
+      .topbar { grid-column: 1; grid-row: 1; }
+      .scoreboard { grid-column: 1; grid-row: 2; padding: 10px; }
+      .score-cell { padding-left: 9px; }
+      .score-cell strong { font-size: 18px; }
+      .mission { grid-column: 1; grid-row: 3; align-self: start; }
+      .pad-area { grid-column: 2; grid-row: 1 / 4; }
+      .pad-grid { max-height: none; }
+      .footer-tip { display: none; }
+      .modal { padding: 18px 25px; }
+      .modal-icon { float: left; width: 52px; height: 52px; margin: 0 15px 10px 0; }
+      .modal-eyebrow, .modal h2 { text-align: left; }
+      .modal-description { clear: both; margin: 10px auto; line-height: 1.55; }
+      .how-to { margin-bottom: 12px; }
+      .primary-btn { min-height: 43px; }
+      .modal-foot { margin-top: 8px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+
+  <main class="game-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><span></span></div>
+        <div><p>POCKET RHYTHM</p><h1>霓虹鼓场</h1></div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="soundBtn" type="button" aria-label="关闭声音" title="声音开关">
+          <svg id="soundOnIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6.5 9H3v6h3.5l4.5 4V5Z"/><path d="M15 9a4 4 0 0 1 0 6M18 6a8 8 0 0 1 0 12"/></svg>
+          <svg id="soundOffIcon" viewBox="0 0 24 24" aria-hidden="true" style="display:none"><path d="M11 5 6.5 9H3v6h3.5l4.5 4V5Z"/><path d="m16 10 5 5m0-5-5 5"/></svg>
+        </button>
+        <button class="icon-btn" id="pauseBtn" type="button" aria-label="暂停游戏" title="暂停（P）" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6v12M15 6v12"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <section class="scoreboard" aria-label="游戏数据">
+      <div class="score-cell"><span>当前分数</span><strong id="score">000000</strong></div>
+      <div class="score-cell"><span>最高分</span><strong id="best">000000</strong></div>
+      <div class="score-cell"><span>连击</span><strong id="combo">×0</strong></div>
+    </section>
+
+    <section class="mission" aria-label="挑战进度">
+      <div class="mission-line">
+        <div class="target-status"><i class="live-dot" aria-hidden="true"></i><span id="statusText">等待开场</span></div>
+        <div class="timer" id="timer">45.0<small>s</small></div>
+      </div>
+      <div class="progress-track" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="mission-meta">
+        <span>捕获节拍 <b id="hits">0 / 30</b></span>
+        <div class="lives" id="lives" aria-label="剩余 3 点能量">
+          <i class="life"></i><i class="life"></i><i class="life"></i>
+        </div>
+      </div>
+    </section>
+
+    <section class="pad-area">
+      <div class="pad-grid" id="padGrid" role="group" aria-label="九键鼓垫，点按发光鼓垫得分">
+        <button class="pad" style="--rgb:88,246,255" data-pad="0" type="button" aria-label="1 底鼓" aria-keyshortcuts="1"><span class="pad-key">1</span><span class="pad-hit">HIT</span><span class="pad-content"><span class="pad-glyph">●</span><span class="pad-name">底鼓</span><span class="pad-en">KICK</span></span></button>
+        <button class="pad" style="--rgb:255,91,216" data-pad="1" type="button" aria-label="2 军鼓" aria-keyshortcuts="2"><span class="pad-key">2</span><span class="pad-hit">HIT</span><span class="pad-content"><span class="pad-glyph">◈</span><span class="pad-name">军鼓</span><span class="pad-en">SNARE</span></span></button>
+        <button class="pad" style="--rgb:168,126,255" data-pad="2" type="button" aria-label="3 踩镲" aria-keyshortcuts="3"><span class="pad-key">3</span><span class="pad-hit">HIT</span><span class="pad-content"><span class="pad-glyph">✳</span><span class="pad-name">踩镲</span><span class="pad-en">HI-HAT</span></span></button>
+        <button class="pad" style="--rgb:255,171,82" data-pad="3" type="button" aria-label="4 拍手" aria-keyshortcuts="4"><span class="pad-key">4</span><span class="pad-hit">HIT</span><span class="pad-content"><span class="pad-glyph">⌁</span><span class="pad-name">拍手</span><span class="pad-en">CLAP</span></span></button>
+        <button class="pad" style="--rgb:95,139,255" data-pad="4" type="button" aria-label="5 嗵鼓" aria-keyshortcuts="5"><span class="pad-key">5</span><span class="pad-hit">HIT</span><span class="pad-content"><span class="pad-glyph">◉</span><span class="pad-name">嗵鼓</span><span class="pad-en">TOM</span></span></button>
+        <button class="pad" style="--rgb:104,255,170" data-pad="5" type="button" aria-label="6 边击" aria-keyshortcuts="6"><span class="pad-key">6</span><span class="pad-hit">HIT</span><span class="pad-content"><span class="pad-glyph">◇</span><span class="pad-name">边击</span><span class="pad-en">RIM</span></span></button>
+        <button class="pad" style="--rgb:255,222,92" data-pad="6" type="button" aria-label="7 吊镲" aria-keyshortcuts="7"><span class="pad-key">7</span><span class="pad-hit">HIT</span><span class="pad-content"><span class="pad-glyph">✦</span><span class="pad-name">吊镲</span><span class="pad-en">CYMBAL</span></span></button>
+        <button class="pad" style="--rgb:255,108,132" data-pad="7" type="button" aria-label="8 木鱼" aria-keyshortcuts="8"><span class="pad-key">8</span><span class="pad-hit">HIT</span><span class="pad-content"><span class="pad-glyph">▰</span><span class="pad-name">木鱼</span><span class="pad-en">PERC</span></span></button>
+        <button class="pad" style="--rgb:192,105,255" data-pad="8" type="button" aria-label="9 重低音" aria-keyshortcuts="9"><span class="pad-key">9</span><span class="pad-hit">HIT</span><span class="pad-content"><span class="pad-glyph">◌</span><span class="pad-name">重低音</span><span class="pad-en">BOOM</span></span></button>
+      </div>
+    </section>
+
+    <p class="footer-tip" id="gameInstructions">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11V6a2 2 0 0 1 4 0v4-2a2 2 0 0 1 4 0v3-1a2 2 0 0 1 4 0v5c0 4-3 7-7 7h-1c-3 0-5-2-6-4l-3-5a2 2 0 0 1 3-2l2 2v-2Z"/></svg>
+      点按发光鼓垫 · 数字键 1—9 连打 · P 暂停
+    </p>
+  </main>
+
+  <div class="overlay" id="overlay">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDescription">
+      <div class="modal-icon" id="modalIcon" aria-hidden="true">♬</div>
+      <p class="modal-eyebrow" id="modalEyebrow">45 秒节奏挑战</p>
+      <h2 id="modalTitle">让指尖，点燃节拍</h2>
+      <p class="modal-description" id="modalDescription">点按发光鼓垫捕获节拍，连续命中获得更高分。漏拍会失去能量，在 45 秒内捕获 30 个节拍即可获胜。</p>
+      <div class="how-to" id="howTo"><span><b>触屏</b> 点按 / 连打</span><span><b>键盘</b> 1—9</span><span><b>目标</b> 30 HIT</span></div>
+      <div class="result-stats" id="resultStats">
+        <div><span>本局得分</span><strong id="finalScore">0</strong></div>
+        <div><span>最高连击</span><strong id="finalCombo">0</strong></div>
+        <div><span>捕获节拍</span><strong id="finalHits">0</strong></div>
+      </div>
+      <div class="new-record" id="newRecord">✦ 刷新最高纪录</div>
+      <button class="primary-btn" id="primaryBtn" type="button">开始演奏</button>
+      <button class="secondary-btn" id="secondaryBtn" type="button">重新开始</button>
+      <p class="modal-foot" id="modalFoot">声音由设备实时合成 · 建议开启声音游玩</p>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // 游戏常量与鼓垫配置
+      const DURATION = 45;
+      const GOAL = 30;
+      const MAX_LIVES = 3;
+      const STORE_KEY = 'neon-beat-best-v1';
+      const padNames = ['底鼓', '军鼓', '踩镲', '拍手', '嗵鼓', '边击', '吊镲', '木鱼', '重低音'];
+
+      const $ = (id) => document.getElementById(id);
+      const pads = [...document.querySelectorAll('.pad')];
+      const scoreEl = $('score');
+      const bestEl = $('best');
+      const comboEl = $('combo');
+      const hitsEl = $('hits');
+      const timerEl = $('timer');
+      const livesEl = $('lives');
+      const lifeEls = [...livesEl.children];
+      const statusEl = $('statusText');
+      const progressEl = $('progressFill');
+      const overlay = $('overlay');
+      const primaryBtn = $('primaryBtn');
+      const secondaryBtn = $('secondaryBtn');
+      const pauseBtn = $('pauseBtn');
+      const soundBtn = $('soundBtn');
+      const resultStats = $('resultStats');
+      const howTo = $('howTo');
+      const newRecord = $('newRecord');
+
+      let state = 'ready';
+      let overlayAction = 'start';
+      let score = 0;
+      let best = loadBest();
+      let bestAtStart = best;
+      let combo = 0;
+      let maxCombo = 0;
+      let hits = 0;
+      let lives = MAX_LIVES;
+      let timeLeft = DURATION * 1000;
+      let targetIndex = -1;
+      let targetActive = false;
+      let targetWindow = 1500;
+      let targetLeft = 1500;
+      let lastFrame = 0;
+      let rafId = 0;
+      let soundOn = true;
+      let audioCtx = null;
+      let masterGain = null;
+      let noiseBuffer = null;
+
+      // 本地存储在隐私模式下可能不可用，读取失败时静默回退
+      function loadBest() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(STORE_KEY) || '0', 10);
+          return Number.isFinite(value) && value > 0 ? value : 0;
+        } catch (_) {
+          return 0;
+        }
+      }
+
+      function saveBest() {
+        try { localStorage.setItem(STORE_KEY, String(best)); } catch (_) { /* 无存储权限时仍可正常游戏 */ }
+      }
+
+      function formatScore(value) {
+        return String(value).padStart(6, '0');
+      }
+
+      function updateHud() {
+        scoreEl.textContent = formatScore(score);
+        bestEl.textContent = formatScore(best);
+        comboEl.textContent = `×${combo}`;
+        hitsEl.textContent = `${hits} / ${GOAL}`;
+        progressEl.style.width = `${Math.min(100, hits / GOAL * 100)}%`;
+        livesEl.setAttribute('aria-label', `剩余 ${lives} 点能量`);
+        lifeEls.forEach((el, index) => el.classList.toggle('is-lost', index >= lives));
+      }
+
+      function updateTimer() {
+        const seconds = Math.max(0, timeLeft / 1000);
+        timerEl.innerHTML = `${seconds.toFixed(1)}<small>s</small>`;
+        timerEl.classList.toggle('is-urgent', seconds <= 10 && state === 'playing');
+      }
+
+      // 初始化音频上下文与公共噪声样本，所有鼓声均实时合成
+      function ensureAudio() {
+        if (!audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContextClass) return false;
+          audioCtx = new AudioContextClass();
+          masterGain = audioCtx.createGain();
+          masterGain.gain.value = 0.72;
+          const compressor = audioCtx.createDynamicsCompressor();
+          compressor.threshold.value = -16;
+          compressor.knee.value = 16;
+          compressor.ratio.value = 5;
+          compressor.attack.value = 0.003;
+          compressor.release.value = 0.2;
+          masterGain.connect(compressor);
+          compressor.connect(audioCtx.destination);
+
+          noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+          const data = noiseBuffer.getChannelData(0);
+          for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+        return true;
+      }
+
+      function tone({ freq, endFreq = freq, duration = .2, volume = .4, type = 'sine', delay = 0 }) {
+        const now = audioCtx.currentTime + delay;
+        const oscillator = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        oscillator.type = type;
+        oscillator.frequency.setValueAtTime(Math.max(1, freq), now);
+        oscillator.frequency.exponentialRampToValueAtTime(Math.max(1, endFreq), now + duration);
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(.0001, now + duration);
+        oscillator.connect(gain);
+        gain.connect(masterGain);
+        oscillator.start(now);
+        oscillator.stop(now + duration + .02);
+      }
+
+      function noise({ duration = .15, volume = .25, frequency = 3000, type = 'highpass', q = .7, delay = 0 }) {
+        const now = audioCtx.currentTime + delay;
+        const source = audioCtx.createBufferSource();
+        const filter = audioCtx.createBiquadFilter();
+        const gain = audioCtx.createGain();
+        source.buffer = noiseBuffer;
+        filter.type = type;
+        filter.frequency.value = frequency;
+        filter.Q.value = q;
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(.0001, now + duration);
+        source.connect(filter);
+        filter.connect(gain);
+        gain.connect(masterGain);
+        source.start(now);
+        source.stop(now + duration + .02);
+      }
+
+      function playPad(index) {
+        if (!soundOn || !ensureAudio()) return;
+        switch (index) {
+          case 0: // 底鼓：快速下坠的正弦波与轻瞬态
+            tone({ freq: 155, endFreq: 43, duration: .34, volume: .9 });
+            noise({ duration: .018, volume: .16, frequency: 1800 });
+            break;
+          case 1: // 军鼓：带通噪声叠加鼓腔
+            noise({ duration: .2, volume: .48, frequency: 1500, type: 'bandpass', q: .65 });
+            tone({ freq: 190, endFreq: 115, duration: .12, volume: .3, type: 'triangle' });
+            break;
+          case 2: // 踩镲：短促高通噪声
+            noise({ duration: .075, volume: .25, frequency: 6800 });
+            noise({ duration: .045, volume: .12, frequency: 9200, delay: .012 });
+            break;
+          case 3: // 拍手：三段错开的噪声脉冲
+            noise({ duration: .055, volume: .38, frequency: 1200, type: 'bandpass', q: .8 });
+            noise({ duration: .07, volume: .3, frequency: 1500, type: 'bandpass', delay: .025 });
+            noise({ duration: .13, volume: .25, frequency: 1800, type: 'bandpass', delay: .052 });
+            break;
+          case 4: // 嗵鼓：中低频圆滑下坠
+            tone({ freq: 230, endFreq: 92, duration: .3, volume: .65, type: 'sine' });
+            tone({ freq: 310, endFreq: 145, duration: .16, volume: .12, type: 'triangle' });
+            break;
+          case 5: // 边击：短方波与高频噪声
+            tone({ freq: 1180, endFreq: 690, duration: .055, volume: .22, type: 'square' });
+            noise({ duration: .045, volume: .25, frequency: 3400, type: 'bandpass', q: 2 });
+            break;
+          case 6: // 吊镲：长尾金属噪声
+            noise({ duration: .65, volume: .25, frequency: 5100 });
+            tone({ freq: 721, endFreq: 710, duration: .42, volume: .045, type: 'square' });
+            tone({ freq: 933, endFreq: 910, duration: .36, volume: .035, type: 'square' });
+            break;
+          case 7: // 木鱼：干净短音
+            tone({ freq: 630, endFreq: 390, duration: .105, volume: .5, type: 'sine' });
+            tone({ freq: 1260, endFreq: 780, duration: .055, volume: .08, type: 'triangle' });
+            break;
+          case 8: // 重低音：更深的下潜与长衰减
+            tone({ freq: 105, endFreq: 32, duration: .55, volume: .95, type: 'sine' });
+            tone({ freq: 64, endFreq: 30, duration: .48, volume: .3, type: 'triangle', delay: .025 });
+            break;
+        }
+      }
+
+      function playMissSound() {
+        if (!soundOn || !ensureAudio()) return;
+        tone({ freq: 120, endFreq: 72, duration: .16, volume: .18, type: 'sawtooth' });
+      }
+
+      // 每次按下都有视觉反馈；动画元素结束后立即移除，支持快速连打
+      function animatePad(pad) {
+        pad.animate(
+          [{ transform: 'scale(1)' }, { transform: 'scale(.93)', offset: .35 }, { transform: 'scale(1)' }],
+          { duration: 150, easing: 'ease-out' }
+        );
+        const ripple = document.createElement('span');
+        ripple.className = 'tap-ripple';
+        pad.appendChild(ripple);
+        ripple.addEventListener('animationend', () => ripple.remove(), { once: true });
+        setTimeout(() => ripple.remove(), 500);
+      }
+
+      function showScorePop(pad, points) {
+        const pop = document.createElement('span');
+        pop.className = 'score-pop';
+        pop.textContent = `+${points}`;
+        pad.appendChild(pop);
+        pop.addEventListener('animationend', () => pop.remove(), { once: true });
+        setTimeout(() => pop.remove(), 700);
+      }
+
+      function vibrate(pattern) {
+        if (navigator.vibrate) navigator.vibrate(pattern);
+      }
+
+      function clearTarget() {
+        pads.forEach((pad) => pad.classList.remove('is-target'));
+        targetActive = false;
+      }
+
+      function setTarget() {
+        clearTarget();
+        let next = targetIndex;
+        while (next === targetIndex) next = Math.floor(Math.random() * pads.length);
+        targetIndex = next;
+        targetActive = true;
+        targetWindow = Math.max(650, 1500 - hits * 25);
+        targetLeft = targetWindow;
+        pads[targetIndex].classList.add('is-target');
+        statusEl.textContent = `击中「${padNames[targetIndex]}」`;
+      }
+
+      function handlePad(index) {
+        if (state !== 'playing') return;
+        const pad = pads[index];
+        playPad(index);
+        animatePad(pad);
+
+        if (targetActive && index === targetIndex) {
+          // 立即切换目标，确保一次按下只计一次分且可以高速连打
+          targetActive = false;
+          pad.classList.remove('is-target');
+          combo += 1;
+          maxCombo = Math.max(maxCombo, combo);
+          hits += 1;
+          const speedBonus = Math.round(50 * Math.max(0, targetLeft / targetWindow));
+          const comboBonus = Math.min(combo - 1, 20) * 12;
+          const points = 100 + speedBonus + comboBonus;
+          score += points;
+          showScorePop(pad, points);
+          vibrate(8);
+
+          if (score > best) {
+            best = score;
+            saveBest();
+          }
+          updateHud();
+
+          if (hits >= GOAL) {
+            endGame(true);
+            return;
+          }
+          setTarget();
+        } else {
+          // 非目标鼓垫仍可自由发声，仅中断连击并小幅扣分
+          combo = 0;
+          score = Math.max(0, score - 25);
+          statusEl.textContent = `自由击打 · 寻找「${padNames[targetIndex]}」`;
+          updateHud();
+        }
+      }
+
+      function missTarget() {
+        if (!targetActive || state !== 'playing') return;
+        const missedPad = pads[targetIndex];
+        clearTarget();
+        missedPad.classList.add('is-miss');
+        setTimeout(() => missedPad.classList.remove('is-miss'), 300);
+        lives -= 1;
+        combo = 0;
+        playMissSound();
+        vibrate([25, 35, 25]);
+        updateHud();
+
+        if (lives <= 0) {
+          endGame(false, '能量耗尽');
+          return;
+        }
+        setTarget();
+        statusEl.textContent = '漏拍，能量 −1 · 继续！';
+      }
+
+      function tick(now) {
+        if (state !== 'playing') return;
+        const delta = Math.max(0, now - lastFrame);
+        lastFrame = now;
+        timeLeft = Math.max(0, timeLeft - delta);
+        targetLeft -= delta;
+        updateTimer();
+
+        if (timeLeft <= 0) {
+          endGame(false, '时间到');
+          return;
+        }
+        if (targetLeft <= 0) {
+          missTarget();
+          if (state !== 'playing') return;
+        }
+        rafId = requestAnimationFrame(tick);
+      }
+
+      function hideOverlay() {
+        overlay.classList.add('is-hidden');
+      }
+
+      function showOverlay() {
+        overlay.classList.remove('is-hidden');
+        setTimeout(() => primaryBtn.focus({ preventScroll: true }), 230);
+      }
+
+      function startGame() {
+        cancelAnimationFrame(rafId);
+        ensureAudio();
+        score = 0;
+        combo = 0;
+        maxCombo = 0;
+        hits = 0;
+        lives = MAX_LIVES;
+        timeLeft = DURATION * 1000;
+        targetIndex = -1;
+        bestAtStart = best;
+        state = 'playing';
+        pauseBtn.disabled = false;
+        hideOverlay();
+        clearTarget();
+        pads.forEach((pad) => pad.classList.remove('is-miss'));
+        updateHud();
+        updateTimer();
+        setTarget();
+        lastFrame = performance.now();
+        rafId = requestAnimationFrame(tick);
+      }
+
+      function pauseGame() {
+        if (state !== 'playing') return;
+        state = 'paused';
+        cancelAnimationFrame(rafId);
+        pauseBtn.disabled = true;
+        overlayAction = 'resume';
+        $('modalIcon').textContent = 'Ⅱ';
+        $('modalEyebrow').textContent = 'TAKE A BREATH';
+        $('modalTitle').textContent = '节拍已暂停';
+        $('modalDescription').textContent = '计时与目标都已冻结。准备好后，从刚才的节拍继续。';
+        primaryBtn.textContent = '继续演奏';
+        secondaryBtn.textContent = '重新开始';
+        secondaryBtn.classList.add('is-visible');
+        resultStats.classList.remove('is-visible');
+        newRecord.classList.remove('is-visible');
+        howTo.style.display = 'none';
+        $('modalFoot').textContent = '按 P 或 Esc 也可继续';
+        updateTimer();
+        showOverlay();
+      }
+
+      function resumeGame() {
+        if (state !== 'paused') return;
+        ensureAudio();
+        state = 'playing';
+        pauseBtn.disabled = false;
+        hideOverlay();
+        lastFrame = performance.now();
+        updateTimer();
+        rafId = requestAnimationFrame(tick);
+      }
+
+      function endGame(won, reason = '') {
+        if (state !== 'playing') return;
+        state = 'over';
+        cancelAnimationFrame(rafId);
+        clearTarget();
+        pauseBtn.disabled = true;
+        if (score > best) best = score;
+        saveBest();
+        updateHud();
+        updateTimer();
+
+        overlayAction = 'restart';
+        $('modalIcon').textContent = won ? '✦' : '↻';
+        $('modalEyebrow').textContent = won ? 'CHALLENGE CLEAR' : 'SESSION COMPLETE';
+        $('modalTitle').textContent = won ? '节拍大师！' : (reason || '演奏结束');
+        $('modalDescription').textContent = won
+          ? '30 个节拍全部捕获，舞台因你而亮。再来一局，冲击更高连击！'
+          : reason === '能量耗尽'
+            ? '别放过发光鼓垫，稳住节奏再试一次。每一次练习都更接近鼓场之王。'
+            : '时间到！加快指尖反应，优先击中发光鼓垫，下次一定能完成挑战。';
+        $('finalScore').textContent = score;
+        $('finalCombo').textContent = maxCombo;
+        $('finalHits').textContent = hits;
+        resultStats.classList.add('is-visible');
+        newRecord.classList.toggle('is-visible', score > bestAtStart && score > 0);
+        primaryBtn.textContent = '再来一局';
+        secondaryBtn.classList.remove('is-visible');
+        howTo.style.display = 'none';
+        $('modalFoot').textContent = `历史最高分 ${best} · 点击按钮立即重开`;
+        showOverlay();
+      }
+
+      function prepareStartScreen() {
+        state = 'ready';
+        overlayAction = 'start';
+        bestAtStart = best;
+        updateHud();
+        updateTimer();
+        bestEl.textContent = formatScore(best);
+        $('modalIcon').textContent = '♬';
+        $('modalEyebrow').textContent = '45 秒节奏挑战';
+        $('modalTitle').textContent = '让指尖，点燃节拍';
+        $('modalDescription').textContent = '点按发光鼓垫捕获节拍，连续命中获得更高分。漏拍会失去能量，在 45 秒内捕获 30 个节拍即可获胜。';
+        primaryBtn.textContent = '开始演奏';
+        secondaryBtn.classList.remove('is-visible');
+        resultStats.classList.remove('is-visible');
+        newRecord.classList.remove('is-visible');
+        howTo.style.display = 'flex';
+        $('modalFoot').textContent = '声音由设备实时合成 · 建议开启声音游玩';
+      }
+
+      // 使用 pointerdown 降低触屏延迟，并天然支持多指同时击打
+      $('padGrid').addEventListener('pointerdown', (event) => {
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        const pad = event.target.closest('.pad');
+        if (!pad) return;
+        event.preventDefault();
+        handlePad(Number(pad.dataset.pad));
+      }, { passive: false });
+
+      primaryBtn.addEventListener('click', () => {
+        if (overlayAction === 'resume') resumeGame();
+        else startGame();
+      });
+      secondaryBtn.addEventListener('click', startGame);
+      pauseBtn.addEventListener('click', pauseGame);
+
+      soundBtn.addEventListener('click', () => {
+        soundOn = !soundOn;
+        soundBtn.setAttribute('aria-label', soundOn ? '关闭声音' : '开启声音');
+        $('soundOnIcon').style.display = soundOn ? 'block' : 'none';
+        $('soundOffIcon').style.display = soundOn ? 'none' : 'block';
+        if (soundOn) {
+          ensureAudio();
+          if (audioCtx) tone({ freq: 440, endFreq: 660, duration: .08, volume: .12 });
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (/^[1-9]$/.test(event.key)) {
+          event.preventDefault();
+          if (!event.repeat) handlePad(Number(event.key) - 1);
+          return;
+        }
+        if (event.code === 'KeyP' || event.key === 'Escape') {
+          event.preventDefault();
+          if (state === 'playing') pauseGame();
+          else if (state === 'paused') resumeGame();
+        }
+      });
+
+      // 阻止浏览器手势、双击缩放、橡皮筋滚动与长按菜单
+      document.addEventListener('touchmove', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('dblclick', (event) => event.preventDefault(), { passive: false });
+      $('padGrid').addEventListener('contextmenu', (event) => event.preventDefault());
+
+      // 切到后台时自动暂停，避免返回页面后倒计时被跳过
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state === 'playing') pauseGame();
+      });
+
+      prepareStartScreen();
+    })();
+  </script>
+</body>
+</html>

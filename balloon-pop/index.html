@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080817">
+  <title>霓虹气球 · 打气球小游戏</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080817;
+      --panel: rgba(19, 20, 43, .78);
+      --line: rgba(255, 255, 255, .09);
+      --text: #f7f7ff;
+      --muted: #999bb8;
+      --cyan: #55f6ff;
+      --pink: #ff4fd8;
+      --violet: #9674ff;
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      background: var(--bg);
+    }
+
+    body {
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    button { font: inherit; }
+    button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+
+    .ambient {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 15% 10%, rgba(116, 73, 255, .18), transparent 34%),
+        radial-gradient(circle at 90% 85%, rgba(255, 52, 194, .12), transparent 34%),
+        #080817;
+    }
+
+    .ambient::before,
+    .ambient::after {
+      content: "";
+      position: absolute;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      filter: blur(85px);
+      opacity: .18;
+      animation: drift 9s ease-in-out infinite alternate;
+    }
+
+    .ambient::before { top: 18%; left: -100px; background: var(--cyan); }
+    .ambient::after { right: -110px; bottom: 10%; background: var(--pink); animation-delay: -4s; }
+
+    #app {
+      position: relative;
+      width: 100%;
+      max-width: 720px;
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: max(12px, env(safe-area-inset-top)) 14px max(12px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .topbar { display: flex; align-items: center; justify-content: space-between; min-height: 42px; }
+    .brand { display: flex; align-items: center; gap: 9px; }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      border: 1px solid rgba(85, 246, 255, .25);
+      border-radius: 12px;
+      background: linear-gradient(145deg, rgba(85, 246, 255, .16), rgba(150, 116, 255, .1));
+      box-shadow: inset 0 0 14px rgba(85, 246, 255, .08), 0 0 20px rgba(85, 246, 255, .08);
+      font-size: 20px;
+    }
+    .brand h1 { margin: 0; font-size: 19px; line-height: 1.1; letter-spacing: .08em; }
+    .brand small { display: block; margin-top: 4px; color: var(--muted); font-size: 9px; letter-spacing: .22em; }
+    .controls { display: flex; gap: 8px; }
+
+    .icon-button {
+      min-width: 42px;
+      height: 42px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      color: var(--text);
+      background: rgba(255, 255, 255, .055);
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: background .15s, transform .15s, opacity .15s;
+    }
+    .icon-button:active { transform: scale(.94); background: rgba(255, 255, 255, .11); }
+    .icon-button:disabled { opacity: .35; cursor: default; }
+    #pauseButton { font-size: 13px; font-weight: 700; }
+    #soundButton { padding: 0; font-size: 17px; }
+
+    .hud {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      padding: 9px 6px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: var(--panel);
+      box-shadow: 0 12px 35px rgba(0, 0, 0, .16), inset 0 1px rgba(255, 255, 255, .035);
+      backdrop-filter: blur(14px);
+    }
+    .stat { min-width: 0; text-align: center; border-right: 1px solid var(--line); }
+    .stat:last-child { border-right: 0; }
+    .stat-label { display: block; margin-bottom: 3px; color: var(--muted); font-size: 10px; letter-spacing: .12em; }
+    .stat-value { display: block; font-size: 19px; line-height: 1.15; font-weight: 800; font-variant-numeric: tabular-nums; }
+    #score { color: var(--cyan); text-shadow: 0 0 14px rgba(85, 246, 255, .35); }
+    #best { color: #d7c9ff; }
+    #lives { color: #ff6baf; font-size: 17px; letter-spacing: 1px; white-space: nowrap; }
+    #timer.danger { color: #ff708b; animation: timerPulse .7s ease-in-out infinite alternate; }
+
+    .progress-row { display: flex; align-items: center; gap: 10px; padding: 0 3px; }
+    .progress-label { flex: none; color: var(--muted); font-size: 10px; }
+    .progress-label strong { color: #ddd9ff; font-weight: 700; }
+    .progress-track { flex: 1; height: 5px; overflow: hidden; border-radius: 9px; background: rgba(255, 255, 255, .07); }
+    #progressBar {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--violet), var(--pink), var(--cyan));
+      box-shadow: 0 0 12px rgba(85, 246, 255, .4);
+      transition: width .2s ease-out;
+    }
+
+    #game {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid rgba(151, 126, 255, .17);
+      border-radius: 25px;
+      background:
+        linear-gradient(rgba(116, 96, 190, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(116, 96, 190, .035) 1px, transparent 1px),
+        radial-gradient(ellipse at 50% 110%, rgba(100, 68, 200, .2), transparent 55%),
+        linear-gradient(180deg, rgba(14, 15, 36, .86), rgba(10, 10, 28, .96));
+      background-size: 34px 34px, 34px 34px, auto, auto;
+      box-shadow: inset 0 0 45px rgba(0, 0, 0, .35), 0 14px 45px rgba(0, 0, 0, .16);
+      touch-action: none;
+      isolation: isolate;
+    }
+
+    #game::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      opacity: .4;
+      background-image:
+        radial-gradient(circle at 12% 20%, #a9a4ff 0 1px, transparent 1.5px),
+        radial-gradient(circle at 83% 13%, #5ff6ff 0 1px, transparent 1.5px),
+        radial-gradient(circle at 72% 63%, #ff88dc 0 1px, transparent 1.5px),
+        radial-gradient(circle at 27% 72%, #a9a4ff 0 1px, transparent 1.5px);
+      background-size: 170px 210px, 230px 190px, 210px 240px, 250px 220px;
+    }
+
+    .game-tip {
+      position: absolute;
+      z-index: 2;
+      top: 11px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 6px 12px;
+      border: 1px solid rgba(255, 255, 255, .06);
+      border-radius: 99px;
+      color: rgba(207, 207, 232, .58);
+      background: rgba(8, 8, 23, .35);
+      font-size: 10px;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    .balloon {
+      --c1: #65f7ff;
+      --c2: #178bd7;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      color: white;
+      background: transparent;
+      cursor: pointer;
+      touch-action: none;
+      will-change: transform;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .balloon-body {
+      position: relative;
+      display: block;
+      width: 100%;
+      aspect-ratio: .82;
+      overflow: visible;
+      border: 1px solid rgba(255, 255, 255, .2);
+      border-radius: 52% 48% 50% 50% / 44% 44% 56% 56%;
+      background:
+        radial-gradient(circle at 32% 23%, rgba(255, 255, 255, .7), transparent 9%),
+        radial-gradient(circle at 35% 30%, var(--c1), var(--c2) 68%, #101027 115%);
+      box-shadow:
+        inset -9px -12px 20px rgba(5, 5, 30, .25),
+        inset 5px 6px 12px rgba(255, 255, 255, .13),
+        0 0 22px color-mix(in srgb, var(--c1) 38%, transparent);
+    }
+
+    .balloon-body::after {
+      content: "";
+      position: absolute;
+      inset: 5%;
+      border-radius: inherit;
+      background: linear-gradient(115deg, rgba(255, 255, 255, .09), transparent 42%);
+      pointer-events: none;
+    }
+
+    .shine {
+      position: absolute;
+      z-index: 1;
+      top: 17%;
+      left: 20%;
+      width: 13%;
+      height: 27%;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .38);
+      transform: rotate(28deg);
+      filter: blur(1px);
+    }
+
+    .knot {
+      width: 13px;
+      height: 10px;
+      margin-top: -2px;
+      background: var(--c2);
+      clip-path: polygon(50% 0, 100% 100%, 0 100%);
+      filter: drop-shadow(0 0 5px var(--c2));
+    }
+
+    .string {
+      display: block;
+      width: 1px;
+      height: 40px;
+      background: linear-gradient(var(--c1), rgba(255, 255, 255, .05));
+      opacity: .65;
+      transform-origin: top;
+      animation: stringSway 1.8s ease-in-out infinite alternate;
+    }
+
+    .golden .balloon-body { border-color: rgba(255, 244, 169, .65); }
+    .balloon-star {
+      position: absolute;
+      z-index: 2;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: rgba(255, 255, 255, .82);
+      font-size: 25px;
+      text-shadow: 0 0 12px #fff2a0;
+    }
+
+    .bomb .balloon-body {
+      border-color: rgba(255, 84, 112, .48);
+      background:
+        radial-gradient(circle at 30% 22%, rgba(255, 255, 255, .28), transparent 8%),
+        radial-gradient(circle at 35% 30%, #45485d, #171925 62%, #070810);
+      box-shadow: inset -9px -12px 20px #05050c, 0 0 23px rgba(255, 65, 105, .26);
+    }
+    .bomb .knot { background: #292b3b; filter: none; }
+    .bomb .string { background: linear-gradient(#55586e, transparent); }
+    .bomb-mark {
+      position: absolute;
+      z-index: 2;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: #ff819d;
+      font-size: 28px;
+      text-shadow: 0 0 12px rgba(255, 74, 118, .55);
+    }
+    .fuse {
+      position: absolute;
+      top: -13px;
+      right: 12%;
+      width: 20px;
+      height: 20px;
+      border-top: 2px solid #a6a0a8;
+      border-radius: 50%;
+      transform: rotate(-35deg);
+    }
+    .fuse::after {
+      content: "✦";
+      position: absolute;
+      top: -14px;
+      right: -3px;
+      color: #ffd36a;
+      font-size: 16px;
+      text-shadow: 0 0 9px #ff784f;
+      animation: spark .45s ease-in-out infinite alternate;
+    }
+
+    .balloon.is-popped { pointer-events: none; }
+    .balloon.is-popped .balloon-body { animation: pop .18s ease-out forwards; }
+    .balloon.is-popped .knot,
+    .balloon.is-popped .string { opacity: 0; }
+
+    .particle {
+      position: absolute;
+      z-index: 7;
+      width: 7px;
+      height: 7px;
+      margin: -3px;
+      border-radius: 50%;
+      background: var(--particle-color);
+      box-shadow: 0 0 9px var(--particle-color);
+      pointer-events: none;
+      animation: particleFly .55s ease-out forwards;
+    }
+    .float-text {
+      position: absolute;
+      z-index: 8;
+      transform: translateX(-50%);
+      color: var(--float-color, var(--cyan));
+      font-size: 17px;
+      font-weight: 900;
+      white-space: nowrap;
+      text-shadow: 0 0 12px currentColor;
+      pointer-events: none;
+      animation: floatUp .7s ease-out forwards;
+    }
+
+    .overlay {
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: max(22px, env(safe-area-inset-top)) 20px max(22px, env(safe-area-inset-bottom));
+      background: rgba(5, 5, 18, .72);
+      backdrop-filter: blur(12px);
+      touch-action: none;
+    }
+
+    .modal {
+      width: min(100%, 410px);
+      padding: 28px 24px 24px;
+      border: 1px solid rgba(153, 128, 255, .25);
+      border-radius: 28px;
+      text-align: center;
+      background:
+        radial-gradient(circle at 50% 0, rgba(130, 91, 255, .16), transparent 48%),
+        rgba(18, 18, 42, .96);
+      box-shadow: 0 24px 90px rgba(0, 0, 0, .5), inset 0 1px rgba(255, 255, 255, .06), 0 0 45px rgba(123, 85, 255, .09);
+      animation: modalIn .25s ease-out;
+    }
+    .modal-icon {
+      display: grid;
+      place-items: center;
+      width: 70px;
+      height: 70px;
+      margin: 0 auto 17px;
+      border: 1px solid rgba(85, 246, 255, .22);
+      border-radius: 23px;
+      background: linear-gradient(145deg, rgba(85, 246, 255, .13), rgba(255, 79, 216, .1));
+      box-shadow: 0 0 30px rgba(85, 246, 255, .1);
+      font-size: 36px;
+    }
+    .eyebrow { margin: 0 0 8px; color: var(--cyan); font-size: 10px; font-weight: 700; letter-spacing: .22em; }
+    .modal h2 { margin: 0; font-size: 28px; letter-spacing: .04em; }
+    .modal-copy { margin: 13px auto 18px; max-width: 310px; color: #b5b5cf; font-size: 14px; line-height: 1.75; }
+    .rules { display: flex; justify-content: center; flex-wrap: wrap; gap: 7px; margin: 0 0 22px; }
+    .rule {
+      padding: 6px 9px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      color: #d8d8ec;
+      background: rgba(255, 255, 255, .035);
+      font-size: 11px;
+    }
+    .primary-button {
+      width: 100%;
+      min-height: 50px;
+      border: 0;
+      border-radius: 15px;
+      color: #0a0b1b;
+      background: linear-gradient(105deg, var(--cyan), #a99aff 55%, #ff82db);
+      box-shadow: 0 8px 25px rgba(85, 246, 255, .16);
+      font-size: 16px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .primary-button:active { transform: translateY(1px) scale(.99); filter: brightness(.92); }
+    .secondary-button {
+      margin-top: 12px;
+      padding: 7px 14px;
+      border: 0;
+      color: var(--muted);
+      background: transparent;
+      font-size: 13px;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .keyboard-hint { margin: 13px 0 0; color: #6f708c; font-size: 10px; }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @keyframes drift { to { transform: translate(45px, 35px) scale(1.2); } }
+    @keyframes stringSway { to { transform: rotate(5deg); } }
+    @keyframes spark { to { transform: scale(1.35) rotate(20deg); opacity: .65; } }
+    @keyframes pop { 45% { transform: scale(1.16); opacity: 1; } 100% { transform: scale(.25); opacity: 0; } }
+    @keyframes particleFly { to { transform: translate(var(--dx), var(--dy)) scale(.15); opacity: 0; } }
+    @keyframes floatUp { to { transform: translate(-50%, -58px) scale(1.08); opacity: 0; } }
+    @keyframes modalIn { from { transform: translateY(12px) scale(.97); opacity: 0; } }
+    @keyframes timerPulse { to { text-shadow: 0 0 15px #ff426d; } }
+
+    @media (min-width: 600px) {
+      #app { padding-left: 22px; padding-right: 22px; gap: 13px; }
+      .brand h1 { font-size: 22px; }
+      .stat-value { font-size: 22px; }
+      .game-tip { font-size: 11px; }
+    }
+
+    @media (max-height: 620px) {
+      #app { gap: 7px; padding-top: max(7px, env(safe-area-inset-top)); padding-bottom: max(7px, env(safe-area-inset-bottom)); }
+      .topbar { min-height: 36px; }
+      .brand-mark { width: 32px; height: 32px; }
+      .icon-button { height: 36px; min-width: 38px; }
+      .hud { padding-top: 6px; padding-bottom: 6px; }
+      .modal { padding: 20px; }
+      .modal-icon { width: 54px; height: 54px; margin-bottom: 10px; font-size: 28px; }
+      .modal-copy { margin: 9px auto 12px; line-height: 1.55; }
+      .rules { margin-bottom: 15px; }
+      .keyboard-hint { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .ambient::before, .ambient::after, .string, .fuse::after, #timer.danger { animation: none; }
+      .modal { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"></div>
+
+  <main id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">🎈</div>
+        <div>
+          <h1>霓虹气球</h1>
+          <small>NEON POP</small>
+        </div>
+      </div>
+      <div class="controls">
+        <button id="soundButton" class="icon-button" type="button" aria-label="关闭音效" title="音效">🔊</button>
+        <button id="pauseButton" class="icon-button" type="button" aria-label="暂停游戏" disabled>Ⅱ 暂停</button>
+      </div>
+    </header>
+
+    <section class="hud" aria-label="游戏数据">
+      <div class="stat"><span class="stat-label">得分</span><strong id="score" class="stat-value">0</strong></div>
+      <div class="stat"><span class="stat-label">最高分</span><strong id="best" class="stat-value">0</strong></div>
+      <div class="stat"><span class="stat-label">生命</span><strong id="lives" class="stat-value" aria-label="3 条生命">♥♥♥</strong></div>
+      <div class="stat"><span class="stat-label">时间</span><strong id="timer" class="stat-value">60</strong></div>
+    </section>
+
+    <div class="progress-row">
+      <span class="progress-label">目标 <strong>300</strong> 分</span>
+      <div class="progress-track" role="progressbar" aria-label="目标分数进度" aria-valuemin="0" aria-valuemax="300" aria-valuenow="0">
+        <div id="progressBar"></div>
+      </div>
+    </div>
+
+    <section id="game" aria-label="打气球游戏区域">
+      <div class="game-tip">轻点气球得分 · 千万别点炸弹</div>
+    </section>
+  </main>
+
+  <div id="overlay" class="overlay">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalCopy">
+      <div id="modalIcon" class="modal-icon" aria-hidden="true">🎈</div>
+      <p id="modalEyebrow" class="eyebrow">60 秒 · 霓虹挑战</p>
+      <h2 id="modalTitle">准备开派对！</h2>
+      <p id="modalCopy" class="modal-copy">点破升起的气球得分，金色气球分数翻倍。避开炸弹，也别让普通气球溜走！</p>
+      <div id="rules" class="rules">
+        <span class="rule">🎈 普通 +10</span>
+        <span class="rule">⭐ 金色 +20</span>
+        <span class="rule">💣 炸弹 −20</span>
+      </div>
+      <button id="primaryButton" class="primary-button" type="button">开始游戏</button>
+      <button id="secondaryButton" class="secondary-button" type="button" hidden>重新开始</button>
+      <p class="keyboard-hint">键盘：Tab 选择气球，Enter 点破 · P 暂停</p>
+    </section>
+  </div>
+
+  <div id="announcer" class="sr-only" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // 游戏常量：集中配置，便于调整难度。
+      const TARGET_SCORE = 300;
+      const ROUND_TIME = 60;
+      const MAX_LIVES = 3;
+      const BEST_KEY = 'neon-balloon-best';
+      const COLORS = [
+        ['#73f8ff', '#167fd2'],
+        ['#ff8de2', '#cf318e'],
+        ['#bba2ff', '#6949da'],
+        ['#7dffb2', '#20ad83'],
+        ['#ff9e91', '#e34b74']
+      ];
+
+      const game = document.getElementById('game');
+      const scoreEl = document.getElementById('score');
+      const bestEl = document.getElementById('best');
+      const livesEl = document.getElementById('lives');
+      const timerEl = document.getElementById('timer');
+      const progressBar = document.getElementById('progressBar');
+      const progressTrack = document.querySelector('.progress-track');
+      const pauseButton = document.getElementById('pauseButton');
+      const soundButton = document.getElementById('soundButton');
+      const overlay = document.getElementById('overlay');
+      const modalIcon = document.getElementById('modalIcon');
+      const modalEyebrow = document.getElementById('modalEyebrow');
+      const modalTitle = document.getElementById('modalTitle');
+      const modalCopy = document.getElementById('modalCopy');
+      const rules = document.getElementById('rules');
+      const primaryButton = document.getElementById('primaryButton');
+      const secondaryButton = document.getElementById('secondaryButton');
+      const announcer = document.getElementById('announcer');
+
+      // 所有气球由 Map 统一管理，动画只使用一个 requestAnimationFrame。
+      const balloons = new Map();
+      let state = 'idle'; // idle / running / paused / won / over
+      let score = 0;
+      let best = loadBest();
+      let lives = MAX_LIVES;
+      let elapsed = 0;
+      let timeLeft = ROUND_TIME;
+      let spawnCountdown = 0;
+      let nextId = 1;
+      let lastFrame = performance.now();
+      let lastShownSecond = ROUND_TIME;
+      let soundOn = true;
+      let audioContext = null;
+
+      function loadBest() {
+        try {
+          const saved = Number(localStorage.getItem(BEST_KEY));
+          return Number.isFinite(saved) && saved > 0 ? Math.floor(saved) : 0;
+        } catch (_) {
+          return 0; // 隐私模式下存储不可用时仍可正常游戏。
+        }
+      }
+
+      function saveBest() {
+        try { localStorage.setItem(BEST_KEY, String(best)); } catch (_) { /* 忽略存储异常 */ }
+      }
+
+      function updateHud() {
+        scoreEl.textContent = score;
+        bestEl.textContent = best;
+        livesEl.textContent = '♥'.repeat(lives) + '♡'.repeat(MAX_LIVES - lives);
+        livesEl.setAttribute('aria-label', `${lives} 条生命`);
+        timerEl.textContent = Math.ceil(timeLeft);
+        timerEl.classList.toggle('danger', timeLeft <= 10 && state === 'running');
+        const progress = Math.min(100, score / TARGET_SCORE * 100);
+        progressBar.style.width = `${progress}%`;
+        progressTrack.setAttribute('aria-valuenow', String(Math.min(score, TARGET_SCORE)));
+      }
+
+      function showOverlay(mode, resultScore = 0, reason = '') {
+        overlay.hidden = false;
+        secondaryButton.hidden = mode !== 'paused';
+        rules.hidden = mode !== 'idle';
+
+        if (mode === 'idle') {
+          modalIcon.textContent = '🎈';
+          modalEyebrow.textContent = '60 秒 · 霓虹挑战';
+          modalTitle.textContent = '准备开派对！';
+          modalCopy.textContent = '点破升起的气球得分，金色气球分数翻倍。避开炸弹，也别让普通气球溜走！';
+          primaryButton.textContent = '开始游戏';
+        } else if (mode === 'paused') {
+          modalIcon.textContent = '⏸️';
+          modalEyebrow.textContent = '休息一下';
+          modalTitle.textContent = '游戏已暂停';
+          modalCopy.textContent = '气球和倒计时都已冻结，准备好后继续挑战。';
+          primaryButton.textContent = '继续游戏';
+        } else if (mode === 'won') {
+          modalIcon.textContent = '🏆';
+          modalEyebrow.textContent = '目标达成';
+          modalTitle.textContent = '挑战成功！';
+          modalCopy.textContent = `漂亮！你拿到了 ${resultScore} 分，剩余 ${Math.ceil(timeLeft)} 秒。最高分：${best} 分。`;
+          primaryButton.textContent = '再玩一次';
+        } else {
+          modalIcon.textContent = reason === 'time' ? '⏰' : '💥';
+          modalEyebrow.textContent = reason === 'time' ? '时间到' : '生命耗尽';
+          modalTitle.textContent = '游戏结束';
+          modalCopy.textContent = `本局得分 ${resultScore}，最高分 ${best}。${reason === 'time' ? '再快一点就能达成目标！' : '避开炸弹，优先点破低处气球！'}`;
+          primaryButton.textContent = '重新挑战';
+        }
+
+        // 等弹窗绘制后再聚焦，避免移动端出现意外滚动。
+        requestAnimationFrame(() => primaryButton.focus({ preventScroll: true }));
+      }
+
+      function clearRound() {
+        balloons.clear();
+        game.querySelectorAll('.balloon, .particle, .float-text').forEach(el => el.remove());
+      }
+
+      function startGame() {
+        clearRound();
+        state = 'running';
+        score = 0;
+        lives = MAX_LIVES;
+        elapsed = 0;
+        timeLeft = ROUND_TIME;
+        lastShownSecond = ROUND_TIME;
+        spawnCountdown = .65;
+        lastFrame = performance.now();
+        overlay.hidden = true;
+        pauseButton.disabled = false;
+        pauseButton.textContent = 'Ⅱ 暂停';
+        pauseButton.setAttribute('aria-label', '暂停游戏');
+        updateHud();
+        spawnBalloon();
+        playSound('start');
+      }
+
+      function togglePause() {
+        if (state === 'running') {
+          state = 'paused';
+          pauseButton.textContent = '▶ 继续';
+          pauseButton.setAttribute('aria-label', '继续游戏');
+          showOverlay('paused');
+        } else if (state === 'paused') {
+          state = 'running';
+          lastFrame = performance.now();
+          overlay.hidden = true;
+          pauseButton.textContent = 'Ⅱ 暂停';
+          pauseButton.setAttribute('aria-label', '暂停游戏');
+          pauseButton.focus({ preventScroll: true });
+        }
+        updateHud();
+      }
+
+      function finishGame(won, reason = '') {
+        if (state !== 'running') return;
+        state = won ? 'won' : 'over';
+        pauseButton.disabled = true;
+        updateHud();
+        playSound(won ? 'win' : 'lose');
+        showOverlay(state, score, reason);
+      }
+
+      function spawnBalloon() {
+        const width = game.clientWidth;
+        const height = game.clientHeight;
+        if (width <= 0 || height <= 0) return;
+
+        const random = Math.random();
+        const type = random < .17 ? 'bomb' : random > .88 ? 'gold' : 'normal';
+        const size = Math.round(Math.max(56, Math.min(82, width * .17)));
+        const color = type === 'gold' ? ['#fff3a1', '#eaa91d'] : COLORS[Math.floor(Math.random() * COLORS.length)];
+        const el = document.createElement('button');
+        el.type = 'button';
+        el.className = `balloon ${type === 'bomb' ? 'bomb' : type === 'gold' ? 'golden' : ''}`;
+        el.style.width = `${size}px`;
+        el.style.setProperty('--c1', color[0]);
+        el.style.setProperty('--c2', color[1]);
+        el.setAttribute('aria-label', type === 'bomb' ? '炸弹气球，不要点' : type === 'gold' ? '金色气球，点破得 20 分' : '普通气球，点破得 10 分');
+        el.innerHTML = type === 'bomb'
+          ? '<span class="balloon-body"><span class="shine"></span><span class="bomb-mark">☠</span><span class="fuse"></span></span><span class="knot"></span><span class="string"></span>'
+          : `<span class="balloon-body"><span class="shine"></span>${type === 'gold' ? '<span class="balloon-star">★</span>' : ''}</span><span class="knot"></span><span class="string"></span>`;
+
+        const id = nextId++;
+        const baseSpeed = Math.max(52, height / 8);
+        const balloon = {
+          id,
+          el,
+          type,
+          size,
+          baseX: 7 + Math.random() * Math.max(1, width - size - 14),
+          x: 0,
+          y: height + 12,
+          speed: baseSpeed * (.85 + Math.random() * .45) + Math.min(25, elapsed * .35),
+          drift: 7 + Math.random() * 16,
+          phase: Math.random() * Math.PI * 2,
+          color: type === 'bomb' ? '#ff5d83' : color[0],
+          dead: false
+        };
+        balloon.x = balloon.baseX;
+        balloons.set(id, balloon);
+        game.appendChild(el);
+        positionBalloon(balloon);
+      }
+
+      function positionBalloon(balloon) {
+        const tilt = Math.sin(elapsed * 2 + balloon.phase) * 4;
+        balloon.el.style.transform = `translate3d(${balloon.x}px, ${balloon.y}px, 0) rotate(${tilt}deg)`;
+      }
+
+      function popBalloon(balloon) {
+        if (state !== 'running' || !balloon || balloon.dead) return;
+        balloon.dead = true;
+        balloons.delete(balloon.id);
+        balloon.el.disabled = true;
+        balloon.el.classList.add('is-popped');
+        setTimeout(() => balloon.el.remove(), 190);
+
+        const centerX = balloon.x + balloon.size / 2;
+        const centerY = balloon.y + balloon.size * .56;
+        createBurst(centerX, centerY, balloon.color);
+
+        if (balloon.type === 'bomb') {
+          score = Math.max(0, score - 20);
+          lives--;
+          createFloatText(centerX, centerY, '−20 · 生命 −1', '#ff6d91');
+          playSound('bomb');
+          updateHud();
+          if (lives <= 0) finishGame(false, 'lives');
+          return;
+        }
+
+        const points = balloon.type === 'gold' ? 20 : 10;
+        score += points;
+        if (score > best) {
+          best = score;
+          saveBest();
+        }
+        createFloatText(centerX, centerY, `+${points}`, balloon.type === 'gold' ? '#ffe477' : '#6ff8ff');
+        playSound(balloon.type === 'gold' ? 'gold' : 'pop');
+        updateHud();
+        if (score >= TARGET_SCORE) finishGame(true);
+      }
+
+      function missBalloon(balloon) {
+        balloons.delete(balloon.id);
+        balloon.el.remove();
+        if (balloon.type === 'bomb') return; // 放过炸弹不惩罚。
+        lives--;
+        createFloatText(balloon.x + balloon.size / 2, 52, '溜走啦 · 生命 −1', '#ff7b9e');
+        playSound('miss');
+        updateHud();
+        if (lives <= 0) finishGame(false, 'lives');
+      }
+
+      function createBurst(x, y, color) {
+        for (let i = 0; i < 9; i++) {
+          const angle = Math.PI * 2 * i / 9 + Math.random() * .3;
+          const distance = 30 + Math.random() * 35;
+          const particle = document.createElement('span');
+          particle.className = 'particle';
+          particle.style.left = `${x}px`;
+          particle.style.top = `${y}px`;
+          particle.style.setProperty('--dx', `${Math.cos(angle) * distance}px`);
+          particle.style.setProperty('--dy', `${Math.sin(angle) * distance}px`);
+          particle.style.setProperty('--particle-color', color);
+          game.appendChild(particle);
+          setTimeout(() => particle.remove(), 600);
+        }
+      }
+
+      function createFloatText(x, y, text, color) {
+        const el = document.createElement('span');
+        el.className = 'float-text';
+        el.textContent = text;
+        el.style.left = `${Math.max(55, Math.min(game.clientWidth - 55, x))}px`;
+        el.style.top = `${Math.max(25, y)}px`;
+        el.style.setProperty('--float-color', color);
+        game.appendChild(el);
+        setTimeout(() => el.remove(), 750);
+      }
+
+      function tick(now) {
+        // 限制单帧步长，切回后台时不会让气球瞬移。
+        const dt = Math.min(.04, Math.max(0, (now - lastFrame) / 1000));
+        lastFrame = now;
+
+        if (state === 'running') {
+          elapsed += dt;
+          timeLeft = Math.max(0, ROUND_TIME - elapsed);
+          const shownSecond = Math.ceil(timeLeft);
+          if (shownSecond !== lastShownSecond) {
+            lastShownSecond = shownSecond;
+            updateHud();
+          }
+
+          if (timeLeft <= 0) {
+            finishGame(false, 'time');
+          } else {
+            spawnCountdown -= dt;
+            if (spawnCountdown <= 0) {
+              spawnBalloon();
+              spawnCountdown = Math.max(.43, .84 - elapsed * .004) + Math.random() * .22;
+            }
+
+            for (const balloon of [...balloons.values()]) {
+              balloon.y -= balloon.speed * dt;
+              balloon.x = Math.max(4, Math.min(
+                game.clientWidth - balloon.size - 4,
+                balloon.baseX + Math.sin(elapsed * 1.35 + balloon.phase) * balloon.drift
+              ));
+              positionBalloon(balloon);
+              if (balloon.y + balloon.size * 1.22 < 0) missBalloon(balloon);
+              if (state !== 'running') break;
+            }
+          }
+        }
+        requestAnimationFrame(tick);
+      }
+
+      // 使用 Web Audio 即时合成短音效，不加载任何音频文件。
+      function playSound(kind) {
+        if (!soundOn) return;
+        try {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtx) return;
+          if (!audioContext) audioContext = new AudioCtx();
+          if (audioContext.state === 'suspended') audioContext.resume();
+
+          const settings = {
+            pop: [520, 760, .07, 'sine'],
+            gold: [660, 1100, .14, 'sine'],
+            bomb: [130, 48, .25, 'sawtooth'],
+            miss: [210, 150, .12, 'triangle'],
+            start: [360, 620, .16, 'sine'],
+            win: [520, 1040, .35, 'sine'],
+            lose: [230, 100, .32, 'triangle']
+          };
+          const [from, to, duration, wave] = settings[kind] || settings.pop;
+          const oscillator = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          const now = audioContext.currentTime;
+          oscillator.type = wave;
+          oscillator.frequency.setValueAtTime(from, now);
+          oscillator.frequency.exponentialRampToValueAtTime(to, now + duration);
+          gain.gain.setValueAtTime(.0001, now);
+          gain.gain.exponentialRampToValueAtTime(kind === 'bomb' ? .12 : .07, now + .012);
+          gain.gain.exponentialRampToValueAtTime(.0001, now + duration);
+          oscillator.connect(gain);
+          gain.connect(audioContext.destination);
+          oscillator.start(now);
+          oscillator.stop(now + duration + .02);
+        } catch (_) { /* 音频不可用不影响游戏 */ }
+      }
+
+      // 指针按下即命中，减少触屏延迟；click(detail=0) 兼容 Enter/空格。
+      game.addEventListener('pointerdown', event => {
+        const el = event.target.closest('.balloon');
+        if (!el) return;
+        event.preventDefault();
+        const balloon = [...balloons.values()].find(item => item.el === el);
+        popBalloon(balloon);
+      });
+
+      game.addEventListener('click', event => {
+        if (event.detail !== 0) return;
+        const el = event.target.closest('.balloon');
+        if (!el) return;
+        const balloon = [...balloons.values()].find(item => item.el === el);
+        popBalloon(balloon);
+      });
+
+      primaryButton.addEventListener('click', () => {
+        if (state === 'paused') togglePause();
+        else startGame();
+      });
+      secondaryButton.addEventListener('click', startGame);
+      pauseButton.addEventListener('click', togglePause);
+      soundButton.addEventListener('click', () => {
+        soundOn = !soundOn;
+        soundButton.textContent = soundOn ? '🔊' : '🔇';
+        soundButton.setAttribute('aria-label', soundOn ? '关闭音效' : '开启音效');
+        if (soundOn) playSound('pop');
+      });
+
+      document.addEventListener('keydown', event => {
+        if (event.key.toLowerCase() === 'p' || event.key === 'Escape') {
+          if (state === 'running' || state === 'paused') {
+            event.preventDefault();
+            togglePause();
+          }
+        }
+        if (event.key.toLowerCase() === 'r' && (state === 'over' || state === 'won')) startGame();
+      });
+
+      // 页面转入后台时自动暂停，避免无意义的漏球。
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state === 'running') togglePause();
+      });
+
+      // 禁止双击缩放、双指缩放和页面滚动，同时保留按钮点击。
+      document.addEventListener('dblclick', event => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', event => event.preventDefault(), { passive: false });
+      document.addEventListener('touchmove', event => event.preventDefault(), { passive: false });
+      document.addEventListener('contextmenu', event => event.preventDefault());
+
+      // 横竖屏切换后把仍在场内的气球收回安全范围。
+      window.addEventListener('resize', () => {
+        for (const balloon of balloons.values()) {
+          balloon.baseX = Math.max(4, Math.min(game.clientWidth - balloon.size - 4, balloon.baseX));
+          positionBalloon(balloon);
+        }
+      });
+
+      bestEl.textContent = best;
+      updateHud();
+      showOverlay('idle');
+      requestAnimationFrame(tick);
+    })();
+  </script>
+</body>
+</html>

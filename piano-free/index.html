@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080a18">
+  <title>自由钢琴 · Neon Piano</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070915;
+      --panel: rgba(17, 21, 43, .72);
+      --line: rgba(158, 177, 255, .13);
+      --text: #f4f6ff;
+      --muted: #8f98b8;
+      --cyan: #62efff;
+      --pink: #ff62d4;
+      --violet: #9c7bff;
+      --danger: #ff6d8d;
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 4%, rgba(91, 66, 190, .24), transparent 34%),
+        radial-gradient(circle at 92% 24%, rgba(0, 210, 255, .10), transparent 30%),
+        linear-gradient(160deg, #090b1b 0%, var(--bg) 55%, #0c0919 100%);
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .32;
+      background-image:
+        linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: linear-gradient(to bottom, #000, transparent 78%);
+    }
+
+    button { font: inherit; }
+    button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+
+    .app {
+      position: relative;
+      width: min(100%, 820px);
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+      display: grid;
+      grid-template-rows: auto auto auto minmax(100px, 1fr) clamp(174px, 30dvh, 280px);
+      gap: 10px;
+    }
+
+    /* 顶部品牌与操作 */
+    .topbar {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(98, 239, 255, .28);
+      border-radius: 13px;
+      color: var(--cyan);
+      font: 700 23px/1 Georgia, serif;
+      background: linear-gradient(145deg, rgba(98,239,255,.12), rgba(156,123,255,.12));
+      box-shadow: inset 0 0 18px rgba(98,239,255,.07), 0 0 22px rgba(98,239,255,.08);
+    }
+    .brand h1 { margin: 0; font-size: 18px; line-height: 1.2; letter-spacing: .08em; }
+    .brand p { margin: 4px 0 0; color: var(--muted); font-size: 8px; letter-spacing: .24em; }
+
+    .actions { display: flex; gap: 7px; }
+    .icon-button {
+      height: 38px;
+      min-width: 38px;
+      padding: 0 11px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      color: #cbd2ed;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(20, 24, 47, .72);
+      cursor: pointer;
+      transition: border-color .2s, background .2s, transform .15s;
+    }
+    .icon-button:active { transform: scale(.94); }
+    .icon-button:hover { border-color: rgba(98,239,255,.35); background: rgba(30,36,66,.8); }
+    .icon-button:disabled { opacity: .38; cursor: default; }
+    .icon-button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .pause-label { font-size: 12px; }
+
+    /* 模式切换 */
+    .modebar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .segments {
+      display: flex;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: rgba(13, 16, 35, .62);
+    }
+    .segment {
+      min-width: 62px;
+      padding: 6px 12px;
+      border: 0;
+      border-radius: 8px;
+      color: var(--muted);
+      background: transparent;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .segment.active {
+      color: #eefeff;
+      background: linear-gradient(120deg, rgba(40,170,199,.3), rgba(111,77,184,.32));
+      box-shadow: inset 0 0 0 1px rgba(98,239,255,.17);
+    }
+    .mode-hint { color: var(--muted); font-size: 11px; text-align: right; white-space: nowrap; }
+
+    /* 数据面板 */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 7px;
+    }
+    .stat {
+      position: relative;
+      min-width: 0;
+      padding: 8px 9px 9px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: linear-gradient(145deg, rgba(24,29,56,.76), rgba(13,16,34,.68));
+    }
+    .stat::after {
+      content: "";
+      position: absolute;
+      left: 10px;
+      right: 45%;
+      bottom: 0;
+      height: 1px;
+      background: linear-gradient(90deg, var(--cyan), transparent);
+      opacity: .36;
+    }
+    .stat-label { display: block; color: var(--muted); font-size: 9px; letter-spacing: .1em; }
+    .stat-value { display: block; margin-top: 3px; font-size: clamp(16px, 4.5vw, 22px); font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; }
+    .stat:first-child .stat-value { color: var(--cyan); text-shadow: 0 0 16px rgba(98,239,255,.25); }
+    #livesValue { color: var(--pink); font-size: clamp(12px, 3.4vw, 17px); letter-spacing: 1px; white-space: nowrap; }
+    .goal-track {
+      grid-column: 1 / -1;
+      height: 3px;
+      margin: -2px 3px 0;
+      overflow: hidden;
+      border-radius: 9px;
+      background: rgba(255,255,255,.055);
+    }
+    .goal-fill {
+      display: block;
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--violet), var(--cyan));
+      box-shadow: 0 0 10px var(--cyan);
+      transition: width .22s ease;
+    }
+
+    /* 下落音符舞台 */
+    .stage {
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background:
+        radial-gradient(ellipse at 50% 100%, rgba(71,109,181,.12), transparent 62%),
+        linear-gradient(180deg, rgba(10,13,29,.62), rgba(17,20,41,.84));
+      box-shadow: inset 0 0 35px rgba(0,0,0,.18);
+      isolation: isolate;
+    }
+    .stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background: linear-gradient(110deg, transparent 25%, rgba(98,239,255,.025) 48%, transparent 70%);
+      animation: stageSweep 8s linear infinite;
+    }
+    @keyframes stageSweep { from { transform: translateX(-70%); } to { transform: translateX(70%); } }
+    #noteCanvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .stage-meta {
+      position: absolute;
+      z-index: 2;
+      top: 10px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+    .status-pill { display: flex; align-items: center; gap: 6px; color: #aab3d2; font-size: 10px; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #717b9e; box-shadow: 0 0 8px currentColor; }
+    .status-pill.live .status-dot { color: var(--cyan); background: var(--cyan); animation: pulse 1.5s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: .38; transform: scale(.75); } }
+    .combo { color: var(--muted); font-size: 10px; opacity: 0; transition: opacity .2s; }
+    .combo.visible { opacity: 1; }
+    .combo strong { margin-left: 3px; color: var(--pink); font-size: 16px; text-shadow: 0 0 12px rgba(255,98,212,.4); }
+    .stage-message {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-content: center;
+      justify-items: center;
+      gap: 7px;
+      padding-bottom: 12px;
+      color: #707a9d;
+      pointer-events: none;
+      text-align: center;
+    }
+    .stage-message span { font: 34px/1 Georgia, serif; color: #667496; opacity: .55; }
+    .stage-message p { margin: 0; font-size: 11px; letter-spacing: .08em; }
+    .feedback {
+      position: absolute;
+      z-index: 3;
+      left: 50%;
+      bottom: 42px;
+      transform: translateX(-50%);
+      color: var(--cyan);
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      text-shadow: 0 0 16px currentColor;
+    }
+    .feedback.show { animation: feedbackPop .62s ease-out; }
+    .feedback.good { color: var(--violet); }
+    .feedback.miss { color: var(--danger); }
+    @keyframes feedbackPop {
+      0% { opacity: 0; transform: translate(-50%, 8px) scale(.85); }
+      20% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+      70% { opacity: 1; }
+      100% { opacity: 0; transform: translate(-50%, -18px) scale(.96); }
+    }
+    .target-caption {
+      position: absolute;
+      right: 9px;
+      bottom: 24px;
+      color: rgba(150,180,218,.46);
+      font-size: 8px;
+      letter-spacing: .15em;
+      pointer-events: none;
+    }
+
+    /* 钢琴键盘 */
+    .piano-panel {
+      min-height: 0;
+      padding: 8px;
+      display: grid;
+      grid-template-rows: 25px minmax(0, 1fr);
+      border: 1px solid rgba(158,177,255,.16);
+      border-radius: 17px;
+      background: linear-gradient(160deg, rgba(25,29,53,.96), rgba(10,12,27,.98));
+      box-shadow: 0 12px 35px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.04);
+    }
+    .piano-info { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 0 3px; color: var(--muted); font-size: 9px; }
+    .piano-info span:last-child { flex: 0 0 auto; color: #697493; letter-spacing: .08em; }
+    .piano {
+      position: relative;
+      min-height: 0;
+      touch-action: none;
+      border-radius: 7px 7px 12px 12px;
+      background: #080a14;
+    }
+    .white-keys { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 3px; }
+    .piano-key {
+      position: relative;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      cursor: pointer;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform .06s, filter .08s, box-shadow .1s;
+    }
+    .piano-key.white {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
+      padding-bottom: 10px;
+      border-radius: 4px 4px 9px 9px;
+      color: #59647c;
+      background: linear-gradient(90deg, #c6d0df 0%, #f3f7fb 18%, #e7edf5 76%, #b7c3d4 100%);
+      box-shadow: inset 0 -7px 10px rgba(55,72,103,.18), inset 0 1px #fff, 0 4px 5px rgba(0,0,0,.35);
+    }
+    .piano-key.white::after {
+      content: "";
+      position: absolute;
+      inset: auto 8% 0;
+      height: 3px;
+      border-radius: 4px 4px 0 0;
+      background: var(--cyan);
+      opacity: 0;
+      box-shadow: 0 0 14px 3px var(--cyan);
+      transition: opacity .08s;
+    }
+    .piano-key.black {
+      position: absolute;
+      z-index: 4;
+      top: 0;
+      width: 7.6%;
+      height: 59%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 9px;
+      border: 1px solid #292d43;
+      border-top: 0;
+      border-radius: 0 0 7px 7px;
+      color: #7f88a7;
+      background: linear-gradient(100deg, #090b14, #272b3e 48%, #111420 90%);
+      box-shadow: inset 0 -6px 8px rgba(0,0,0,.55), inset 1px 0 rgba(255,255,255,.05), 0 5px 7px rgba(0,0,0,.55);
+      font-size: 9px;
+    }
+    .key-name { font-size: 10px; font-weight: 650; }
+    .key-bind { font-size: 9px; font-weight: 700; opacity: .62; }
+    .piano-key.white.active {
+      transform: translateY(3px);
+      color: #087d91;
+      filter: brightness(1.08);
+      background: linear-gradient(90deg, #b9f4f5, #edffff 25%, #d9f9fb 80%, #a8dfe5);
+      box-shadow: inset 0 -4px 12px rgba(27,199,220,.18), 0 0 22px rgba(98,239,255,.35);
+    }
+    .piano-key.white.active::after { opacity: 1; }
+    .piano-key.black.active {
+      transform: translateX(-50%) translateY(3px);
+      color: #ffd2f3;
+      border-color: rgba(255,98,212,.55);
+      background: linear-gradient(105deg, #28102c, #713065 52%, #251028);
+      box-shadow: 0 0 22px rgba(255,98,212,.5), inset 0 -4px 8px rgba(255,98,212,.15);
+    }
+    .piano-key.miss { animation: keyMiss .24s ease; }
+    @keyframes keyMiss { 50% { box-shadow: 0 0 22px rgba(255,109,141,.65); } }
+
+    /* 开始、暂停与结算弹窗 */
+    .modal {
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+      display: grid;
+      place-items: center;
+      background: rgba(3, 5, 15, .73);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      animation: fadeIn .22s ease-out;
+    }
+    @keyframes fadeIn { from { opacity: 0; } }
+    .modal-card {
+      width: min(100%, 390px);
+      max-height: calc(100dvh - 36px);
+      overflow-y: auto;
+      touch-action: pan-y;
+      padding: 28px 24px 20px;
+      border: 1px solid rgba(133,158,255,.22);
+      border-radius: 25px;
+      text-align: center;
+      background:
+        radial-gradient(circle at 50% 0, rgba(101,86,198,.18), transparent 42%),
+        linear-gradient(155deg, rgba(25,29,57,.98), rgba(10,13,29,.98));
+      box-shadow: 0 26px 80px rgba(0,0,0,.5), inset 0 1px rgba(255,255,255,.05), 0 0 40px rgba(98,239,255,.05);
+      animation: cardIn .3s cubic-bezier(.2,.8,.2,1);
+    }
+    @keyframes cardIn { from { opacity: 0; transform: translateY(14px) scale(.97); } }
+    .modal-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 17px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(98,239,255,.26);
+      border-radius: 21px;
+      color: var(--cyan);
+      background: linear-gradient(145deg, rgba(98,239,255,.12), rgba(255,98,212,.09));
+      box-shadow: 0 0 30px rgba(98,239,255,.1), inset 0 0 20px rgba(98,239,255,.05);
+      font: 32px/1 Georgia, serif;
+    }
+    .eyebrow { margin: 0 0 8px; color: var(--cyan); font-size: 9px; font-weight: 650; letter-spacing: .25em; }
+    .modal h2 { margin: 0; font-size: 25px; line-height: 1.3; letter-spacing: .03em; }
+    .modal-desc { margin: 12px auto 0; max-width: 300px; color: #a3acc8; font-size: 13px; line-height: 1.8; }
+    .chips { margin-top: 17px; display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; }
+    .chip { padding: 5px 9px; border: 1px solid var(--line); border-radius: 99px; color: #aab4d2; background: rgba(255,255,255,.025); font-size: 10px; }
+    .result-stats { margin: 19px 0 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+    .result-item { padding: 11px 4px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.025); }
+    .result-item strong { display: block; color: #f4f7ff; font-size: 20px; font-variant-numeric: tabular-nums; }
+    .result-item span { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; }
+    .record-badge { display: inline-block; margin-top: 13px; padding: 5px 11px; border-radius: 99px; color: #ffe3f7; background: rgba(255,98,212,.13); border: 1px solid rgba(255,98,212,.25); font-size: 10px; }
+    .modal-buttons { margin-top: 22px; display: grid; gap: 9px; }
+    .main-button, .sub-button, .text-button {
+      width: 100%;
+      min-height: 46px;
+      border-radius: 13px;
+      cursor: pointer;
+      transition: transform .12s, filter .15s;
+    }
+    .main-button:active, .sub-button:active { transform: scale(.98); }
+    .main-button {
+      border: 1px solid rgba(134,249,255,.5);
+      color: #07121d;
+      font-weight: 750;
+      letter-spacing: .06em;
+      background: linear-gradient(105deg, #78f2ff, #9bc6ff 55%, #c09cff);
+      box-shadow: 0 8px 24px rgba(98,239,255,.15), inset 0 1px rgba(255,255,255,.65);
+    }
+    .main-button:hover { filter: brightness(1.07); }
+    .sub-button { border: 1px solid rgba(151,166,224,.2); color: #d7ddf3; background: rgba(255,255,255,.035); }
+    .text-button { min-height: 34px; border: 0; color: #7984a5; background: transparent; font-size: 11px; }
+    .modal-tip { margin: 13px 0 0; color: #616c8d; font-size: 9px; line-height: 1.6; }
+
+    @media (min-width: 600px) {
+      .app { padding-left: 22px; padding-right: 22px; gap: 12px; }
+      .brand h1 { font-size: 21px; }
+      .stat { padding: 10px 13px; }
+      .piano-panel { padding: 10px; grid-template-rows: 27px minmax(0,1fr); }
+      .key-name { font-size: 12px; }
+      .key-bind, .piano-key.black { font-size: 11px; }
+    }
+
+    @media (max-height: 650px) {
+      .app { gap: 7px; padding-top: max(8px, env(safe-area-inset-top)); grid-template-rows: auto auto auto minmax(85px,1fr) clamp(164px,30dvh,210px); }
+      .brand-mark { width: 35px; height: 35px; border-radius: 11px; }
+      .brand h1 { font-size: 16px; }
+      .brand p { display: none; }
+      .topbar { min-height: 36px; }
+      .icon-button { height: 34px; min-width: 34px; }
+      .stat { padding-top: 6px; padding-bottom: 6px; }
+      .piano-panel { padding: 6px; grid-template-rows: 21px minmax(0,1fr); }
+      .piano-key.white { padding-bottom: 7px; gap: 2px; }
+      .modal-card { padding-top: 21px; }
+      .modal-icon { width: 50px; height: 50px; margin-bottom: 12px; }
+      .modal-desc { margin-top: 8px; line-height: 1.6; }
+      .chips { margin-top: 11px; }
+      .modal-buttons { margin-top: 16px; }
+    }
+
+    @media (orientation: landscape) and (max-height: 500px) {
+      .app { grid-template-rows: auto auto minmax(70px,1fr) clamp(145px,43dvh,190px); gap: 6px; }
+      .modebar { position: absolute; top: max(11px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 5; }
+      .mode-hint, .stats { display: none; }
+      .stage { margin-top: 0; }
+      .piano-info { display: none; }
+      .piano-panel { grid-template-rows: minmax(0,1fr); }
+      .modal-card { padding: 16px 22px 12px; }
+      .modal-icon { display: none; }
+      .modal h2 { font-size: 21px; }
+      .chips, .modal-tip { display: none; }
+      .result-stats { margin-top: 10px; }
+      .modal-buttons { grid-template-columns: 1fr 1fr; margin-top: 12px; }
+      .text-button { grid-column: 1 / -1; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .stage::before, .status-dot { animation: none !important; }
+      *, *::before, *::after { scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">♪</div>
+        <div><h1>自由钢琴</h1><p>NEON PIANO</p></div>
+      </div>
+      <div class="actions">
+        <button class="icon-button" id="soundButton" type="button" aria-label="关闭声音" title="声音开关">
+          <svg id="soundOnIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 9a4 4 0 0 1 0 6M17.5 6.5a8 8 0 0 1 0 11"/></svg>
+          <svg id="soundOffIcon" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="m16 10 5 5m0-5-5 5"/></svg>
+        </button>
+        <button class="icon-button" id="pauseButton" type="button" aria-label="暂停游戏" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
+          <span class="pause-label">暂停</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="modebar" aria-label="游戏模式">
+      <div class="segments" role="group" aria-label="选择模式">
+        <button class="segment active" id="challengeMode" type="button" aria-pressed="true">挑战</button>
+        <button class="segment" id="freeMode" type="button" aria-pressed="false">自由</button>
+      </div>
+      <span class="mode-hint" id="modeHint">45 秒 · 目标 3,000 分</span>
+    </section>
+
+    <section class="stats" aria-label="游戏数据">
+      <div class="stat"><span class="stat-label" id="scoreLabel">得分</span><strong class="stat-value" id="scoreValue">0</strong></div>
+      <div class="stat"><span class="stat-label">最高分</span><strong class="stat-value" id="bestValue">0</strong></div>
+      <div class="stat"><span class="stat-label" id="timeLabel">倒计时</span><strong class="stat-value" id="timeValue">45</strong></div>
+      <div class="stat"><span class="stat-label">机会</span><strong class="stat-value" id="livesValue">♥♥♥♥♥♥</strong></div>
+      <div class="goal-track" id="goalTrack" aria-hidden="true"><i class="goal-fill" id="goalFill"></i></div>
+    </section>
+
+    <main class="stage" id="stage" aria-label="音符演奏区">
+      <canvas id="noteCanvas"></canvas>
+      <div class="stage-meta">
+        <div class="status-pill" id="statusPill"><i class="status-dot"></i><span id="statusText">准备演奏</span></div>
+        <div class="combo" id="comboBox">连击<strong id="comboValue">0</strong></div>
+      </div>
+      <div class="stage-message" id="stageMessage"><span aria-hidden="true">♫</span><p>跟随光影，弹奏你的旋律</p></div>
+      <div class="feedback" id="feedback" role="status" aria-live="polite"></div>
+      <span class="target-caption">演奏线</span>
+    </main>
+
+    <section class="piano-panel" aria-label="钢琴键盘">
+      <div class="piano-info"><span id="playHint">点按或滑动琴键，让灵感发光</span><span>C4 — C5</span></div>
+      <div class="piano" id="piano"></div>
+    </section>
+  </div>
+
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-card">
+      <div class="modal-icon" id="modalIcon" aria-hidden="true">♪</div>
+      <p class="eyebrow" id="modalEyebrow">TOUCH THE RHYTHM</p>
+      <h2 id="modalTitle">让指尖，点亮旋律</h2>
+      <p class="modal-desc" id="modalDesc">跟随音符落下，在演奏线附近按下对应琴键；也可以进入自由模式，随心演奏。</p>
+      <div class="chips" id="welcomeChips"><span class="chip">45 秒挑战</span><span class="chip">目标 3,000 分</span><span class="chip">6 次机会</span></div>
+      <div class="result-stats" id="resultStats" hidden>
+        <div class="result-item"><strong id="resultScore">0</strong><span>本局得分</span></div>
+        <div class="result-item"><strong id="resultCombo">0</strong><span>最高连击</span></div>
+        <div class="result-item"><strong id="resultAccuracy">0%</strong><span>命中率</span></div>
+      </div>
+      <span class="record-badge" id="recordBadge" hidden>✦ 新纪录</span>
+      <div class="modal-buttons">
+        <button class="main-button" id="modalPrimary" type="button">开始挑战</button>
+        <button class="sub-button" id="modalSecondary" type="button">自由演奏</button>
+        <button class="text-button" id="modalHome" type="button" hidden>返回首页</button>
+      </div>
+      <p class="modal-tip" id="modalTip">支持多点触控与滑奏 · 电脑使用 A–K / W–U<br>按 P 或 Esc 可暂停</p>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // 基础配置：一个八度加高音 Do，黑白键共用同一份音符数据。
+      const NOTES = [
+        { name: 'C4',  cn: '哆', freq: 261.63, type: 'white', bind: 'KeyA', label: 'A', white: 0 },
+        { name: 'C♯4', cn: '升哆', freq: 277.18, type: 'black', bind: 'KeyW', label: 'W', after: 0 },
+        { name: 'D4',  cn: '来', freq: 293.66, type: 'white', bind: 'KeyS', label: 'S', white: 1 },
+        { name: 'D♯4', cn: '升来', freq: 311.13, type: 'black', bind: 'KeyE', label: 'E', after: 1 },
+        { name: 'E4',  cn: '咪', freq: 329.63, type: 'white', bind: 'KeyD', label: 'D', white: 2 },
+        { name: 'F4',  cn: '发', freq: 349.23, type: 'white', bind: 'KeyF', label: 'F', white: 3 },
+        { name: 'F♯4', cn: '升发', freq: 369.99, type: 'black', bind: 'KeyT', label: 'T', after: 3 },
+        { name: 'G4',  cn: '索', freq: 392.00, type: 'white', bind: 'KeyG', label: 'G', white: 4 },
+        { name: 'G♯4', cn: '升索', freq: 415.30, type: 'black', bind: 'KeyY', label: 'Y', after: 4 },
+        { name: 'A4',  cn: '拉', freq: 440.00, type: 'white', bind: 'KeyH', label: 'H', white: 5 },
+        { name: 'A♯4', cn: '升拉', freq: 466.16, type: 'black', bind: 'KeyU', label: 'U', after: 5 },
+        { name: 'B4',  cn: '西', freq: 493.88, type: 'white', bind: 'KeyJ', label: 'J', white: 6 },
+        { name: 'C5',  cn: '哆', freq: 523.25, type: 'white', bind: 'KeyK', label: 'K', white: 7 }
+      ];
+      const GAME = { duration: 45000, target: 3000, lives: 6, travel: 1800, hitWindow: 190 };
+      const STORAGE_KEY = 'neon-piano-best-v1';
+      const $ = (id) => document.getElementById(id);
+      const dom = {
+        piano: $('piano'), stage: $('stage'), canvas: $('noteCanvas'), score: $('scoreValue'), best: $('bestValue'),
+        time: $('timeValue'), lives: $('livesValue'), scoreLabel: $('scoreLabel'), timeLabel: $('timeLabel'),
+        goalFill: $('goalFill'), goalTrack: $('goalTrack'), modeHint: $('modeHint'), challengeMode: $('challengeMode'),
+        freeMode: $('freeMode'), pause: $('pauseButton'), sound: $('soundButton'), statusPill: $('statusPill'),
+        statusText: $('statusText'), comboBox: $('comboBox'), combo: $('comboValue'), stageMessage: $('stageMessage'),
+        feedback: $('feedback'), playHint: $('playHint'), modal: $('modal'), modalIcon: $('modalIcon'),
+        modalEyebrow: $('modalEyebrow'), modalTitle: $('modalTitle'), modalDesc: $('modalDesc'),
+        welcomeChips: $('welcomeChips'), resultStats: $('resultStats'), resultScore: $('resultScore'),
+        resultCombo: $('resultCombo'), resultAccuracy: $('resultAccuracy'), recordBadge: $('recordBadge'),
+        primary: $('modalPrimary'), secondary: $('modalSecondary'), home: $('modalHome'), modalTip: $('modalTip'),
+        soundOn: $('soundOnIcon'), soundOff: $('soundOffIcon')
+      };
+      const ctx = dom.canvas.getContext('2d');
+      const keyElements = [];
+      const keyRects = [];
+      const activeInputs = new Map();
+      const pressedPointers = new Map();
+      const keyboardInputs = new Map();
+      const codeToNote = new Map(NOTES.map((note, index) => [note.bind, index]));
+      let audioContext = null;
+      let masterGain = null;
+      let reverbInput = null;
+      let muted = false;
+      let voices = new Set();
+      let mode = 'challenge';
+      let status = 'ready';
+      let score = 0;
+      let best = loadBest();
+      let bestAtStart = best;
+      let elapsed = 0;
+      let lives = GAME.lives;
+      let combo = 0;
+      let maxCombo = 0;
+      let hits = 0;
+      let misses = 0;
+      let freeNotes = 0;
+      let notes = [];
+      let bursts = [];
+      let lastFrame = performance.now();
+      let canvasWidth = 0;
+      let canvasHeight = 0;
+      let primaryAction = null;
+      let secondaryAction = null;
+      let feedbackTimer = 0;
+
+      // 安全读取最高分；隐私模式下 localStorage 不可用时仍可正常游戏。
+      function loadBest() {
+        try { return Math.max(0, Number(localStorage.getItem(STORAGE_KEY)) || 0); }
+        catch (_) { return 0; }
+      }
+      function saveBest() {
+        try { localStorage.setItem(STORAGE_KEY, String(best)); } catch (_) { /* 忽略存储异常 */ }
+      }
+      function formatNumber(value) { return Math.round(value).toLocaleString('zh-CN'); }
+
+      // 创建真实黑白琴键，黑键位置对应白键间隙。
+      function buildPiano() {
+        const whites = document.createElement('div');
+        whites.className = 'white-keys';
+        NOTES.forEach((note, index) => {
+          const key = document.createElement('button');
+          key.type = 'button';
+          key.className = `piano-key ${note.type}`;
+          key.dataset.index = String(index);
+          key.setAttribute('aria-label', `${note.name} ${note.cn}，电脑按键 ${note.label}`);
+          if (note.type === 'white') {
+            key.innerHTML = `<span class="key-name">${note.name}</span><span class="key-bind">${note.label}</span>`;
+            whites.appendChild(key);
+          } else {
+            key.style.left = `${(note.after + 1) * 12.5}%`;
+            key.innerHTML = `<span class="key-bind">${note.label}</span>`;
+            dom.piano.appendChild(key);
+          }
+          keyElements[index] = key;
+        });
+        dom.piano.appendChild(whites);
+        // 白键容器后插入会覆盖黑键，重新保证黑键层级和 DOM 顺序。
+        NOTES.forEach((note, index) => {
+          if (note.type === 'black') dom.piano.appendChild(keyElements[index]);
+        });
+      }
+
+      // 首次手势时再初始化 WebAudio，符合手机浏览器自动播放策略。
+      function ensureAudio() {
+        if (!audioContext) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtx) return false;
+          audioContext = new AudioCtx();
+          masterGain = audioContext.createGain();
+          masterGain.gain.value = muted ? 0 : 0.72;
+          const compressor = audioContext.createDynamicsCompressor();
+          compressor.threshold.value = -18;
+          compressor.knee.value = 18;
+          compressor.ratio.value = 4;
+          compressor.attack.value = 0.004;
+          compressor.release.value = 0.2;
+          masterGain.connect(compressor);
+          compressor.connect(audioContext.destination);
+
+          // 程序生成短混响，不加载任何音频文件。
+          const convolver = audioContext.createConvolver();
+          const length = Math.floor(audioContext.sampleRate * 1.35);
+          const impulse = audioContext.createBuffer(2, length, audioContext.sampleRate);
+          for (let channel = 0; channel < 2; channel++) {
+            const data = impulse.getChannelData(channel);
+            for (let i = 0; i < length; i++) {
+              data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3.2) * 0.45;
+            }
+          }
+          convolver.buffer = impulse;
+          const wet = audioContext.createGain();
+          wet.gain.value = 0.18;
+          convolver.connect(wet);
+          wet.connect(masterGain);
+          reverbInput = convolver;
+        }
+        if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
+        return true;
+      }
+
+      // 基波、泛音与滤波包络共同模拟柔和的霓虹电钢琴音色。
+      function createVoice(noteIndex, velocity = 0.8) {
+        if (!ensureAudio()) return null;
+        const now = audioContext.currentTime;
+        const note = NOTES[noteIndex];
+        const output = audioContext.createGain();
+        const filter = audioContext.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(4600, now);
+        filter.frequency.exponentialRampToValueAtTime(1500, now + 2.4);
+        filter.Q.value = 0.45;
+        output.gain.setValueAtTime(0.0001, now);
+        output.gain.exponentialRampToValueAtTime(velocity, now + 0.008);
+        output.gain.exponentialRampToValueAtTime(velocity * 0.34, now + 0.38);
+        output.gain.exponentialRampToValueAtTime(velocity * 0.09, now + 2.8);
+        filter.connect(output);
+        output.connect(masterGain);
+        output.connect(reverbInput);
+
+        const partials = [
+          { ratio: 1, type: 'triangle', gain: 0.72 },
+          { ratio: 2, type: 'sine', gain: 0.19 },
+          { ratio: 3.01, type: 'sine', gain: 0.065 }
+        ];
+        const oscillators = partials.map((partial) => {
+          const oscillator = audioContext.createOscillator();
+          const partialGain = audioContext.createGain();
+          oscillator.type = partial.type;
+          oscillator.frequency.value = note.freq * partial.ratio;
+          partialGain.gain.value = partial.gain;
+          oscillator.connect(partialGain);
+          partialGain.connect(filter);
+          oscillator.start(now);
+          oscillator.stop(now + 5);
+          return oscillator;
+        });
+        const voice = { output, oscillators, released: false, cleaned: false };
+        voices.add(voice);
+        const cleanup = () => {
+          if (voice.cleaned) return;
+          voice.cleaned = true;
+          voices.delete(voice);
+          try { output.disconnect(); filter.disconnect(); } catch (_) { /* 已断开 */ }
+        };
+        voice.cleanup = cleanup;
+        window.setTimeout(cleanup, 5200);
+
+        // 限制长尾音数量，避免快速滑奏时占用过多资源。
+        if (voices.size > 28) {
+          const oldest = voices.values().next().value;
+          if (oldest && oldest !== voice) releaseVoice(oldest, 0.04);
+        }
+        return voice;
+      }
+
+      function releaseVoice(voice, release = 0.18) {
+        if (!voice || voice.released || !audioContext) return;
+        voice.released = true;
+        const now = audioContext.currentTime;
+        const end = now + release;
+        voice.output.gain.cancelScheduledValues(now);
+        voice.output.gain.setValueAtTime(Math.max(0.0001, voice.output.gain.value), now);
+        voice.output.gain.exponentialRampToValueAtTime(0.0001, end);
+        voice.oscillators.forEach((oscillator) => {
+          try { oscillator.stop(end + 0.02); } catch (_) { /* 已停止 */ }
+        });
+        window.setTimeout(voice.cleanup, (release + 0.08) * 1000);
+      }
+
+      function refreshKeyVisual(index) {
+        const isActive = [...activeInputs.values()].some((input) => input.index === index);
+        keyElements[index].classList.toggle('active', isActive);
+      }
+
+      function startNote(token, index, velocity = 0.8) {
+        if (status !== 'playing' || activeInputs.has(token)) return;
+        const voice = createVoice(index, velocity);
+        activeInputs.set(token, { index, voice });
+        refreshKeyVisual(index);
+        createBurst(index, NOTES[index].type === 'black' ? '#ff62d4' : '#62efff');
+        if (mode === 'challenge') judgeNote(index);
+        else {
+          freeNotes++;
+          score = freeNotes;
+          updateHUD();
+        }
+      }
+
+      function stopNote(token) {
+        const input = activeInputs.get(token);
+        if (!input) return;
+        releaseVoice(input.voice);
+        activeInputs.delete(token);
+        refreshKeyVisual(input.index);
+      }
+
+      function releaseAllNotes() {
+        [...activeInputs.keys()].forEach(stopNote);
+        pressedPointers.clear();
+        keyboardInputs.clear();
+      }
+
+      // 在判定窗口内选择最接近演奏线的同音音符。
+      function judgeNote(index) {
+        let candidate = null;
+        let distance = Infinity;
+        for (const note of notes) {
+          if (note.status !== 'pending' || note.index !== index) continue;
+          const delta = Math.abs(elapsed - note.hitAt);
+          if (delta <= GAME.hitWindow && delta < distance) {
+            candidate = note;
+            distance = delta;
+          }
+        }
+        if (!candidate) return;
+        candidate.status = 'hit';
+        hits++;
+        combo++;
+        maxCombo = Math.max(maxCombo, combo);
+        const perfect = distance <= 80;
+        const base = perfect ? 120 : 85;
+        const gained = base + Math.min(combo, 15) * 4;
+        score += gained;
+        if (score > best) {
+          best = score;
+          saveBest();
+        }
+        showFeedback(`${perfect ? '完美' : '不错'} +${gained}`, perfect ? '' : 'good');
+        updateHUD();
+        if (score >= GAME.target) endGame(true);
+      }
+
+      function buildChart() {
+        // 固定旋律轮廓搭配逐步加快的节拍，每一局都可练习与记忆。
+        const melody = [0, 2, 4, 7, 4, 2, 0, 4, 5, 7, 9, 7, 5, 2, 4, 6, 8, 11, 9, 7, 12, 11, 9, 7, 4, 2, 0];
+        const chart = [];
+        let hitAt = 2500;
+        let step = 0;
+        while (hitAt < GAME.duration - 500) {
+          const octaveLift = step > 34 && step % 9 === 0 ? 1 : 0;
+          const index = Math.min(12, melody[step % melody.length] + octaveLift);
+          chart.push({ index, hitAt, status: 'pending' });
+          const interval = step < 16 ? 720 : step < 36 ? 640 : 570;
+          hitAt += interval;
+          step++;
+        }
+        return chart;
+      }
+
+      function updateChallenge() {
+        for (const note of notes) {
+          if (note.status === 'pending' && elapsed > note.hitAt + GAME.hitWindow) {
+            note.status = 'missed';
+            misses++;
+            lives--;
+            combo = 0;
+            flashMiss(note.index);
+            showFeedback('错过', 'miss');
+            updateHUD();
+            if (lives <= 0) {
+              endGame(false, 'lives');
+              return;
+            }
+          }
+        }
+        if (elapsed >= GAME.duration) endGame(score >= GAME.target, 'time');
+      }
+
+      function resetStats() {
+        score = 0;
+        elapsed = 0;
+        lives = GAME.lives;
+        combo = 0;
+        maxCombo = 0;
+        hits = 0;
+        misses = 0;
+        freeNotes = 0;
+        notes = [];
+        bursts = [];
+        bestAtStart = best;
+        releaseAllNotes();
+      }
+
+      function startChallenge() {
+        ensureAudio();
+        resetStats();
+        mode = 'challenge';
+        status = 'playing';
+        notes = buildChart();
+        hideModal();
+        updateModeUI();
+        updateHUD();
+      }
+
+      function startFree() {
+        ensureAudio();
+        resetStats();
+        mode = 'free';
+        status = 'playing';
+        hideModal();
+        updateModeUI();
+        updateHUD();
+      }
+
+      function pauseGame() {
+        if (status !== 'playing') return;
+        status = 'paused';
+        releaseAllNotes();
+        updateHUD();
+        showPauseModal();
+      }
+
+      function resumeGame() {
+        if (status !== 'paused') return;
+        ensureAudio();
+        status = 'playing';
+        hideModal();
+        updateHUD();
+      }
+
+      function endGame(won, reason = 'target') {
+        if (status !== 'playing') return;
+        status = 'ended';
+        releaseAllNotes();
+        if (score > best) best = score;
+        saveBest();
+        updateHUD();
+        playStinger(won);
+        showResultModal(won, reason);
+      }
+
+      function playStinger(won) {
+        if (!audioContext) return;
+        const sequence = won ? [0, 4, 7, 12] : [7, 4, 0];
+        sequence.forEach((index, order) => {
+          window.setTimeout(() => {
+            const voice = createVoice(index, 0.5);
+            if (voice) window.setTimeout(() => releaseVoice(voice, 0.5), 260);
+          }, order * 115);
+        });
+      }
+
+      function updateModeUI() {
+        const challenge = mode === 'challenge';
+        dom.challengeMode.classList.toggle('active', challenge);
+        dom.freeMode.classList.toggle('active', !challenge);
+        dom.challengeMode.setAttribute('aria-pressed', String(challenge));
+        dom.freeMode.setAttribute('aria-pressed', String(!challenge));
+        dom.modeHint.textContent = challenge ? '45 秒 · 目标 3,000 分' : '随心演奏 · 不计失误';
+        dom.scoreLabel.textContent = challenge ? '得分' : '音符';
+        dom.timeLabel.textContent = challenge ? '倒计时' : '模式';
+        dom.goalTrack.hidden = !challenge;
+        dom.playHint.textContent = challenge ? '音符到达演奏线时，按下对应琴键' : '点按、长按或滑动琴键，自由创作旋律';
+        dom.stageMessage.querySelector('p').textContent = challenge ? '看准演奏线，跟随音符弹奏' : '随心弹奏，让灵感发光';
+      }
+
+      function updateHUD() {
+        const challenge = mode === 'challenge';
+        const shownScore = challenge ? score : freeNotes;
+        dom.score.textContent = formatNumber(shownScore);
+        dom.best.textContent = formatNumber(best);
+        dom.time.textContent = challenge ? String(Math.max(0, Math.ceil((GAME.duration - elapsed) / 1000))) : '∞';
+        dom.lives.textContent = challenge ? '♥'.repeat(Math.max(0, lives)) + '♡'.repeat(Math.max(0, GAME.lives - lives)) : '—';
+        dom.goalFill.style.width = `${Math.min(100, score / GAME.target * 100)}%`;
+        dom.combo.textContent = String(combo);
+        dom.comboBox.classList.toggle('visible', challenge && status === 'playing' && combo > 1);
+        dom.stageMessage.hidden = challenge && status === 'playing';
+        dom.statusPill.classList.toggle('live', status === 'playing');
+        const statusNames = { ready: '准备演奏', playing: challenge ? '挑战进行中' : '自由演奏', paused: '已暂停', ended: '演奏结束' };
+        dom.statusText.textContent = statusNames[status];
+        dom.pause.disabled = status !== 'playing';
+        dom.pause.setAttribute('aria-label', '暂停游戏');
+      }
+
+      function showFeedback(text, type) {
+        window.clearTimeout(feedbackTimer);
+        dom.feedback.className = 'feedback';
+        dom.feedback.textContent = text;
+        void dom.feedback.offsetWidth;
+        dom.feedback.classList.add('show');
+        if (type) dom.feedback.classList.add(type);
+        feedbackTimer = window.setTimeout(() => { dom.feedback.className = 'feedback'; }, 650);
+      }
+
+      function flashMiss(index) {
+        const key = keyElements[index];
+        key.classList.remove('miss');
+        void key.offsetWidth;
+        key.classList.add('miss');
+        window.setTimeout(() => key.classList.remove('miss'), 260);
+      }
+
+      function setModalContent({ icon, eyebrow, title, desc, primary, secondary, onPrimary, onSecondary, home = false }) {
+        dom.modalIcon.textContent = icon;
+        dom.modalEyebrow.textContent = eyebrow;
+        dom.modalTitle.textContent = title;
+        dom.modalDesc.textContent = desc;
+        dom.primary.textContent = primary;
+        dom.secondary.textContent = secondary;
+        primaryAction = onPrimary;
+        secondaryAction = onSecondary;
+        dom.home.hidden = !home;
+        dom.modal.hidden = false;
+        window.setTimeout(() => dom.primary.focus({ preventScroll: true }), 60);
+      }
+
+      function showWelcome() {
+        resetStats();
+        mode = 'challenge';
+        status = 'ready';
+        updateModeUI();
+        updateHUD();
+        dom.welcomeChips.hidden = false;
+        dom.resultStats.hidden = true;
+        dom.recordBadge.hidden = true;
+        dom.modalTip.hidden = false;
+        setModalContent({
+          icon: '♪', eyebrow: 'TOUCH THE RHYTHM', title: '让指尖，点亮旋律',
+          desc: '跟随音符落下，在演奏线附近按下对应琴键；也可以进入自由模式，随心演奏。',
+          primary: '开始挑战', secondary: '自由演奏', onPrimary: startChallenge, onSecondary: startFree
+        });
+      }
+
+      function showPauseModal() {
+        dom.welcomeChips.hidden = true;
+        dom.resultStats.hidden = true;
+        dom.recordBadge.hidden = true;
+        dom.modalTip.hidden = true;
+        setModalContent({
+          icon: 'Ⅱ', eyebrow: 'TAKE A BREATH', title: '演奏已暂停',
+          desc: '休息一下，节拍会在这里等你。继续时，音符将从当前位置出发。',
+          primary: '继续演奏', secondary: '重新开始', onPrimary: resumeGame,
+          onSecondary: mode === 'challenge' ? startChallenge : startFree, home: true
+        });
+      }
+
+      function showResultModal(won, reason) {
+        dom.welcomeChips.hidden = true;
+        dom.resultStats.hidden = false;
+        dom.recordBadge.hidden = !(score > bestAtStart && score > 0);
+        dom.modalTip.hidden = true;
+        dom.resultScore.textContent = formatNumber(score);
+        dom.resultCombo.textContent = String(maxCombo);
+        const attempts = hits + misses;
+        dom.resultAccuracy.textContent = `${attempts ? Math.round(hits / attempts * 100) : 0}%`;
+        let desc = '目标达成！你的指尖点亮了整片霓虹。';
+        if (!won && reason === 'lives') desc = '机会用完了。别灰心，再试一次就能更接近旋律。';
+        if (!won && reason === 'time') desc = `时间到！距离目标还差 ${formatNumber(Math.max(0, GAME.target - score))} 分，再挑战一次吧。`;
+        setModalContent({
+          icon: won ? '✦' : '♫', eyebrow: won ? 'CHALLENGE COMPLETE' : 'KEEP THE RHYTHM',
+          title: won ? '挑战成功！' : '挑战结束', desc,
+          primary: '再来一局', secondary: '自由演奏', onPrimary: startChallenge, onSecondary: startFree, home: true
+        });
+      }
+
+      function hideModal() { dom.modal.hidden = true; }
+
+      // Pointer Events 原生支持多点触控；捕获指针后可在琴键间滑奏。
+      function keyAtPoint(x, y) {
+        const element = document.elementFromPoint(x, y);
+        const key = element && element.closest ? element.closest('.piano-key') : null;
+        return key && dom.piano.contains(key) ? Number(key.dataset.index) : null;
+      }
+
+      dom.piano.addEventListener('pointerdown', (event) => {
+        if (status !== 'playing') return;
+        event.preventDefault();
+        const index = keyAtPoint(event.clientX, event.clientY);
+        if (index === null) return;
+        try { dom.piano.setPointerCapture(event.pointerId); } catch (_) { /* 老浏览器无需捕获 */ }
+        const token = `pointer-${event.pointerId}`;
+        pressedPointers.set(event.pointerId, token);
+        startNote(token, index, event.pointerType === 'touch' ? 0.86 : 0.76);
+      });
+
+      dom.piano.addEventListener('pointermove', (event) => {
+        const token = pressedPointers.get(event.pointerId);
+        if (!token) return;
+        event.preventDefault();
+        const index = keyAtPoint(event.clientX, event.clientY);
+        const current = activeInputs.get(token);
+        if (index === null) stopNote(token);
+        else if (!current || current.index !== index) {
+          stopNote(token);
+          startNote(token, index, 0.78);
+        }
+      });
+
+      function finishPointer(event) {
+        const token = pressedPointers.get(event.pointerId);
+        if (!token) return;
+        stopNote(token);
+        pressedPointers.delete(event.pointerId);
+      }
+      dom.piano.addEventListener('pointerup', finishPointer);
+      dom.piano.addEventListener('pointercancel', finishPointer);
+      dom.piano.addEventListener('lostpointercapture', finishPointer);
+      dom.piano.addEventListener('contextmenu', (event) => event.preventDefault());
+
+      // 电脑键盘映射：白键 A S D F G H J K，黑键 W E T Y U。
+      window.addEventListener('keydown', (event) => {
+        if ((event.code === 'KeyP' || event.code === 'Escape') && !event.repeat) {
+          if (status === 'playing') pauseGame();
+          else if (status === 'paused') resumeGame();
+          event.preventDefault();
+          return;
+        }
+        const index = codeToNote.get(event.code);
+        if (index === undefined || event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
+        if (status === 'playing') {
+          event.preventDefault();
+          keyboardInputs.set(event.code, `key-${event.code}`);
+          startNote(`key-${event.code}`, index, 0.76);
+        }
+      });
+      window.addEventListener('keyup', (event) => {
+        const token = keyboardInputs.get(event.code);
+        if (!token) return;
+        stopNote(token);
+        keyboardInputs.delete(event.code);
+      });
+
+      // 阻止双击缩放、双指手势及页面回弹，弹窗内部仍可纵向滚动。
+      document.addEventListener('dblclick', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('touchmove', (event) => {
+        if (!event.target.closest('.modal-card')) event.preventDefault();
+      }, { passive: false });
+
+      dom.primary.addEventListener('click', () => { if (primaryAction) primaryAction(); });
+      dom.secondary.addEventListener('click', () => { if (secondaryAction) secondaryAction(); });
+      dom.home.addEventListener('click', showWelcome);
+      dom.pause.addEventListener('click', pauseGame);
+      dom.challengeMode.addEventListener('click', () => {
+        if (mode === 'challenge' && status === 'playing') return;
+        startChallenge();
+      });
+      dom.freeMode.addEventListener('click', () => {
+        if (mode === 'free' && status === 'playing') return;
+        startFree();
+      });
+      dom.sound.addEventListener('click', () => {
+        muted = !muted;
+        if (ensureAudio()) {
+          const now = audioContext.currentTime;
+          masterGain.gain.cancelScheduledValues(now);
+          masterGain.gain.setTargetAtTime(muted ? 0 : 0.72, now, 0.02);
+        }
+        dom.soundOn.hidden = muted;
+        dom.soundOff.hidden = !muted;
+        dom.sound.setAttribute('aria-label', muted ? '打开声音' : '关闭声音');
+      });
+
+      document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
+      window.addEventListener('blur', () => { if (status === 'playing') pauseGame(); });
+      window.addEventListener('pagehide', releaseAllNotes);
+
+      // 高清画布尺寸与真实琴键位置同步，让下落音符始终对准琴键。
+      function resizeCanvas() {
+        const rect = dom.stage.getBoundingClientRect();
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        canvasWidth = rect.width;
+        canvasHeight = rect.height;
+        dom.canvas.width = Math.max(1, Math.round(rect.width * dpr));
+        dom.canvas.height = Math.max(1, Math.round(rect.height * dpr));
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const stageRect = dom.stage.getBoundingClientRect();
+        keyElements.forEach((key, index) => {
+          const keyRect = key.getBoundingClientRect();
+          keyRects[index] = {
+            x: keyRect.left - stageRect.left + keyRect.width / 2,
+            width: keyRect.width * (NOTES[index].type === 'black' ? 0.82 : 0.62)
+          };
+        });
+      }
+
+      function roundedRect(x, y, width, height, radius) {
+        const r = Math.min(radius, width / 2, height / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + width, y, x + width, y + height, r);
+        ctx.arcTo(x + width, y + height, x, y + height, r);
+        ctx.arcTo(x, y + height, x, y, r);
+        ctx.arcTo(x, y, x + width, y, r);
+        ctx.closePath();
+      }
+
+      function createBurst(index, color) {
+        const rect = keyRects[index];
+        const x = rect ? rect.x : canvasWidth / 2;
+        const y = canvasHeight - 35;
+        bursts.push({ x, y, color, started: performance.now(), ring: true });
+        for (let i = 0; i < 8; i++) {
+          bursts.push({
+            x, y, color, started: performance.now(), ring: false,
+            vx: (Math.random() - 0.5) * 90,
+            vy: -25 - Math.random() * 75,
+            size: 1.2 + Math.random() * 2
+          });
+        }
+      }
+
+      function drawTrack(now) {
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+        if (!canvasWidth || !canvasHeight) return;
+        const targetY = canvasHeight - 35;
+
+        // 淡色轨道辅助玩家将音符映射到黑白键。
+        ctx.lineWidth = 1;
+        keyRects.forEach((rect, index) => {
+          if (!rect || NOTES[index].type !== 'white') return;
+          ctx.strokeStyle = 'rgba(130,155,210,.055)';
+          ctx.beginPath();
+          ctx.moveTo(rect.x, 35);
+          ctx.lineTo(rect.x, targetY);
+          ctx.stroke();
+        });
+
+        const gradient = ctx.createLinearGradient(0, 0, canvasWidth, 0);
+        gradient.addColorStop(0, 'rgba(156,123,255,.12)');
+        gradient.addColorStop(.45, 'rgba(98,239,255,.7)');
+        gradient.addColorStop(1, 'rgba(255,98,212,.15)');
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#62efff';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.moveTo(10, targetY);
+        ctx.lineTo(canvasWidth - 10, targetY);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        if (mode === 'challenge' && (status === 'playing' || status === 'paused')) {
+          for (const note of notes) {
+            if (note.status !== 'pending') continue;
+            const untilHit = note.hitAt - elapsed;
+            if (untilHit > GAME.travel || untilHit < -GAME.hitWindow) continue;
+            const rect = keyRects[note.index];
+            if (!rect) continue;
+            const progress = 1 - untilHit / GAME.travel;
+            const y = 25 + (targetY - 25) * progress;
+            const width = Math.max(13, rect.width);
+            const height = NOTES[note.index].type === 'black' ? 17 : 19;
+            const color = NOTES[note.index].type === 'black' ? '#ff62d4' : '#62efff';
+            ctx.globalAlpha = Math.min(1, Math.max(0, progress * 4));
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 13;
+            const noteGradient = ctx.createLinearGradient(rect.x - width / 2, y, rect.x + width / 2, y);
+            noteGradient.addColorStop(0, color);
+            noteGradient.addColorStop(1, NOTES[note.index].type === 'black' ? '#a879ff' : '#a6f8ff');
+            ctx.fillStyle = noteGradient;
+            roundedRect(rect.x - width / 2, y - height / 2, width, height, 7);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.globalAlpha = 1;
+          }
+        }
+
+        // 点键粒子与扩散光圈提供即时的视觉反馈。
+        bursts = bursts.filter((particle) => now - particle.started < 650);
+        for (const particle of bursts) {
+          const age = (now - particle.started) / 650;
+          ctx.globalAlpha = (1 - age) * 0.8;
+          ctx.strokeStyle = particle.color;
+          ctx.fillStyle = particle.color;
+          if (particle.ring) {
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, 7 + age * 30, 0, Math.PI * 2);
+            ctx.stroke();
+          } else {
+            ctx.beginPath();
+            ctx.arc(particle.x + particle.vx * age * 0.65, particle.y + particle.vy * age * 0.65 + 50 * age * age, particle.size * (1 - age * 0.5), 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      function frame(now) {
+        const delta = Math.max(0, now - lastFrame);
+        lastFrame = now;
+        if (status === 'playing' && mode === 'challenge') {
+          elapsed += delta;
+          updateChallenge();
+          updateHUD();
+        }
+        drawTrack(now);
+        requestAnimationFrame(frame);
+      }
+
+      buildPiano();
+      resizeCanvas();
+      if (window.ResizeObserver) {
+        const observer = new ResizeObserver(resizeCanvas);
+        observer.observe(dom.stage);
+        observer.observe(dom.piano);
+      }
+      window.addEventListener('resize', resizeCanvas);
+      window.addEventListener('orientationchange', () => window.setTimeout(resizeCanvas, 120));
+      showWelcome();
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>

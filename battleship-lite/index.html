@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#050816">
+  <title>海战棋 · Battleship Lite</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #050816;
+      --panel: rgba(10, 19, 39, .82);
+      --panel-strong: #0b152b;
+      --line: rgba(113, 231, 255, .16);
+      --cyan: #63efff;
+      --cyan-soft: #1ca9c7;
+      --pink: #ff4fa3;
+      --orange: #ff9d66;
+      --text: #e9f8ff;
+      --muted: #7d9bb2;
+      --cell-gap: clamp(1px, .35vw, 3px);
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      background: var(--bg);
+    }
+
+    body {
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 12% 10%, rgba(0, 210, 255, .12), transparent 32%),
+        radial-gradient(circle at 88% 82%, rgba(255, 42, 140, .09), transparent 34%),
+        linear-gradient(rgba(76, 207, 255, .025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(76, 207, 255, .025) 1px, transparent 1px);
+      background-size: auto, auto, 32px 32px, 32px 32px;
+    }
+
+    button { font: inherit; }
+    button, .cell { touch-action: none; }
+    button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    #app {
+      position: relative;
+      width: min(100%, 980px);
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+      display: flex;
+      flex-direction: column;
+      gap: clamp(6px, 1.15vh, 12px);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex: 0 0 auto;
+      min-height: 46px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(99, 239, 255, .28);
+      border-radius: 13px;
+      color: var(--cyan);
+      background: linear-gradient(145deg, rgba(99, 239, 255, .12), rgba(99, 239, 255, .02));
+      box-shadow: inset 0 0 18px rgba(99, 239, 255, .06), 0 0 20px rgba(99, 239, 255, .07);
+    }
+    .brand-mark svg { width: 27px; height: 27px; }
+    .eyebrow {
+      margin: 0 0 1px;
+      color: var(--cyan-soft);
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: .24em;
+    }
+    h1 { margin: 0; font-size: clamp(20px, 5vw, 27px); line-height: 1; letter-spacing: .12em; }
+
+    .turn-badge {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 32px;
+      padding: 7px 11px;
+      border: 1px solid rgba(99, 239, 255, .2);
+      border-radius: 999px;
+      background: rgba(8, 24, 43, .78);
+      color: #bceff7;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 10px var(--cyan);
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    .turn-badge.ai { border-color: rgba(255, 79, 163, .28); color: #ffc0dc; }
+    .turn-badge.ai .status-dot { background: var(--pink); box-shadow: 0 0 10px var(--pink); }
+    .turn-badge.paused .status-dot { background: #8292a5; box-shadow: none; animation: none; }
+
+    .stats {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+    }
+    .stat {
+      position: relative;
+      min-width: 0;
+      padding: 7px 11px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: linear-gradient(135deg, rgba(13, 28, 51, .88), rgba(7, 16, 33, .76));
+    }
+    .stat::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 12px;
+      width: 26px;
+      height: 1px;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+      opacity: .55;
+    }
+    .stat-label { display: block; color: var(--muted); font-size: 9px; letter-spacing: .12em; }
+    .stat-value {
+      display: block;
+      margin-top: 1px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: clamp(16px, 4.5vw, 21px);
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+    .stat:first-child .stat-value { color: var(--cyan); text-shadow: 0 0 15px rgba(99, 239, 255, .25); }
+
+    .board-tabs {
+      display: none;
+      flex: 0 0 auto;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: rgba(6, 14, 29, .8);
+    }
+    .tab-button {
+      width: 50%;
+      min-height: 30px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .tab-button[aria-selected="true"] {
+      color: var(--text);
+      background: rgba(40, 116, 144, .22);
+      box-shadow: inset 0 0 0 1px rgba(99, 239, 255, .14);
+    }
+    .tab-count { margin-left: 5px; color: var(--cyan); font-family: monospace; }
+
+    .arena {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: center;
+      gap: clamp(10px, 2.5vw, 26px);
+    }
+    .fleet-panel {
+      min-width: 0;
+      height: 100%;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .panel-heading {
+      width: min(100%, 46dvh, 440px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 22px;
+      padding: 0 2px;
+    }
+    .panel-title { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 800; letter-spacing: .08em; }
+    .panel-title svg { width: 14px; height: 14px; color: var(--cyan); }
+    .fleet-panel.enemy .panel-title svg { color: var(--pink); }
+    .fleet-count { color: var(--muted); font-size: 10px; }
+    .fleet-count strong { color: var(--text); font-family: monospace; font-size: 12px; }
+
+    .board-frame {
+      position: relative;
+      width: min(100%, 46dvh, 440px);
+      padding: clamp(4px, .8vw, 7px);
+      border: 1px solid rgba(99, 239, 255, .23);
+      border-radius: 13px;
+      background: rgba(6, 18, 36, .9);
+      box-shadow: 0 12px 35px rgba(0, 0, 0, .28), inset 0 0 28px rgba(22, 175, 207, .035), 0 0 22px rgba(54, 221, 255, .035);
+    }
+    .enemy .board-frame { border-color: rgba(255, 79, 163, .2); }
+    .board-frame::before, .board-frame::after {
+      content: "";
+      position: absolute;
+      width: 13px;
+      height: 13px;
+      pointer-events: none;
+    }
+    .board-frame::before { top: -2px; left: -2px; border-top: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+    .board-frame::after { right: -2px; bottom: -2px; border-right: 2px solid var(--cyan); border-bottom: 2px solid var(--cyan); }
+    .enemy .board-frame::before, .enemy .board-frame::after { border-color: var(--pink); }
+
+    .board {
+      width: 100%;
+      aspect-ratio: 1;
+      display: grid;
+      grid-template-columns: repeat(11, minmax(0, 1fr));
+      grid-template-rows: repeat(11, minmax(0, 1fr));
+      gap: var(--cell-gap);
+    }
+    .coord {
+      display: grid;
+      place-items: center;
+      color: #587a91;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: clamp(7px, 1.7vw, 10px);
+      line-height: 1;
+    }
+    .cell {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      margin: 0;
+      padding: 0;
+      border: 1px solid rgba(75, 169, 197, .13);
+      border-radius: clamp(2px, .65vw, 4px);
+      appearance: none;
+      background: linear-gradient(145deg, rgba(20, 55, 77, .68), rgba(8, 28, 49, .88));
+      color: inherit;
+      cursor: crosshair;
+      overflow: hidden;
+      transition: border-color .15s, background .2s, transform .15s, box-shadow .2s;
+    }
+    .cell.alt { background: linear-gradient(145deg, rgba(17, 48, 71, .68), rgba(7, 25, 45, .88)); }
+    button.cell:hover { border-color: rgba(99, 239, 255, .48); background-color: rgba(34, 113, 139, .35); }
+    button.cell:focus-visible { outline: 2px solid #e8fcff; outline-offset: -2px; z-index: 3; }
+    .board.locked .cell { cursor: wait; }
+    .board.locked .cell:hover { border-color: rgba(75, 169, 197, .13); }
+
+    /* 己方舰体始终可见，敌方舰体仅在击沉或终局时揭示。 */
+    .cell.has-ship:not(.is-sunk):not(.is-reveal) {
+      border-color: rgba(99, 239, 255, .48);
+      background: linear-gradient(145deg, rgba(30, 156, 177, .54), rgba(11, 69, 94, .8));
+      box-shadow: inset 0 0 8px rgba(99, 239, 255, .15);
+    }
+    .cell.has-ship:not(.is-sunk):not(.is-reveal)::before {
+      content: "";
+      position: absolute;
+      inset: 27%;
+      border: 1px solid rgba(184, 249, 255, .55);
+      border-radius: 2px;
+    }
+    .cell.is-miss { background: rgba(7, 25, 43, .72); border-color: rgba(84, 128, 151, .12); cursor: default; }
+    .cell.is-miss::after {
+      content: "";
+      position: absolute;
+      width: 20%;
+      height: 20%;
+      left: 40%;
+      top: 40%;
+      border-radius: 50%;
+      background: #6991a8;
+      box-shadow: 0 0 5px rgba(105, 145, 168, .45);
+    }
+    .cell.is-hit {
+      border-color: rgba(255, 117, 118, .78);
+      background: radial-gradient(circle, rgba(255, 156, 93, .88) 0 12%, rgba(255, 69, 124, .42) 15% 42%, rgba(70, 17, 45, .92) 46%);
+      box-shadow: inset 0 0 8px rgba(255, 79, 122, .35), 0 0 8px rgba(255, 79, 122, .13);
+      cursor: default;
+    }
+    .cell.is-hit::after {
+      content: "";
+      position: absolute;
+      inset: 26%;
+      border: 1px solid #ffd6ba;
+      transform: rotate(45deg);
+      box-shadow: 0 0 6px var(--orange);
+    }
+    .cell.is-sunk {
+      border-color: rgba(255, 79, 163, .75);
+      background: repeating-linear-gradient(135deg, rgba(111, 24, 69, .9) 0 4px, rgba(59, 16, 49, .92) 4px 8px);
+    }
+    .cell.is-reveal { border-color: rgba(255, 79, 163, .25); background: rgba(91, 27, 68, .35); }
+    .cell.is-reveal::before {
+      content: "";
+      position: absolute;
+      inset: 30%;
+      border: 1px dashed rgba(255, 144, 196, .5);
+    }
+    .cell.last-shot { animation: lastShot .6s ease-out; }
+    .cell.denied { animation: shake .25s linear; }
+
+    .scan-line {
+      position: absolute;
+      z-index: 4;
+      left: 7px;
+      right: 7px;
+      top: 7px;
+      height: 1px;
+      pointer-events: none;
+      opacity: .3;
+      background: linear-gradient(90deg, transparent, var(--pink), transparent);
+      box-shadow: 0 0 8px var(--pink);
+      animation: scan 5s linear infinite;
+    }
+
+    .fleet-strip {
+      width: min(100%, 46dvh, 440px);
+      min-height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 3px;
+    }
+    .ship-chip { display: flex; align-items: center; gap: 3px; color: #789aad; font-size: 8px; transition: opacity .25s; }
+    .ship-bars { display: flex; gap: 1px; }
+    .ship-bars i { display: block; width: clamp(2px, .65vw, 4px); height: 4px; border-radius: 1px; background: var(--cyan-soft); }
+    .enemy .ship-bars i { background: #a63770; }
+    .ship-chip.sunk { opacity: .32; text-decoration: line-through; }
+    .ship-chip.sunk .ship-bars i { background: var(--pink); }
+
+    .command-deck {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+    }
+    .battle-feed {
+      min-width: 0;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-left: 2px solid var(--cyan-soft);
+      border-radius: 3px 9px 9px 3px;
+      background: rgba(9, 21, 39, .65);
+    }
+    .feed-icon { flex: 0 0 auto; color: var(--cyan); font-size: 17px; line-height: 1; }
+    #message { margin: 0; overflow: hidden; color: #a8c4d4; font-size: clamp(10px, 2.7vw, 12px); line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+    .battle-feed.hit { border-color: var(--pink); }
+    .battle-feed.hit .feed-icon { color: var(--pink); }
+    .battle-feed.miss { border-color: #506d82; }
+
+    .actions { display: flex; gap: 6px; }
+    .icon-button {
+      min-width: 40px;
+      height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 0 10px;
+      border: 1px solid rgba(99, 239, 255, .19);
+      border-radius: 10px;
+      background: rgba(13, 30, 50, .85);
+      color: #a9cbd9;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .15s, border-color .15s, transform .15s;
+    }
+    .icon-button:hover { border-color: rgba(99, 239, 255, .48); background: rgba(22, 56, 78, .9); }
+    .icon-button:active { transform: scale(.95); }
+    .icon-button svg { width: 14px; height: 14px; }
+    .icon-button:disabled { opacity: .35; cursor: default; }
+
+    .help {
+      flex: 0 0 auto;
+      display: flex;
+      justify-content: center;
+      margin: 0;
+      color: #52748a;
+      font-size: 9px;
+      line-height: 1.3;
+      text-align: center;
+      letter-spacing: .03em;
+    }
+    .help .desktop-help { display: none; }
+
+    .overlay {
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(2, 6, 17, .78);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      animation: fadeIn .2s ease-out;
+    }
+    .modal-card {
+      position: relative;
+      width: min(100%, 370px);
+      padding: 28px 24px 23px;
+      overflow: hidden;
+      border: 1px solid rgba(99, 239, 255, .26);
+      border-radius: 22px;
+      background: linear-gradient(145deg, rgba(15, 32, 57, .98), rgba(6, 13, 29, .98));
+      box-shadow: 0 25px 80px rgba(0, 0, 0, .55), inset 0 1px rgba(255, 255, 255, .035), 0 0 40px rgba(99, 239, 255, .06);
+      text-align: center;
+      animation: modalIn .3s cubic-bezier(.2, .8, .2, 1);
+    }
+    .modal-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 20%;
+      right: 20%;
+      height: 1px;
+      background: var(--cyan);
+      box-shadow: 0 0 15px var(--cyan);
+    }
+    .modal-icon {
+      width: 58px;
+      height: 58px;
+      margin: 0 auto 15px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(99, 239, 255, .28);
+      border-radius: 18px;
+      background: rgba(99, 239, 255, .07);
+      color: var(--cyan);
+      font-size: 27px;
+      box-shadow: 0 0 25px rgba(99, 239, 255, .08);
+    }
+    .modal-kicker { margin: 0 0 5px; color: var(--cyan-soft); font-size: 9px; font-weight: 800; letter-spacing: .24em; }
+    .modal-card h2 { margin: 0; font-size: 25px; letter-spacing: .08em; }
+    .modal-text { margin: 11px 0 19px; color: var(--muted); font-size: 12px; line-height: 1.65; }
+    .modal-actions { display: grid; gap: 8px; margin-top: 19px; }
+    .primary-button, .secondary-button {
+      min-height: 44px;
+      border-radius: 11px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      cursor: pointer;
+    }
+    .primary-button {
+      border: 1px solid #83f4ff;
+      background: linear-gradient(135deg, #75efff, #32bad9);
+      color: #04202b;
+      box-shadow: 0 7px 22px rgba(53, 204, 232, .16);
+    }
+    .primary-button:active { transform: translateY(1px); }
+    .secondary-button { border: 1px solid var(--line); background: rgba(15, 35, 58, .8); color: #a6c3d2; }
+    .end-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .end-stat { padding: 9px 4px; border: 1px solid rgba(99, 239, 255, .1); border-radius: 9px; background: rgba(4, 13, 27, .55); }
+    .end-stat span { display: block; color: var(--muted); font-size: 9px; }
+    .end-stat strong { display: block; margin-top: 3px; color: var(--cyan); font-family: monospace; font-size: 17px; }
+    #endOverlay.defeat .modal-card { border-color: rgba(255, 79, 163, .3); }
+    #endOverlay.defeat .modal-card::before { background: var(--pink); box-shadow: 0 0 15px var(--pink); }
+    #endOverlay.defeat .modal-icon { color: var(--pink); border-color: rgba(255, 79, 163, .3); background: rgba(255, 79, 163, .07); }
+    #endOverlay.defeat .modal-kicker { color: var(--pink); }
+
+    @keyframes pulse { 0%, 100% { opacity: .5; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.15); } }
+    @keyframes scan { from { transform: translateY(0); } to { transform: translateY(calc(min(46dvh, 440px) - 18px)); } }
+    @keyframes lastShot { 0% { transform: scale(.55); filter: brightness(2.4); } 60% { transform: scale(1.14); } 100% { transform: scale(1); filter: brightness(1); } }
+    @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes modalIn { from { opacity: 0; transform: translateY(12px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+    @media (max-width: 680px) and (orientation: portrait) {
+      .board-tabs { display: flex; }
+      .arena { display: block; }
+      .fleet-panel { display: none; }
+      .fleet-panel.active { display: flex; }
+      .board-frame, .panel-heading, .fleet-strip { width: min(100%, 46dvh); }
+    }
+
+    @media (min-width: 681px) {
+      #app { padding-left: 22px; padding-right: 22px; }
+      .stat { padding: 8px 15px; }
+      .help .mobile-help { display: none; }
+      .help .desktop-help { display: inline; }
+      .panel-title { font-size: 13px; }
+    }
+
+    @media (max-height: 650px) {
+      #app { gap: 5px; padding-top: max(6px, env(safe-area-inset-top)); }
+      .brand-mark { width: 36px; height: 36px; border-radius: 11px; }
+      .brand-mark svg { width: 23px; height: 23px; }
+      .eyebrow { display: none; }
+      .stat { padding-top: 5px; padding-bottom: 5px; }
+      .stat-value { font-size: 16px; }
+      .board-frame, .panel-heading, .fleet-strip { width: min(100%, 43dvh, 440px); }
+      .battle-feed, .icon-button { min-height: 36px; height: 36px; }
+      .scan-line { display: none; }
+    }
+
+    @media (max-height: 470px) and (orientation: landscape) {
+      #app { gap: 4px; }
+      .topbar { min-height: 32px; }
+      .brand-mark { width: 31px; height: 31px; }
+      h1 { font-size: 18px; }
+      .stats { position: absolute; top: 7px; left: 50%; width: 38%; transform: translateX(-50%); }
+      .stat { padding: 3px 7px; }
+      .stat-label { font-size: 7px; }
+      .stat-value { font-size: 13px; }
+      .turn-badge { min-height: 28px; padding: 5px 8px; }
+      .board-frame, .panel-heading, .fleet-strip { width: min(100%, 55dvh, 440px); }
+      .help { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+      .scan-line { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="16" cy="16" r="11"/><circle cx="16" cy="16" r="6" opacity=".55"/>
+            <path d="M16 2v7M16 23v7M2 16h7M23 16h7M16 16l7-7"/>
+            <circle cx="16" cy="16" r="1.8" fill="currentColor" stroke="none"/>
+          </svg>
+        </div>
+        <div><p class="eyebrow">BATTLESHIP LITE</p><h1>海战棋</h1></div>
+      </div>
+      <div id="turnBadge" class="turn-badge" role="status" aria-live="polite">
+        <span class="status-dot"></span><span id="turnText">你的回合</span>
+      </div>
+    </header>
+
+    <section class="stats" aria-label="战斗数据">
+      <div class="stat"><span class="stat-label">当前得分</span><strong id="scoreValue" class="stat-value">0000</strong></div>
+      <div class="stat"><span class="stat-label">最高纪录</span><strong id="highScoreValue" class="stat-value">0000</strong></div>
+      <div class="stat"><span class="stat-label">命中率</span><strong id="accuracyValue" class="stat-value">0%</strong></div>
+    </section>
+
+    <nav class="board-tabs" aria-label="切换海域">
+      <button id="enemyTab" class="tab-button" type="button" data-panel="enemy" aria-selected="true">敌方海域<span id="enemyTabCount" class="tab-count">5</span></button>
+      <button id="playerTab" class="tab-button" data-panel="player" aria-selected="false">己方海域<span id="playerTabCount" class="tab-count">5</span></button>
+    </nav>
+
+    <section id="arena" class="arena" aria-label="海战棋盘">
+      <section id="enemyPanel" class="fleet-panel enemy active" aria-label="敌方舰队">
+        <div class="panel-heading">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+            敌方海域
+          </div>
+          <span class="fleet-count">剩余 <strong id="enemyFleetCount">5</strong> 艘</span>
+        </div>
+        <div class="board-frame">
+          <div id="enemyBoard" class="board" role="grid" aria-label="敌方棋盘，选择格子开炮" aria-rowcount="10" aria-colcount="10"></div>
+          <div class="scan-line" aria-hidden="true"></div>
+        </div>
+        <div id="enemyFleetStrip" class="fleet-strip" aria-label="敌方舰队状态"></div>
+      </section>
+
+      <section id="playerPanel" class="fleet-panel player" aria-label="己方舰队">
+        <div class="panel-heading">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 14h16l-3 5H7l-3-5ZM8 14V8h8v6M12 8V4M12 4h5"/><path d="M3 21c2-1 3-1 5 0s3 1 5 0 3-1 5 0 3 1 3 0"/></svg>
+            己方海域
+          </div>
+          <span class="fleet-count">剩余 <strong id="playerFleetCount">5</strong> 艘</span>
+        </div>
+        <div class="board-frame"><div id="playerBoard" class="board" role="grid" aria-label="己方棋盘" aria-rowcount="10" aria-colcount="10"></div></div>
+        <div id="playerFleetStrip" class="fleet-strip" aria-label="己方舰队状态"></div>
+      </section>
+    </section>
+
+    <section class="command-deck" aria-label="战斗控制">
+      <div id="battleFeed" class="battle-feed" role="status" aria-live="polite">
+        <span class="feed-icon" aria-hidden="true">⌖</span><p id="message">舰队已就位，选择敌方坐标开炮</p>
+      </div>
+      <div class="actions">
+        <button id="pauseButton" class="icon-button" type="button" aria-label="暂停游戏" title="暂停（P）">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg><span>暂停</span>
+        </button>
+        <button id="restartButton" class="icon-button" type="button" aria-label="重新开始" title="重新开始">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M19 12a7 7 0 1 0-1.5 5"/></svg><span>重开</span>
+        </button>
+      </div>
+    </section>
+
+    <p class="help">
+      <span class="mobile-help">轻点开炮 · 左右滑动切换海域 · 命中与击沉可得分</span>
+      <span class="desktop-help">点击格子开炮 · 方向键移动，Enter / 空格确认 · P 暂停 · 命中 +100，连击与击沉有加成</span>
+    </p>
+  </main>
+
+  <section id="pauseOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="pauseTitle" hidden>
+    <div class="modal-card">
+      <div class="modal-icon" aria-hidden="true">Ⅱ</div>
+      <p class="modal-kicker">TACTICAL HOLD</p>
+      <h2 id="pauseTitle">战斗已暂停</h2>
+      <p class="modal-text">雷达与炮火均已冻结。<br>准备好后继续指挥舰队。</p>
+      <div class="modal-actions">
+        <button id="resumeButton" class="primary-button" type="button">继续战斗</button>
+        <button id="pauseRestartButton" class="secondary-button" type="button">重新部署</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="endOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="endTitle" hidden>
+    <div class="modal-card">
+      <div id="endIcon" class="modal-icon" aria-hidden="true">✦</div>
+      <p id="endKicker" class="modal-kicker">VICTORY</p>
+      <h2 id="endTitle">制海权已夺取</h2>
+      <p id="endText" class="modal-text">敌方舰队已全部击沉，海域安全。</p>
+      <div class="end-stats">
+        <div class="end-stat"><span>本局得分</span><strong id="endScore">0</strong></div>
+        <div class="end-stat"><span>命中率</span><strong id="endAccuracy">0%</strong></div>
+        <div class="end-stat"><span>开炮轮数</span><strong id="endShots">0</strong></div>
+      </div>
+      <div class="modal-actions"><button id="playAgainButton" class="primary-button" type="button">再来一局</button></div>
+    </div>
+  </section>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // ---------- 基础配置与 DOM ----------
+      const SIZE = 10;
+      const CELL_COUNT = SIZE * SIZE;
+      const LETTERS = "ABCDEFGHIJ";
+      const STORAGE_KEY = "battleship-lite-high-score-v1";
+      const FLEET = [
+        { name: "航空母舰", short: "航", length: 5 },
+        { name: "战列舰", short: "战", length: 4 },
+        { name: "巡洋舰", short: "巡", length: 3 },
+        { name: "潜艇", short: "潜", length: 3 },
+        { name: "驱逐舰", short: "驱", length: 2 }
+      ];
+
+      const $ = (id) => document.getElementById(id);
+      const app = $("app");
+      const enemyBoard = $("enemyBoard");
+      const playerBoard = $("playerBoard");
+      const arena = $("arena");
+      const pauseOverlay = $("pauseOverlay");
+      const endOverlay = $("endOverlay");
+      const pauseButton = $("pauseButton");
+      const cellElements = { enemy: [], player: [] };
+
+      const state = {
+        enemy: null,
+        player: null,
+        phase: "player", // player、ai、over
+        paused: false,
+        score: 0,
+        highScore: loadHighScore(),
+        shots: 0,
+        hits: 0,
+        combo: 0,
+        aiHits: [],
+        aiTimer: null,
+        pendingAiAction: null,
+        mobilePanel: "enemy",
+        focusIndex: 0,
+        lastShot: { enemy: -1, player: -1 }
+      };
+
+      function loadHighScore() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10);
+          return Number.isFinite(value) && value > 0 ? value : 0;
+        } catch (_) {
+          return 0; // 隐私模式下 localStorage 可能不可用。
+        }
+      }
+
+      function saveHighScore() {
+        try { localStorage.setItem(STORAGE_KEY, String(state.highScore)); } catch (_) { /* 游戏仍可正常进行。 */ }
+      }
+
+      function coordinate(index) {
+        return LETTERS[index % SIZE] + (Math.floor(index / SIZE) + 1);
+      }
+
+      function randomItem(items) {
+        return items[Math.floor(Math.random() * items.length)];
+      }
+
+      // ---------- 随机布阵 ----------
+      function createBoard() {
+        return {
+          cells: Array.from({ length: CELL_COUNT }, () => ({ shipId: null, shot: false })),
+          ships: []
+        };
+      }
+
+      function generateBoard() {
+        const board = createBoard();
+
+        FLEET.forEach((model, shipId) => {
+          let placed = false;
+          // 大船优先放置；单次失败不会改变已完成的舰船。
+          while (!placed) {
+            const horizontal = Math.random() < 0.5;
+            const row = Math.floor(Math.random() * SIZE);
+            const col = Math.floor(Math.random() * SIZE);
+            const positions = [];
+            let valid = true;
+
+            for (let offset = 0; offset < model.length; offset++) {
+              const r = row + (horizontal ? 0 : offset);
+              const c = col + (horizontal ? offset : 0);
+              if (r >= SIZE || c >= SIZE || board.cells[r * SIZE + c].shipId !== null) {
+                valid = false;
+                break;
+              }
+              positions.push(r * SIZE + c);
+            }
+            if (!valid) continue;
+
+            const ship = { ...model, id: shipId, cells: positions, hits: 0, sunk: false };
+            board.ships.push(ship);
+            positions.forEach((index) => { board.cells[index].shipId = shipId; });
+            placed = true;
+          }
+        });
+        return board;
+      }
+
+      function shipAt(board, index) {
+        const shipId = board.cells[index].shipId;
+        return shipId === null ? null : board.ships[shipId];
+      }
+
+      function remainingShips(board) {
+        return board.ships.filter((ship) => !ship.sunk).length;
+      }
+
+      // ---------- 棋盘创建与绘制 ----------
+      function buildBoard(container, type) {
+        const fragment = document.createDocumentFragment();
+        const corner = document.createElement("span");
+        corner.className = "coord";
+        corner.setAttribute("aria-hidden", "true");
+        fragment.appendChild(corner);
+
+        for (let col = 0; col < SIZE; col++) {
+          const label = document.createElement("span");
+          label.className = "coord";
+          label.textContent = LETTERS[col];
+          label.setAttribute("aria-hidden", "true");
+          fragment.appendChild(label);
+        }
+
+        for (let row = 0; row < SIZE; row++) {
+          const label = document.createElement("span");
+          label.className = "coord";
+          label.textContent = String(row + 1);
+          label.setAttribute("aria-hidden", "true");
+          fragment.appendChild(label);
+
+          for (let col = 0; col < SIZE; col++) {
+            const index = row * SIZE + col;
+            const cell = document.createElement(type === "enemy" ? "button" : "span");
+            cell.className = "cell";
+            cell.dataset.index = String(index);
+            cell.dataset.type = type;
+            cell.setAttribute("role", "gridcell");
+            cell.setAttribute("aria-rowindex", String(row + 1));
+            cell.setAttribute("aria-colindex", String(col + 1));
+            if (type === "enemy") {
+              cell.type = "button";
+              cell.tabIndex = index === 0 ? 0 : -1;
+            }
+            cellElements[type].push(cell);
+            fragment.appendChild(cell);
+          }
+        }
+        container.appendChild(fragment);
+      }
+
+      function describeCell(board, index, type) {
+        const cell = board.cells[index];
+        const ship = shipAt(board, index);
+        const prefix = (type === "enemy" ? "敌方 " : "己方 ") + coordinate(index) + "，";
+        if (cell.shot && ship) return prefix + (ship.sunk ? `击沉${ship.name}` : "命中舰体");
+        if (cell.shot) return prefix + "未命中";
+        if (type === "player" && ship) return prefix + ship.name + "舰体";
+        if (type === "enemy" && state.phase === "over" && ship) return prefix + ship.name;
+        return prefix + "未攻击";
+      }
+
+      function renderBoard(type) {
+        const board = state[type];
+        const container = type === "enemy" ? enemyBoard : playerBoard;
+        container.classList.toggle("locked", state.phase !== "player" || state.paused);
+
+        cellElements[type].forEach((element, index) => {
+          const cell = board.cells[index];
+          const ship = shipAt(board, index);
+          const revealShip = Boolean(ship) && (type === "player" || ship.sunk || state.phase === "over");
+          const classes = ["cell"];
+          if ((Math.floor(index / SIZE) + index % SIZE) % 2) classes.push("alt");
+          if (revealShip) classes.push("has-ship");
+          if (cell.shot && ship) classes.push("is-hit");
+          if (cell.shot && !ship) classes.push("is-miss");
+          if (cell.shot && ship && ship.sunk) classes.push("is-sunk");
+          if (!cell.shot && ship && type === "enemy" && state.phase === "over") classes.push("is-reveal");
+          if (state.lastShot[type] === index) classes.push("last-shot");
+          element.className = classes.join(" ");
+          element.setAttribute("aria-label", describeCell(board, index, type));
+          if (type === "enemy") {
+            const unavailable = cell.shot || state.phase !== "player" || state.paused;
+            element.setAttribute("aria-disabled", String(unavailable));
+            element.tabIndex = index === state.focusIndex ? 0 : -1;
+          }
+        });
+      }
+
+      function renderFleetStrip(type) {
+        const strip = $(type + "FleetStrip");
+        strip.replaceChildren();
+        state[type].ships.forEach((ship) => {
+          const chip = document.createElement("span");
+          chip.className = "ship-chip" + (ship.sunk ? " sunk" : "");
+          chip.title = `${ship.name}（${ship.length} 格）${ship.sunk ? "已击沉" : "仍在作战"}`;
+          chip.setAttribute("aria-label", chip.title);
+          const name = document.createElement("span");
+          name.textContent = ship.short;
+          const bars = document.createElement("span");
+          bars.className = "ship-bars";
+          bars.setAttribute("aria-hidden", "true");
+          for (let i = 0; i < ship.length; i++) bars.appendChild(document.createElement("i"));
+          chip.append(name, bars);
+          strip.appendChild(chip);
+        });
+      }
+
+      function accuracy() {
+        return state.shots ? Math.round((state.hits / state.shots) * 100) : 0;
+      }
+
+      function renderStats() {
+        if (state.score > state.highScore) {
+          state.highScore = state.score;
+          saveHighScore();
+        }
+        $("scoreValue").textContent = String(state.score).padStart(4, "0");
+        $("highScoreValue").textContent = String(state.highScore).padStart(4, "0");
+        $("accuracyValue").textContent = accuracy() + "%";
+      }
+
+      function renderStatus() {
+        const badge = $("turnBadge");
+        badge.classList.toggle("ai", state.phase === "ai" && !state.paused);
+        badge.classList.toggle("paused", state.paused);
+        let text = "你的回合";
+        if (state.phase === "ai") text = state.pendingAiAction === completeAiTurn ? "炮火来袭" : "AI 瞄准中";
+        if (state.phase === "over") text = "战斗结束";
+        if (state.paused) text = "游戏已暂停";
+        $("turnText").textContent = text;
+        pauseButton.disabled = state.phase === "over";
+      }
+
+      function renderCounts() {
+        const enemyLeft = remainingShips(state.enemy);
+        const playerLeft = remainingShips(state.player);
+        $("enemyFleetCount").textContent = String(enemyLeft);
+        $("playerFleetCount").textContent = String(playerLeft);
+        $("enemyTabCount").textContent = String(enemyLeft);
+        $("playerTabCount").textContent = String(playerLeft);
+      }
+
+      function renderAll() {
+        renderBoard("enemy");
+        renderBoard("player");
+        renderFleetStrip("enemy");
+        renderFleetStrip("player");
+        renderStats();
+        renderCounts();
+        renderStatus();
+      }
+
+      function setMessage(text, tone = "info") {
+        $("message").textContent = text;
+        $("battleFeed").classList.toggle("hit", tone === "hit");
+        $("battleFeed").classList.toggle("miss", tone === "miss");
+      }
+
+      function setPanel(name) {
+        state.mobilePanel = name;
+        ["enemy", "player"].forEach((type) => {
+          $(type + "Panel").classList.toggle("active", type === name);
+          $(type + "Tab").setAttribute("aria-selected", String(type === name));
+        });
+      }
+
+      // ---------- 计分与玩家回合 ----------
+      function addScore(points) {
+        state.score = Math.max(0, state.score + points);
+        renderStats();
+      }
+
+      function playerFire(index) {
+        if (state.paused || state.phase !== "player") return;
+        const cell = state.enemy.cells[index];
+        if (!cell || cell.shot) {
+          setMessage(coordinate(index) + " 已轰击过，请选择其他坐标", "miss");
+          const element = cellElements.enemy[index];
+          element.classList.remove("denied");
+          void element.offsetWidth;
+          element.classList.add("denied");
+          return;
+        }
+
+        cell.shot = true;
+        state.lastShot.enemy = index;
+        state.shots++;
+        const ship = shipAt(state.enemy, index);
+
+        if (ship) {
+          ship.hits++;
+          state.hits++;
+          state.combo++;
+          const hitPoints = 100 + Math.min(state.combo - 1, 4) * 25;
+          addScore(hitPoints);
+          if (ship.hits === ship.length) {
+            ship.sunk = true;
+            const bonus = ship.length * 50;
+            addScore(bonus);
+            setMessage(`${coordinate(index)} 命中！击沉敌方${ship.name}，奖励 +${bonus}`, "hit");
+            if (navigator.vibrate) navigator.vibrate([25, 35, 45]);
+          } else {
+            setMessage(`${coordinate(index)} 命中敌舰！${state.combo > 1 ? `连击 ×${state.combo}，` : ""}+${hitPoints} 分`, "hit");
+            if (navigator.vibrate) navigator.vibrate(25);
+          }
+        } else {
+          state.combo = 0;
+          setMessage(coordinate(index) + " 未命中，炮火落入海中", "miss");
+        }
+
+        if (remainingShips(state.enemy) === 0) {
+          renderAll();
+          finishGame(true);
+          return;
+        }
+
+        state.phase = "ai";
+        setPanel("player");
+        renderAll();
+        queueAi(performAiShot, 650);
+      }
+
+      // ---------- AI 目标搜索与还击 ----------
+      function neighbors(index) {
+        const row = Math.floor(index / SIZE);
+        const col = index % SIZE;
+        const result = [];
+        if (row > 0) result.push(index - SIZE);
+        if (row < SIZE - 1) result.push(index + SIZE);
+        if (col > 0) result.push(index - 1);
+        if (col < SIZE - 1) result.push(index + 1);
+        return result;
+      }
+
+      function chooseAiTarget() {
+        const unresolved = new Set(state.aiHits.filter((index) => {
+          const ship = shipAt(state.player, index);
+          return ship && !ship.sunk;
+        }));
+        const candidates = new Set();
+
+        // 两点成线后优先攻击两端；单点命中则搜索四邻格。
+        unresolved.forEach((index) => {
+          const row = Math.floor(index / SIZE);
+          const col = index % SIZE;
+          const left = col > 0 ? index - 1 : -1;
+          const right = col < SIZE - 1 ? index + 1 : -1;
+          const up = row > 0 ? index - SIZE : -1;
+          const down = row < SIZE - 1 ? index + SIZE : -1;
+          const horizontal = unresolved.has(left) || unresolved.has(right);
+          const vertical = unresolved.has(up) || unresolved.has(down);
+          const options = horizontal && !vertical ? [left, right]
+            : vertical && !horizontal ? [up, down]
+            : neighbors(index);
+          options.forEach((next) => {
+            if (next >= 0 && !state.player.cells[next].shot) candidates.add(next);
+          });
+        });
+
+        if (candidates.size) return randomItem([...candidates]);
+        const unshot = state.player.cells.map((cell, index) => cell.shot ? -1 : index).filter((index) => index >= 0);
+        // 搜索阶段使用棋盘奇偶格，减少无效炮击；最后仍能覆盖全部格子。
+        const parity = unshot.filter((index) => (Math.floor(index / SIZE) + index % SIZE) % 2 === 0);
+        return randomItem(parity.length ? parity : unshot);
+      }
+
+      function performAiShot() {
+        if (state.paused || state.phase !== "ai") return;
+        const index = chooseAiTarget();
+        if (index === undefined) return;
+        const cell = state.player.cells[index];
+        cell.shot = true;
+        state.lastShot.player = index;
+        const ship = shipAt(state.player, index);
+
+        if (ship) {
+          ship.hits++;
+          state.aiHits.push(index);
+          if (ship.hits === ship.length) {
+            ship.sunk = true;
+            state.aiHits = state.aiHits.filter((hitIndex) => shipAt(state.player, hitIndex) !== ship);
+            setMessage(`警报：AI 在 ${coordinate(index)} 击沉己方${ship.name}！`, "hit");
+            if (navigator.vibrate) navigator.vibrate([45, 40, 45]);
+          } else {
+            setMessage(`警报：${coordinate(index)} 舰体被 AI 命中！`, "hit");
+            if (navigator.vibrate) navigator.vibrate(35);
+          }
+        } else {
+          setMessage(`AI 炮击 ${coordinate(index)}，未命中己方舰队`, "miss");
+        }
+
+        if (remainingShips(state.player) === 0) {
+          renderAll();
+          finishGame(false);
+          return;
+        }
+        renderAll();
+        queueAi(completeAiTurn, 700);
+      }
+
+      function completeAiTurn() {
+        if (state.paused || state.phase !== "ai") return;
+        state.phase = "player";
+        setPanel("enemy");
+        renderAll();
+      }
+
+      // AI 行动使用可恢复的单一计时器，暂停不会丢失当前步骤。
+      function queueAi(action, delay) {
+        clearTimeout(state.aiTimer);
+        state.pendingAiAction = action;
+        state.aiTimer = setTimeout(() => {
+          state.aiTimer = null;
+          const next = state.pendingAiAction;
+          state.pendingAiAction = null;
+          if (!state.paused && state.phase === "ai") next();
+        }, delay);
+        renderStatus();
+      }
+
+      // ---------- 暂停、终局与重开 ----------
+      function setAppInert(value) {
+        app.inert = value;
+      }
+
+      function togglePause(force) {
+        if (state.phase === "over") return;
+        const next = typeof force === "boolean" ? force : !state.paused;
+        if (next === state.paused) return;
+        state.paused = next;
+        pauseOverlay.hidden = !next;
+        setAppInert(next);
+        pauseButton.querySelector("span").textContent = next ? "继续" : "暂停";
+        pauseButton.setAttribute("aria-label", next ? "继续游戏" : "暂停游戏");
+
+        if (next) {
+          clearTimeout(state.aiTimer);
+          state.aiTimer = null;
+          $("resumeButton").focus();
+        } else {
+          if (state.phase === "ai" && state.pendingAiAction) queueAi(state.pendingAiAction, 450);
+          pauseButton.focus();
+        }
+        renderAll();
+      }
+
+      function finishGame(won) {
+        state.phase = "over";
+        state.paused = false;
+        clearTimeout(state.aiTimer);
+        state.aiTimer = null;
+        state.pendingAiAction = null;
+        setPanel("enemy");
+
+        if (won) {
+          const intactSegments = state.player.ships.reduce((sum, ship) => sum + ship.length - ship.hits, 0);
+          const victoryBonus = accuracy() * 5 + intactSegments * 20;
+          addScore(victoryBonus);
+          setMessage(`敌方舰队全灭！胜利加成 +${victoryBonus}`, "hit");
+        }
+
+        renderAll();
+        endOverlay.classList.toggle("defeat", !won);
+        $("endIcon").textContent = won ? "✦" : "×";
+        $("endKicker").textContent = won ? "VICTORY" : "MISSION FAILED";
+        $("endTitle").textContent = won ? "制海权已夺取" : "舰队信号中断";
+        $("endText").textContent = won
+          ? `你用 ${state.shots} 轮炮击清空敌方海域，胜利加成已计入总分。`
+          : "己方舰队已全部沉没。调整雷达，重新部署后再战。";
+        $("endScore").textContent = String(state.score);
+        $("endAccuracy").textContent = accuracy() + "%";
+        $("endShots").textContent = String(state.shots);
+        endOverlay.hidden = false;
+        setAppInert(true);
+        $("playAgainButton").focus();
+      }
+
+      function startGame() {
+        clearTimeout(state.aiTimer);
+        state.aiTimer = null;
+        state.pendingAiAction = null;
+        state.enemy = generateBoard();
+        state.player = generateBoard();
+        state.phase = "player";
+        state.paused = false;
+        state.score = 0;
+        state.shots = 0;
+        state.hits = 0;
+        state.combo = 0;
+        state.aiHits = [];
+        state.focusIndex = 0;
+        state.lastShot = { enemy: -1, player: -1 };
+        pauseOverlay.hidden = true;
+        endOverlay.hidden = true;
+        setAppInert(false);
+        pauseButton.querySelector("span").textContent = "暂停";
+        pauseButton.setAttribute("aria-label", "暂停游戏");
+        setMessage("舰队已随机部署，选择敌方坐标开炮");
+        setPanel("enemy");
+        renderAll();
+      }
+
+      // ---------- 触屏、鼠标与键盘 ----------
+      enemyBoard.addEventListener("click", (event) => {
+        if (suppressBoardClick) {
+          event.preventDefault();
+          suppressBoardClick = false;
+          return;
+        }
+        const cell = event.target.closest("button.cell");
+        if (!cell) return;
+        state.focusIndex = Number(cell.dataset.index);
+        playerFire(state.focusIndex);
+      });
+
+      enemyBoard.addEventListener("focusin", (event) => {
+        const cell = event.target.closest("button.cell");
+        if (!cell) return;
+        state.focusIndex = Number(cell.dataset.index);
+        cellElements.enemy.forEach((element, index) => { element.tabIndex = index === state.focusIndex ? 0 : -1; });
+      });
+
+      enemyBoard.addEventListener("keydown", (event) => {
+        const cell = event.target.closest("button.cell");
+        if (!cell) return;
+        const index = Number(cell.dataset.index);
+        const row = Math.floor(index / SIZE);
+        const col = index % SIZE;
+        let next = index;
+        if (event.key === "ArrowUp") next = Math.max(0, row - 1) * SIZE + col;
+        else if (event.key === "ArrowDown") next = Math.min(SIZE - 1, row + 1) * SIZE + col;
+        else if (event.key === "ArrowLeft") next = row * SIZE + Math.max(0, col - 1);
+        else if (event.key === "ArrowRight") next = row * SIZE + Math.min(SIZE - 1, col + 1);
+        else if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          playerFire(index);
+          return;
+        } else return;
+        event.preventDefault();
+        state.focusIndex = next;
+        cellElements.enemy.forEach((element, i) => { element.tabIndex = i === next ? 0 : -1; });
+        cellElements.enemy[next].focus();
+      });
+
+      document.querySelectorAll(".tab-button").forEach((button) => {
+        button.addEventListener("click", () => setPanel(button.dataset.panel));
+      });
+      pauseButton.addEventListener("click", () => togglePause());
+      $("resumeButton").addEventListener("click", () => togglePause(false));
+      $("restartButton").addEventListener("click", startGame);
+      $("pauseRestartButton").addEventListener("click", startGame);
+      $("playAgainButton").addEventListener("click", startGame);
+
+      document.addEventListener("keydown", (event) => {
+        if ((event.key.toLowerCase() === "p" || event.key === "Escape") && state.phase !== "over") {
+          event.preventDefault();
+          togglePause();
+        }
+        // 自定义弹窗打开时，将 Tab 焦点限制在弹窗按钮内。
+        if (event.key === "Tab" && (!pauseOverlay.hidden || !endOverlay.hidden)) {
+          const overlay = pauseOverlay.hidden ? endOverlay : pauseOverlay;
+          const buttons = [...overlay.querySelectorAll("button")];
+          const first = buttons[0];
+          const last = buttons[buttons.length - 1];
+          if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+          else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+        }
+      });
+
+      // 手机上左右滑动可在两个海域之间切换，并抑制滑动后的误点击。
+      let swipeStart = null;
+      let suppressBoardClick = false;
+      arena.addEventListener("pointerdown", (event) => {
+        if (event.pointerType === "mouse" || !window.matchMedia("(max-width: 680px) and (orientation: portrait)").matches) return;
+        swipeStart = { x: event.clientX, y: event.clientY, id: event.pointerId };
+      });
+      arena.addEventListener("pointerup", (event) => {
+        if (!swipeStart || swipeStart.id !== event.pointerId) return;
+        const dx = event.clientX - swipeStart.x;
+        const dy = event.clientY - swipeStart.y;
+        if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.3) {
+          if (dx < 0 && state.mobilePanel === "enemy") setPanel("player");
+          else if (dx > 0 && state.mobilePanel === "player") setPanel("enemy");
+          else { swipeStart = null; return; }
+          suppressBoardClick = true;
+          setTimeout(() => { suppressBoardClick = false; }, 120);
+        }
+        swipeStart = null;
+      });
+      arena.addEventListener("pointercancel", () => { swipeStart = null; });
+      enemyBoard.addEventListener("contextmenu", (event) => event.preventDefault());
+
+      // 禁止双击缩放、页面拖动和 iOS 手势缩放。
+      document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("dblclick", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
+      let lastTouchEnd = 0;
+      document.addEventListener("touchend", (event) => {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) event.preventDefault();
+        lastTouchEnd = now;
+      }, { passive: false });
+
+      // 切到后台时自动暂停，返回后由玩家手动继续。
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && state.phase !== "over" && !state.paused) togglePause(true);
+      });
+
+      buildBoard(enemyBoard, "enemy");
+      buildBoard(playerBoard, "player");
+      startGame();
+    })();
+  </script>
+</body>
+</html>

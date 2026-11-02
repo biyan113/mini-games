@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080a14">
+  <title>霓虹木琴 · 听音复奏</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080a14;
+      --panel: rgba(19, 22, 40, 0.82);
+      --line: rgba(255, 255, 255, 0.09);
+      --text: #f5f7ff;
+      --muted: #9299b5;
+      --accent: #8b7cff;
+      --cyan: #55e6ff;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(109, 75, 255, 0.2), transparent 34%),
+        radial-gradient(circle at 90% 90%, rgba(0, 221, 255, 0.12), transparent 35%),
+        var(--bg);
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    body::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.22;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: linear-gradient(to bottom, black, transparent 85%);
+    }
+
+    button {
+      font: inherit;
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    .glow {
+      position: absolute;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.16;
+      pointer-events: none;
+      animation: drift 10s ease-in-out infinite alternate;
+    }
+
+    .glow-one {
+      top: -90px;
+      right: -70px;
+      background: #7c51ff;
+    }
+
+    .glow-two {
+      bottom: -100px;
+      left: -80px;
+      background: #00d9ff;
+      animation-delay: -4s;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: min(100%, 720px);
+      height: 100vh;
+      height: 100svh;
+      margin: 0 auto;
+      padding: max(14px, env(safe-area-inset-top)) 14px max(12px, env(safe-area-inset-bottom));
+    }
+
+    .topbar {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 48px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 44px;
+      height: 44px;
+      place-items: center;
+      border: 1px solid rgba(163, 146, 255, 0.35);
+      border-radius: 14px;
+      color: #c6bcff;
+      background: linear-gradient(145deg, rgba(139, 124, 255, 0.22), rgba(139, 124, 255, 0.04));
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.1), 0 0 24px rgba(124, 92, 255, 0.14);
+    }
+
+    .brand-mark svg {
+      width: 26px;
+      height: 26px;
+    }
+
+    .eyebrow {
+      display: block;
+      margin-bottom: 2px;
+      color: #8f86c9;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(20px, 5vw, 27px);
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      line-height: 1.1;
+    }
+
+    .icon-button {
+      display: grid;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      color: #d9dcf0;
+      background: rgba(255, 255, 255, 0.045);
+      cursor: pointer;
+      transition: 160ms ease;
+    }
+
+    .icon-button:active:not(:disabled) {
+      transform: scale(0.92);
+      background: rgba(139, 124, 255, 0.16);
+    }
+
+    .icon-button:disabled {
+      opacity: 0.32;
+      cursor: default;
+    }
+
+    .icon-button svg {
+      width: 19px;
+      height: 19px;
+      fill: currentColor;
+    }
+
+    .stats {
+      display: grid;
+      flex: 0 0 auto;
+      grid-template-columns: repeat(3, 1fr);
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: rgba(14, 17, 31, 0.7);
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.035);
+      backdrop-filter: blur(14px);
+    }
+
+    .stat {
+      position: relative;
+      padding: 10px 6px 9px;
+      text-align: center;
+    }
+
+    .stat + .stat::before {
+      content: "";
+      position: absolute;
+      top: 22%;
+      bottom: 22%;
+      left: 0;
+      width: 1px;
+      background: var(--line);
+    }
+
+    .stat-label {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+    }
+
+    .stat-value {
+      display: block;
+      font-variant-numeric: tabular-nums;
+      font-size: clamp(19px, 5vw, 24px);
+      font-weight: 800;
+      line-height: 1.15;
+    }
+
+    .stat:first-child .stat-value {
+      color: #a99aff;
+      text-shadow: 0 0 18px rgba(139, 124, 255, 0.35);
+    }
+
+    .stat-value.bump {
+      animation: score-bump 220ms ease-out;
+    }
+
+    .game-panel {
+      position: relative;
+      display: flex;
+      flex: 1 1 auto;
+      flex-direction: column;
+      min-height: 0;
+      padding: 14px 11px 10px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: linear-gradient(155deg, rgba(25, 28, 50, 0.88), rgba(12, 15, 28, 0.92));
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.055), 0 22px 70px rgba(0, 0, 0, 0.24);
+      backdrop-filter: blur(18px);
+    }
+
+    .round-row {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 3px;
+    }
+
+    .round-label {
+      color: #bec3dc;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+
+    .lives {
+      display: flex;
+      gap: 5px;
+      color: #ff658c;
+      font-size: 17px;
+      line-height: 1;
+      filter: drop-shadow(0 0 7px rgba(255, 72, 125, 0.35));
+    }
+
+    .heart {
+      transition: 220ms ease;
+    }
+
+    .heart.lost {
+      color: #4a4c61;
+      opacity: 0.48;
+      filter: none;
+      transform: scale(0.82);
+    }
+
+    .message-wrap {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      min-height: 43px;
+      gap: 8px;
+      text-align: center;
+    }
+
+    .message-dot {
+      flex: 0 0 auto;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 10px var(--cyan);
+    }
+
+    .message-dot.listening {
+      animation: pulse 1s ease-in-out infinite;
+      background: #a896ff;
+      box-shadow: 0 0 10px #8b7cff;
+    }
+
+    .message-dot.error {
+      background: #ff668c;
+      box-shadow: 0 0 10px #ff668c;
+    }
+
+    .message {
+      margin: 0;
+      color: #e1e4f5;
+      font-size: clamp(12px, 3.4vw, 14px);
+      line-height: 1.45;
+    }
+
+    .note-progress {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      height: 17px;
+      gap: 7px;
+    }
+
+    .progress-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 99px;
+      background: #3c4056;
+      transition: 180ms ease;
+    }
+
+    .progress-dot.current {
+      width: 17px;
+      background: #e2e5f6;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.32);
+    }
+
+    .progress-dot.done {
+      width: 7px;
+      height: 7px;
+      background: var(--dot-color, var(--cyan));
+      box-shadow: 0 0 9px var(--dot-color, var(--cyan));
+    }
+
+    .xylophone {
+      position: relative;
+      display: grid;
+      flex: 1 1 auto;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      align-items: start;
+      gap: clamp(4px, 1.2vw, 9px);
+      width: 100%;
+      min-height: 185px;
+      max-height: 410px;
+      padding: 17px 1px 10px;
+      touch-action: none;
+    }
+
+    .xylophone::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      top: 13%;
+      right: 2%;
+      left: 2%;
+      height: 52%;
+      border-radius: 50%;
+      background: rgba(113, 85, 255, 0.12);
+      filter: blur(36px);
+    }
+
+    .key {
+      --color: #8b7cff;
+      --rgb: 139, 124, 255;
+      position: relative;
+      display: flex;
+      width: 100%;
+      height: var(--key-height, 100%);
+      min-width: 0;
+      margin: 0;
+      padding: 22px 2px 17px;
+      align-items: center;
+      justify-content: flex-end;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: clamp(8px, 2.5vw, 14px);
+      color: rgba(12, 12, 25, 0.78);
+      background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.13), transparent 25%, rgba(255, 255, 255, 0.3) 48%, transparent 72%, rgba(0, 0, 0, 0.17)),
+        linear-gradient(180deg, #ffffff -35%, var(--color) 27%, var(--color) 75%, rgba(var(--rgb), 0.7));
+      box-shadow:
+        inset 0 2px 1px rgba(255, 255, 255, 0.48),
+        inset 0 -5px 9px rgba(0, 0, 0, 0.16),
+        0 7px 0 rgba(var(--rgb), 0.17),
+        0 11px 18px rgba(0, 0, 0, 0.3);
+      cursor: pointer;
+      transform: translateY(0) scale(1);
+      transform-origin: center top;
+      transition: transform 70ms ease, filter 100ms ease, box-shadow 100ms ease;
+      will-change: transform;
+    }
+
+    .key::before,
+    .key::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      width: clamp(5px, 1.5vw, 8px);
+      height: clamp(5px, 1.5vw, 8px);
+      border: 1px solid rgba(255, 255, 255, 0.38);
+      border-radius: 50%;
+      background: rgba(22, 24, 40, 0.62);
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.65), 0 1px 1px rgba(255, 255, 255, 0.25);
+      transform: translateX(-50%);
+    }
+
+    .key::before {
+      top: 10px;
+    }
+
+    .key::after {
+      bottom: 9px;
+    }
+
+    .key.is-hit,
+    .key.is-demo {
+      z-index: 2;
+      filter: brightness(1.24) saturate(1.14);
+      transform: translateY(6px) scale(0.96);
+      box-shadow:
+        inset 0 2px 1px rgba(255, 255, 255, 0.55),
+        0 2px 0 rgba(var(--rgb), 0.2),
+        0 0 16px rgba(var(--rgb), 0.85),
+        0 0 36px rgba(var(--rgb), 0.45);
+    }
+
+    .key.is-demo {
+      animation: demo-glow 380ms ease-out;
+    }
+
+    .key.is-wrong {
+      animation: wrong-key 330ms ease;
+      filter: hue-rotate(115deg) saturate(1.8);
+    }
+
+    .note-name {
+      display: block;
+      margin-bottom: auto;
+      font-size: clamp(12px, 3.4vw, 18px);
+      font-weight: 900;
+      line-height: 1;
+      text-shadow: 0 1px rgba(255, 255, 255, 0.2);
+    }
+
+    .solfege {
+      display: block;
+      margin-top: 5px;
+      font-size: clamp(8px, 2.2vw, 11px);
+      font-weight: 700;
+      opacity: 0.62;
+    }
+
+    .keybind {
+      display: block;
+      margin-bottom: 10px;
+      padding: 3px 5px;
+      border: 1px solid rgba(20, 20, 35, 0.13);
+      border-radius: 5px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: clamp(8px, 2.1vw, 10px);
+      font-weight: 800;
+      line-height: 1;
+      opacity: 0.55;
+    }
+
+    .xylophone.shaking {
+      animation: board-shake 300ms ease;
+    }
+
+    .score-pop {
+      position: absolute;
+      z-index: 10;
+      top: 34%;
+      color: white;
+      font-size: 15px;
+      font-weight: 900;
+      pointer-events: none;
+      text-shadow: 0 0 12px currentColor;
+      transform: translateX(-50%);
+      animation: score-float 650ms ease-out forwards;
+    }
+
+    .keyboard-hint {
+      flex: 0 0 auto;
+      margin: 4px 0 0;
+      color: #696f8a;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-align: center;
+    }
+
+    .footer-note {
+      flex: 0 0 auto;
+      margin: 0;
+      color: #6f7590;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-align: center;
+    }
+
+    .overlay {
+      position: fixed;
+      z-index: 50;
+      inset: 0;
+      display: grid;
+      padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+      place-items: center;
+      background: rgba(5, 6, 14, 0.76);
+      backdrop-filter: blur(14px);
+      animation: overlay-in 180ms ease-out;
+    }
+
+    .modal {
+      position: relative;
+      width: min(100%, 420px);
+      max-height: calc(100vh - 36px);
+      max-height: calc(100svh - 36px);
+      padding: 28px 24px 24px;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      scrollbar-width: none;
+      border: 1px solid rgba(167, 151, 255, 0.2);
+      border-radius: 28px;
+      background:
+        radial-gradient(circle at 50% 0, rgba(131, 103, 255, 0.16), transparent 44%),
+        linear-gradient(155deg, rgba(29, 31, 55, 0.98), rgba(13, 15, 29, 0.98));
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.08), 0 30px 100px rgba(0, 0, 0, 0.5), 0 0 60px rgba(105, 73, 255, 0.1);
+      text-align: center;
+      animation: modal-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .modal-icon {
+      display: grid;
+      width: 68px;
+      height: 68px;
+      margin: 0 auto 17px;
+      place-items: center;
+      border: 1px solid rgba(171, 153, 255, 0.28);
+      border-radius: 22px;
+      color: #c8bdff;
+      background: rgba(139, 124, 255, 0.1);
+      box-shadow: 0 0 34px rgba(139, 124, 255, 0.15);
+    }
+
+    .modal-icon svg {
+      width: 38px;
+      height: 38px;
+    }
+
+    .modal-kicker {
+      margin: 0 0 7px;
+      color: #9c8fea;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.22em;
+    }
+
+    .modal h2 {
+      margin: 0;
+      font-size: clamp(26px, 7vw, 32px);
+      letter-spacing: 0.04em;
+    }
+
+    .modal-desc {
+      margin: 10px auto 20px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .rules {
+      display: grid;
+      gap: 9px;
+      margin: 0 0 22px;
+      padding: 0;
+      list-style: none;
+      text-align: left;
+    }
+
+    .rules li {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.055);
+      border-radius: 13px;
+      color: #c3c7da;
+      background: rgba(255, 255, 255, 0.025);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .rule-number {
+      display: grid;
+      flex: 0 0 auto;
+      width: 25px;
+      height: 25px;
+      place-items: center;
+      border-radius: 8px;
+      color: #b9adff;
+      background: rgba(139, 124, 255, 0.13);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .primary-button,
+    .secondary-button {
+      width: 100%;
+      min-height: 50px;
+      border-radius: 15px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      transition: transform 120ms ease, filter 120ms ease;
+    }
+
+    .primary-button {
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: white;
+      background: linear-gradient(110deg, #7155ed, #9a6fff 55%, #647dff);
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.28), 0 9px 26px rgba(109, 78, 233, 0.3);
+    }
+
+    .secondary-button {
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      color: #b8bdd3;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .primary-button:active,
+    .secondary-button:active {
+      filter: brightness(1.12);
+      transform: scale(0.97);
+    }
+
+    .modal-tip {
+      margin: 13px 0 0;
+      color: #676d87;
+      font-size: 10px;
+    }
+
+    .pause-symbol {
+      font-size: 36px;
+      font-weight: 300;
+      letter-spacing: 0.12em;
+      transform: translateX(2px);
+    }
+
+    .result-symbol {
+      font-size: 42px;
+      line-height: 1;
+      text-shadow: 0 0 18px currentColor;
+    }
+
+    .result-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 0 0 21px;
+    }
+
+    .result-stat {
+      padding: 12px 4px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 13px;
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .result-stat span {
+      display: block;
+      margin-bottom: 4px;
+      color: #7e849e;
+      font-size: 9px;
+    }
+
+    .result-stat strong {
+      color: #e9e6ff;
+      font-size: 20px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    @keyframes drift {
+      to { transform: translate(35px, 28px) scale(1.12); }
+    }
+
+    @keyframes pulse {
+      50% { opacity: 0.35; transform: scale(0.75); }
+    }
+
+    @keyframes score-bump {
+      45% { transform: scale(1.18); filter: brightness(1.4); }
+    }
+
+    @keyframes demo-glow {
+      0% { filter: brightness(1); }
+      35% { filter: brightness(1.5) saturate(1.2); }
+      100% { filter: brightness(1.2); }
+    }
+
+    @keyframes wrong-key {
+      25% { transform: translateX(-3px) translateY(5px); }
+      55% { transform: translateX(3px) translateY(5px); }
+      80% { transform: translateX(-2px) translateY(5px); }
+    }
+
+    @keyframes board-shake {
+      25% { transform: translateX(-3px); }
+      50% { transform: translateX(3px); }
+      75% { transform: translateX(-2px); }
+    }
+
+    @keyframes score-float {
+      0% { opacity: 0; transform: translate(-50%, 8px) scale(0.8); }
+      20% { opacity: 1; }
+      100% { opacity: 0; transform: translate(-50%, -42px) scale(1.08); }
+    }
+
+    @keyframes overlay-in {
+      from { opacity: 0; }
+    }
+
+    @keyframes modal-in {
+      from { opacity: 0; transform: translateY(16px) scale(0.96); }
+    }
+
+    @media (min-width: 600px) {
+      .app { padding-right: 22px; padding-left: 22px; }
+      .game-panel { padding: 18px 18px 12px; }
+      .keybind { margin-bottom: 16px; }
+    }
+
+    @media (max-height: 700px) {
+      .app { gap: 8px; padding-top: max(9px, env(safe-area-inset-top)); }
+      .brand-mark { width: 39px; height: 39px; border-radius: 12px; }
+      .topbar { min-height: 40px; }
+      .stat { padding-top: 7px; padding-bottom: 7px; }
+      .game-panel { padding-top: 10px; border-radius: 20px; }
+      .message-wrap { min-height: 35px; }
+      .note-progress { height: 13px; }
+      .xylophone { min-height: 165px; padding-top: 12px; }
+      .keyboard-hint { margin-top: 1px; }
+      .modal { padding: 21px 21px 19px; }
+      .modal-icon { width: 55px; height: 55px; margin-bottom: 12px; border-radius: 18px; }
+      .modal-desc { margin: 7px auto 14px; }
+      .rules { gap: 7px; margin-bottom: 16px; }
+      .rules li { padding: 8px 10px; }
+      .modal-tip { margin-top: 9px; }
+    }
+
+    @media (max-height: 560px) {
+      .eyebrow, .keyboard-hint, .footer-note { display: none; }
+      .stats { max-width: 360px; width: 100%; margin: 0 auto; }
+      .game-panel { padding-bottom: 5px; }
+      .xylophone { min-height: 145px; }
+      .modal-icon { display: none; }
+      .modal h2 { font-size: 24px; }
+      .rules { margin-bottom: 12px; }
+      .rules li { padding-top: 6px; padding-bottom: 6px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 1ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="glow glow-one"></div>
+  <div class="glow glow-two"></div>
+
+  <main class="app" id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none">
+            <path d="M7 5v18M13 8v17M19 5v18M25 9v16" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
+            <path d="m5 25 22-19" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".55"/>
+            <circle cx="26.5" cy="5.5" r="3" fill="currentColor"/>
+          </svg>
+        </div>
+        <div>
+          <span class="eyebrow">NEON XYLOPHONE</span>
+          <h1>霓虹木琴</h1>
+        </div>
+      </div>
+      <button class="icon-button" id="pauseButton" type="button" aria-label="暂停游戏" title="暂停（空格键）" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V5Zm7 0a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1V5Z"/></svg>
+      </button>
+    </header>
+
+    <section class="stats" aria-label="游戏数据">
+      <div class="stat">
+        <span class="stat-label">当前得分</span>
+        <strong class="stat-value" id="scoreValue">0000</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">最高纪录</span>
+        <strong class="stat-value" id="bestValue">0000</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">连续命中</span>
+        <strong class="stat-value" id="comboValue">× 0</strong>
+      </div>
+    </section>
+
+    <section class="game-panel" aria-label="木琴演奏区">
+      <div class="round-row">
+        <span class="round-label" id="roundLabel">准备开演</span>
+        <div class="lives" id="lives" aria-label="剩余三颗爱心">
+          <span class="heart">♥</span><span class="heart">♥</span><span class="heart">♥</span>
+        </div>
+      </div>
+      <div class="message-wrap">
+        <span class="message-dot" id="messageDot" aria-hidden="true"></span>
+        <p class="message" id="message" role="status" aria-live="polite">记住发光顺序，再按同样顺序敲击</p>
+      </div>
+      <div class="note-progress" id="noteProgress" aria-label="复奏进度"></div>
+      <div class="xylophone" id="xylophone" role="group" aria-label="八个彩色木琴琴键"></div>
+      <p class="keyboard-hint">键盘 A · S · D · F · G · H · J · K</p>
+    </section>
+
+    <p class="footer-note">轻点发声 · 按住滑奏 · 空格暂停</p>
+  </main>
+
+  <div class="overlay" id="startOverlay">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="startTitle">
+      <div class="modal-icon" aria-hidden="true">
+        <svg viewBox="0 0 48 48" fill="none">
+          <path d="M11 8v27M19 12v27M27 8v27M35 13v26" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <path d="m9 39 30-26" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+          <circle cx="39" cy="11" r="4" fill="currentColor"/>
+        </svg>
+      </div>
+      <p class="modal-kicker">听音 · 记忆 · 复奏</p>
+      <h2 id="startTitle">让指尖发光</h2>
+      <p class="modal-desc">聆听木琴的旋律，按相同顺序复奏。<br>完成三个回合，成为霓虹演奏家！</p>
+      <ol class="rules">
+        <li><span class="rule-number">01</span><span>仔细观察依次发光、发声的琴键</span></li>
+        <li><span class="rule-number">02</span><span>轻点复奏；按住并滑过琴键可以连奏</span></li>
+        <li><span class="rule-number">03</span><span>错音失去一颗爱心，三颗用完即结束</span></li>
+      </ol>
+      <button class="primary-button" id="startButton" type="button">开始挑战</button>
+      <p class="modal-tip">建议开启声音 · 戴耳机体验更佳</p>
+    </section>
+  </div>
+
+  <div class="overlay" id="pauseOverlay" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+      <div class="modal-icon" aria-hidden="true"><span class="pause-symbol">Ⅱ</span></div>
+      <p class="modal-kicker">TAKE A BREATH</p>
+      <h2 id="pauseTitle">演奏暂停</h2>
+      <p class="modal-desc">旋律会等你回来。<br>若在听音阶段暂停，继续后将重新示范。</p>
+      <button class="primary-button" id="resumeButton" type="button">继续演奏</button>
+      <button class="secondary-button" id="pauseRestartButton" type="button">重新开始</button>
+    </section>
+  </div>
+
+  <div class="overlay" id="resultOverlay" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+      <div class="modal-icon" id="resultIcon" aria-hidden="true"><span class="result-symbol" id="resultSymbol">✦</span></div>
+      <p class="modal-kicker" id="resultKicker">挑战完成</p>
+      <h2 id="resultTitle">演奏大师！</h2>
+      <p class="modal-desc" id="resultDesc">三个回合全部复奏成功，<br>这段霓虹旋律属于你。</p>
+      <div class="result-stats">
+        <div class="result-stat"><span>本局得分</span><strong id="finalScore">0</strong></div>
+        <div class="result-stat"><span>最高纪录</span><strong id="finalBest">0</strong></div>
+        <div class="result-stat"><span>最佳连击</span><strong id="finalCombo">0</strong></div>
+      </div>
+      <button class="primary-button" id="restartButton" type="button">再来一局</button>
+      <p class="modal-tip">每一次聆听，都让记忆更敏锐</p>
+    </section>
+  </div>
+
+  <script>
+    'use strict';
+
+    // 八个琴键构成一个 C 大调音阶，颜色与音高一一对应。
+    const NOTES = [
+      { name: 'C4', solfege: '哆', frequency: 261.63, color: '#ff668f', rgb: '255, 102, 143', key: 'A' },
+      { name: 'D4', solfege: '来', frequency: 293.66, color: '#ff9866', rgb: '255, 152, 102', key: 'S' },
+      { name: 'E4', solfege: '咪', frequency: 329.63, color: '#ffd166', rgb: '255, 209, 102', key: 'D' },
+      { name: 'F4', solfege: '发', frequency: 349.23, color: '#7fe08a', rgb: '127, 224, 138', key: 'F' },
+      { name: 'G4', solfege: '索', frequency: 392.00, color: '#55dfd2', rgb: '85, 223, 210', key: 'G' },
+      { name: 'A4', solfege: '拉', frequency: 440.00, color: '#59bfff', rgb: '89, 191, 255', key: 'H' },
+      { name: 'B4', solfege: '西', frequency: 493.88, color: '#8b8cff', rgb: '139, 140, 255', key: 'J' },
+      { name: 'C5', solfege: '哆', frequency: 523.25, color: '#d182ff', rgb: '209, 130, 255', key: 'K' }
+    ];
+
+    const ROUND_LENGTHS = [4, 6, 8];
+    const STORAGE_KEY = 'neon-xylophone-best-v1';
+    const KEY_CODE_MAP = {
+      KeyA: 0, KeyS: 1, KeyD: 2, KeyF: 3,
+      KeyG: 4, KeyH: 5, KeyJ: 6, KeyK: 7
+    };
+
+    // 集中读取 DOM，避免在游戏循环中重复查询。
+    const board = document.getElementById('xylophone');
+    const scoreValue = document.getElementById('scoreValue');
+    const bestValue = document.getElementById('bestValue');
+    const comboValue = document.getElementById('comboValue');
+    const roundLabel = document.getElementById('roundLabel');
+    const livesElement = document.getElementById('lives');
+    const messageElement = document.getElementById('message');
+    const messageDot = document.getElementById('messageDot');
+    const noteProgress = document.getElementById('noteProgress');
+    const pauseButton = document.getElementById('pauseButton');
+    const startOverlay = document.getElementById('startOverlay');
+    const pauseOverlay = document.getElementById('pauseOverlay');
+    const resultOverlay = document.getElementById('resultOverlay');
+    const startButton = document.getElementById('startButton');
+    const resumeButton = document.getElementById('resumeButton');
+    const restartButton = document.getElementById('restartButton');
+    const pauseRestartButton = document.getElementById('pauseRestartButton');
+
+    let state = 'idle'; // idle / showing / input / between / paused / won / over
+    let pausedFrom = 'input';
+    let sequence = [];
+    let round = 1;
+    let inputIndex = 0;
+    let inputLocked = false;
+    let score = 0;
+    let combo = 0;
+    let maxCombo = 0;
+    let lives = 3;
+    let highScore = loadHighScore();
+    let sessionId = 0;
+    let demoId = 0;
+    let roundTimer = 0;
+    let unlockTimer = 0;
+    let audioContext = null;
+    let masterGain = null;
+    let noiseBuffer = null;
+    const activeSources = new Set();
+    const activePointers = new Map();
+
+    // 创建琴键；琴键高度逐级缩短，保持真实木琴的视觉轮廓。
+    NOTES.forEach((note, index) => {
+      const key = document.createElement('button');
+      key.type = 'button';
+      key.className = 'key';
+      key.dataset.index = String(index);
+      key.style.setProperty('--color', note.color);
+      key.style.setProperty('--rgb', note.rgb);
+      key.style.setProperty('--key-height', `${100 - index * 4.1}%`);
+      key.setAttribute('aria-label', `${note.name}，${note.solfege}，键盘 ${note.key}`);
+      key.innerHTML = `
+        <span class="note-name">${note.name}</span>
+        <span class="solfege">${note.solfege}</span>
+        <span class="keybind" aria-hidden="true">${note.key}</span>
+      `;
+      board.appendChild(key);
+    });
+
+    const keyElements = Array.from(board.querySelectorAll('.key'));
+
+    function loadHighScore() {
+      try {
+        const saved = Number.parseInt(localStorage.getItem(STORAGE_KEY), 10);
+        return Number.isFinite(saved) && saved > 0 ? saved : 0;
+      } catch (error) {
+        // 隐私模式可能禁用本地存储，游戏仍可正常运行。
+        return 0;
+      }
+    }
+
+    function saveHighScore() {
+      try {
+        localStorage.setItem(STORAGE_KEY, String(highScore));
+      } catch (error) {
+        // 存储不可用时仅保留本次会话中的最高分。
+      }
+    }
+
+    function formatScore(value) {
+      return String(value).padStart(4, '0');
+    }
+
+    function setMessage(text, tone = '') {
+      messageElement.textContent = text;
+      messageDot.className = `message-dot${tone ? ` ${tone}` : ''}`;
+    }
+
+    function setState(nextState) {
+      state = nextState;
+      pauseButton.disabled = !['showing', 'input'].includes(state);
+    }
+
+    function updateScores(animate = false) {
+      scoreValue.textContent = formatScore(score);
+      bestValue.textContent = formatScore(highScore);
+      comboValue.textContent = `× ${combo}`;
+      if (animate) {
+        [scoreValue, comboValue].forEach((element) => {
+          element.classList.remove('bump');
+          void element.offsetWidth;
+          element.classList.add('bump');
+        });
+      }
+    }
+
+    function updateLives() {
+      Array.from(livesElement.children).forEach((heart, index) => {
+        heart.classList.toggle('lost', index >= lives);
+      });
+      livesElement.setAttribute('aria-label', `剩余${lives}颗爱心`);
+    }
+
+    function addScore(points) {
+      score += points;
+      if (score > highScore) {
+        highScore = score;
+        saveHighScore();
+      }
+      updateScores(true);
+    }
+
+    function createSequence(length) {
+      const result = [];
+      let previous = -1;
+      for (let index = 0; index < length; index += 1) {
+        let noteIndex;
+        do {
+          noteIndex = Math.floor(Math.random() * NOTES.length);
+        } while (noteIndex === previous);
+        result.push(noteIndex);
+        previous = noteIndex;
+      }
+      return result;
+    }
+
+    function renderProgress(activeIndex = -1) {
+      const dots = Array.from(noteProgress.children);
+      dots.forEach((dot, index) => {
+        dot.classList.toggle('current', index === activeIndex);
+        dot.classList.toggle('done', state === 'input' && index < inputIndex);
+      });
+    }
+
+    function buildProgress() {
+      noteProgress.replaceChildren();
+      sequence.forEach((noteIndex) => {
+        const dot = document.createElement('span');
+        dot.className = 'progress-dot';
+        dot.style.setProperty('--dot-color', NOTES[noteIndex].color);
+        noteProgress.appendChild(dot);
+      });
+      noteProgress.setAttribute('aria-label', `本回合共${sequence.length}个音符`);
+    }
+
+    // 初始化 WebAudio 总线：主音量接压缩器，避免多指连奏时削波。
+    function ensureAudio() {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return null;
+
+      if (!audioContext) {
+        audioContext = new AudioContextClass();
+        masterGain = audioContext.createGain();
+        const compressor = audioContext.createDynamicsCompressor();
+        masterGain.gain.value = 0.72;
+        compressor.threshold.value = -18;
+        compressor.knee.value = 18;
+        compressor.ratio.value = 5;
+        compressor.attack.value = 0.003;
+        compressor.release.value = 0.18;
+        masterGain.connect(compressor);
+        compressor.connect(audioContext.destination);
+      }
+
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().catch(() => {});
+      }
+      return audioContext;
+    }
+
+    function trackSource(source) {
+      activeSources.add(source);
+      source.addEventListener('ended', () => activeSources.delete(source), { once: true });
+      return source;
+    }
+
+    function stopAllSounds() {
+      activeSources.forEach((source) => {
+        try { source.stop(); } catch (error) { /* 已结束的音源无需处理 */ }
+      });
+      activeSources.clear();
+    }
+
+    // 使用基频、非整数泛音与短噪声起音合成有敲击感的木琴音色。
+    function playNote(noteIndex, velocity = 1) {
+      const context = ensureAudio();
+      if (!context || !masterGain) return;
+
+      const now = context.currentTime;
+      const frequency = NOTES[noteIndex].frequency;
+      const voice = context.createGain();
+      voice.gain.value = 0.82;
+
+      if (context.createStereoPanner) {
+        const panner = context.createStereoPanner();
+        panner.pan.value = (noteIndex / (NOTES.length - 1) - 0.5) * 0.42;
+        voice.connect(panner);
+        panner.connect(masterGain);
+      } else {
+        voice.connect(masterGain);
+      }
+
+      const partials = [
+        { ratio: 1, level: 0.62, decay: 1.25 },
+        { ratio: 3.01, level: 0.2, decay: 0.42 },
+        { ratio: 6.27, level: 0.055, decay: 0.16 }
+      ];
+
+      partials.forEach((partial) => {
+        const oscillator = trackSource(context.createOscillator());
+        const envelope = context.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(frequency * partial.ratio, now);
+        envelope.gain.setValueAtTime(0.0001, now);
+        envelope.gain.exponentialRampToValueAtTime(partial.level * velocity, now + 0.006);
+        envelope.gain.exponentialRampToValueAtTime(0.0001, now + partial.decay);
+        oscillator.connect(envelope);
+        envelope.connect(voice);
+        oscillator.start(now);
+        oscillator.stop(now + partial.decay + 0.03);
+      });
+
+      // 极短的滤波噪声模拟琴槌接触琴键的瞬间。
+      if (!noiseBuffer) {
+        const sampleCount = Math.floor(context.sampleRate * 0.045);
+        noiseBuffer = context.createBuffer(1, sampleCount, context.sampleRate);
+        const samples = noiseBuffer.getChannelData(0);
+        for (let index = 0; index < sampleCount; index += 1) {
+          samples[index] = (Math.random() * 2 - 1) * (1 - index / sampleCount);
+        }
+      }
+      const noise = trackSource(context.createBufferSource());
+      const noiseFilter = context.createBiquadFilter();
+      const noiseGain = context.createGain();
+      noise.buffer = noiseBuffer;
+      noiseFilter.type = 'bandpass';
+      noiseFilter.frequency.value = Math.min(frequency * 4, 7000);
+      noiseFilter.Q.value = 0.7;
+      noiseGain.gain.setValueAtTime(0.055 * velocity, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
+      noise.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(voice);
+      noise.start(now);
+    }
+
+    function animateKey(noteIndex) {
+      const key = keyElements[noteIndex];
+      window.clearTimeout(key.hitTimer);
+      key.classList.remove('is-hit');
+      void key.offsetWidth;
+      key.classList.add('is-hit');
+      key.hitTimer = window.setTimeout(() => key.classList.remove('is-hit'), 150);
+    }
+
+    function clearKeyEffects() {
+      keyElements.forEach((key) => {
+        window.clearTimeout(key.hitTimer);
+        key.classList.remove('is-hit', 'is-demo', 'is-wrong');
+      });
+      board.classList.remove('shaking');
+    }
+
+    function showScorePop(noteIndex, points) {
+      const keyRect = keyElements[noteIndex].getBoundingClientRect();
+      const boardRect = board.getBoundingClientRect();
+      const pop = document.createElement('span');
+      pop.className = 'score-pop';
+      pop.textContent = `+${points}`;
+      pop.style.left = `${keyRect.left - boardRect.left + keyRect.width / 2}px`;
+      board.appendChild(pop);
+      window.setTimeout(() => pop.remove(), 700);
+    }
+
+    function wait(milliseconds) {
+      return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+    }
+
+    // 每回合先完整示范一次；demoId 可让暂停或重开立即作废旧示范。
+    async function runDemo() {
+      // 若后台切换发生在回合间隙，恢复页面后重新示范，避免漏听。
+      if (document.hidden) {
+        setState('showing');
+        pauseGame();
+        return;
+      }
+      const currentDemo = ++demoId;
+      const currentSession = sessionId;
+      setState('showing');
+      inputLocked = false;
+      clearKeyEffects();
+      setMessage('仔细听，记住琴键发光的顺序', 'listening');
+      renderProgress(-1);
+
+      const tempo = [540, 470, 410][round - 1];
+      await wait(520);
+
+      for (let index = 0; index < sequence.length; index += 1) {
+        if (currentDemo !== demoId || currentSession !== sessionId || state !== 'showing') return;
+        const noteIndex = sequence[index];
+        const key = keyElements[noteIndex];
+        renderProgress(index);
+        key.classList.add('is-demo');
+        playNote(noteIndex, 0.9);
+        await wait(tempo * 0.72);
+        key.classList.remove('is-demo');
+        await wait(tempo * 0.28);
+      }
+
+      if (currentDemo !== demoId || currentSession !== sessionId || state !== 'showing') return;
+      setState('input');
+      setMessage('轮到你了，请按相同顺序复奏');
+      renderProgress(inputIndex);
+    }
+
+    function beginRound() {
+      sequence = createSequence(ROUND_LENGTHS[round - 1]);
+      inputIndex = 0;
+      inputLocked = false;
+      roundLabel.textContent = `第 ${round} / ${ROUND_LENGTHS.length} 回合`;
+      buildProgress();
+      runDemo();
+    }
+
+    function startGame() {
+      sessionId += 1;
+      demoId += 1;
+      window.clearTimeout(roundTimer);
+      window.clearTimeout(unlockTimer);
+      stopAllSounds();
+      clearKeyEffects();
+      activePointers.clear();
+
+      score = 0;
+      combo = 0;
+      maxCombo = 0;
+      lives = 3;
+      round = 1;
+      inputIndex = 0;
+      startOverlay.hidden = true;
+      pauseOverlay.hidden = true;
+      resultOverlay.hidden = true;
+      updateScores();
+      updateLives();
+      beginRound();
+    }
+
+    function pauseGame() {
+      if (!['showing', 'input'].includes(state)) return;
+      pausedFrom = state;
+      demoId += 1;
+      setState('paused');
+      stopAllSounds();
+      clearKeyEffects();
+      setMessage('演奏已暂停');
+      pauseOverlay.hidden = false;
+      resumeButton.focus({ preventScroll: true });
+    }
+
+    function resumeGame() {
+      if (state !== 'paused') return;
+      pauseOverlay.hidden = true;
+      ensureAudio();
+      if (pausedFrom === 'showing') {
+        runDemo();
+      } else {
+        setState('input');
+        setMessage(inputLocked ? '稳住节奏，准备继续' : '继续复奏，从发光进度处接着敲');
+        renderProgress(inputIndex);
+      }
+    }
+
+    function completeRound() {
+      const bonus = round * 250 + lives * 50;
+      addScore(bonus);
+      setState('between');
+      demoId += 1;
+      renderProgress(-1);
+
+      if (round === ROUND_LENGTHS.length) {
+        finishGame(true);
+        return;
+      }
+
+      setMessage(`回合完成！奖励 +${bonus}，准备下一段旋律`);
+      const currentSession = sessionId;
+      roundTimer = window.setTimeout(() => {
+        if (currentSession !== sessionId || state !== 'between') return;
+        round += 1;
+        beginRound();
+      }, 1250);
+    }
+
+    function finishGame(won) {
+      setState(won ? 'won' : 'over');
+      demoId += 1;
+      window.clearTimeout(roundTimer);
+      window.clearTimeout(unlockTimer);
+      clearKeyEffects();
+      saveHighScore();
+
+      document.getElementById('resultKicker').textContent = won ? '挑战完成' : '挑战结束';
+      document.getElementById('resultTitle').textContent = won ? '演奏大师！' : '旋律中断';
+      document.getElementById('resultDesc').innerHTML = won
+        ? '三个回合全部复奏成功，<br>这段霓虹旋律属于你。'
+        : '爱心用完了，别灰心。<br>再听一次，你会记得更牢。';
+      document.getElementById('resultSymbol').textContent = won ? '✦' : '×';
+      document.getElementById('finalScore').textContent = score;
+      document.getElementById('finalBest').textContent = highScore;
+      document.getElementById('finalCombo').textContent = maxCombo;
+      resultOverlay.hidden = false;
+
+      // 结算音效仍由同一组合成器生成，不加载任何音频文件。
+      const jingle = won ? [0, 2, 4, 7] : [4, 2, 0];
+      const currentSession = sessionId;
+      jingle.forEach((noteIndex, index) => {
+        window.setTimeout(() => {
+          if (currentSession === sessionId && state === (won ? 'won' : 'over')) {
+            playNote(noteIndex, 0.72);
+          }
+        }, index * 115);
+      });
+      restartButton.focus({ preventScroll: true });
+    }
+
+    function handleCorrect(noteIndex) {
+      combo += 1;
+      maxCombo = Math.max(maxCombo, combo);
+      const points = 100 + round * 20 + Math.min(combo - 1, 10) * 15;
+      addScore(points);
+      showScorePop(noteIndex, points);
+      inputIndex += 1;
+      renderProgress(inputIndex);
+
+      if (inputIndex >= sequence.length) {
+        completeRound();
+      } else {
+        setMessage(combo >= 5 ? `漂亮！${combo} 连击，继续保持` : '很好，接着敲下一个音符');
+      }
+    }
+
+    function handleWrong(noteIndex) {
+      lives -= 1;
+      combo = 0;
+      inputLocked = true;
+      updateScores();
+      updateLives();
+      setMessage(lives > 0 ? '错音！从当前音符继续，再专注一点' : '错音！爱心用完了', 'error');
+
+      const key = keyElements[noteIndex];
+      key.classList.remove('is-wrong');
+      void key.offsetWidth;
+      key.classList.add('is-wrong');
+      board.classList.remove('shaking');
+      void board.offsetWidth;
+      board.classList.add('shaking');
+      window.setTimeout(() => {
+        key.classList.remove('is-wrong');
+        board.classList.remove('shaking');
+      }, 350);
+      if (navigator.vibrate) navigator.vibrate(45);
+
+      if (lives <= 0) {
+        finishGame(false);
+        return;
+      }
+
+      const currentSession = sessionId;
+      unlockTimer = window.setTimeout(() => {
+        if (currentSession !== sessionId) return;
+        inputLocked = false;
+        if (state === 'input') setMessage('继续吧，已完成的部分会保留');
+      }, 480);
+    }
+
+    function strikeKey(noteIndex) {
+      // 示范与结算期间不接受玩家输入；其余空闲时间可自由试音。
+      if (!['idle', 'input'].includes(state)) return;
+      playNote(noteIndex);
+      animateKey(noteIndex);
+      if (state !== 'input' || inputLocked) return;
+
+      if (noteIndex === sequence[inputIndex]) {
+        handleCorrect(noteIndex);
+      } else {
+        handleWrong(noteIndex);
+      }
+    }
+
+    // Pointer Events 同时覆盖触摸、鼠标与触控笔；Map 支持多指演奏。
+    board.addEventListener('pointerdown', (event) => {
+      const key = event.target.closest('.key');
+      if (!key) return;
+      event.preventDefault();
+      const noteIndex = Number(key.dataset.index);
+      activePointers.set(event.pointerId, noteIndex);
+      try { board.setPointerCapture(event.pointerId); } catch (error) { /* 某些浏览器不捕获鼠标 */ }
+      strikeKey(noteIndex);
+    });
+
+    board.addEventListener('pointermove', (event) => {
+      if (!activePointers.has(event.pointerId)) return;
+      event.preventDefault();
+      const element = document.elementFromPoint(event.clientX, event.clientY);
+      const key = element ? element.closest('.key') : null;
+      if (!key || !board.contains(key)) return;
+      const noteIndex = Number(key.dataset.index);
+      if (activePointers.get(event.pointerId) !== noteIndex) {
+        activePointers.set(event.pointerId, noteIndex);
+        strikeKey(noteIndex);
+      }
+    });
+
+    function releasePointer(event) {
+      activePointers.delete(event.pointerId);
+    }
+
+    board.addEventListener('pointerup', releasePointer);
+    board.addEventListener('pointercancel', releasePointer);
+    board.addEventListener('lostpointercapture', releasePointer);
+    board.addEventListener('contextmenu', (event) => event.preventDefault());
+
+    // 键盘按钮被辅助技术触发时 click.detail 为 0，避免与 pointerdown 重复发声。
+    board.addEventListener('click', (event) => {
+      const key = event.target.closest('.key');
+      if (key && event.detail === 0) strikeKey(Number(key.dataset.index));
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.code === 'Space' && !event.repeat && event.target.tagName !== 'BUTTON') {
+        event.preventDefault();
+        if (state === 'paused') resumeGame();
+        else pauseGame();
+        return;
+      }
+      if (event.repeat || !(event.code in KEY_CODE_MAP)) return;
+      event.preventDefault();
+      strikeKey(KEY_CODE_MAP[event.code]);
+    });
+
+    startButton.addEventListener('click', () => {
+      ensureAudio();
+      startGame();
+    });
+    restartButton.addEventListener('click', startGame);
+    pauseRestartButton.addEventListener('click', startGame);
+    pauseButton.addEventListener('click', pauseGame);
+    resumeButton.addEventListener('click', resumeGame);
+
+    // 切到后台时自动暂停，避免玩家错过示范旋律。
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && ['showing', 'input'].includes(state)) pauseGame();
+    });
+
+    // 移动端补充禁止滚动、双击缩放及 iOS 双指缩放手势。
+    document.addEventListener('touchmove', (event) => {
+      // 页面本身不滚动；低高度设备上的弹窗内容可在内部纵向滚动。
+      if (!event.target.closest('.modal')) event.preventDefault();
+    }, { passive: false });
+    document.addEventListener('dblclick', (event) => event.preventDefault(), { passive: false });
+    document.addEventListener('gesturestart', (event) => event.preventDefault(), { passive: false });
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (event) => {
+      const now = Date.now();
+      if (now - lastTouchEnd < 300) event.preventDefault();
+      lastTouchEnd = now;
+    }, { passive: false });
+
+    updateScores();
+    updateLives();
+    startButton.focus({ preventScroll: true });
+  </script>
+</body>
+</html>

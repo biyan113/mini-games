@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070914">
+  <title>连线成河 · Flow Lines</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070914;
+      --panel: rgba(17, 22, 42, .72);
+      --line: rgba(153, 178, 255, .12);
+      --text: #f3f6ff;
+      --muted: #8993b2;
+      --cyan: #43e6df;
+      --pink: #ff64a6;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    [hidden] { display: none !important; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+    }
+
+    body {
+      min-height: 100vh;
+      min-height: 100svh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 5%, rgba(73, 69, 180, .19), transparent 35%),
+        radial-gradient(circle at 92% 82%, rgba(0, 210, 199, .11), transparent 38%),
+        var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .32;
+      background-image:
+        radial-gradient(circle, rgba(255,255,255,.35) 0 1px, transparent 1.2px),
+        radial-gradient(circle, rgba(113,225,255,.25) 0 1px, transparent 1.2px);
+      background-position: 0 0, 29px 37px;
+      background-size: 83px 83px, 117px 117px;
+      mask-image: linear-gradient(to bottom, #000, transparent 80%);
+    }
+
+    button {
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    button:focus-visible, #board:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    #app {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 540px;
+      height: 100%;
+      margin: 0 auto;
+      padding: max(14px, env(safe-area-inset-top)) 16px max(12px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+    }
+
+    .topbar, .brand, .actions, .level-line, .progress-meta, .modal-stats {
+      display: flex;
+      align-items: center;
+    }
+
+    .topbar { justify-content: space-between; flex: 0 0 auto; }
+    .brand { gap: 10px; min-width: 0; }
+
+    .brand-mark {
+      width: 39px;
+      height: 39px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(90, 235, 227, .25);
+      border-radius: 13px;
+      background: linear-gradient(145deg, rgba(67,230,223,.15), rgba(104,92,255,.08));
+      box-shadow: inset 0 0 16px rgba(67,230,223,.06), 0 0 22px rgba(67,230,223,.07);
+    }
+
+    .brand-mark svg { width: 27px; height: 27px; }
+    h1 { margin: 0; font-size: 20px; line-height: 1.15; letter-spacing: .12em; font-weight: 750; }
+    .brand-subtitle { margin-top: 4px; color: var(--muted); font-size: 9px; letter-spacing: .27em; }
+    .actions { gap: 7px; }
+
+    .icon-button {
+      min-width: 42px;
+      height: 39px;
+      padding: 0 11px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(18, 23, 43, .78);
+      color: #b9c4e2;
+      font-size: 12px;
+      transition: border-color .18s, background .18s, transform .18s;
+    }
+
+    .icon-button svg { width: 15px; height: 15px; }
+    .icon-button:active { transform: scale(.94); }
+    .icon-button:hover { border-color: rgba(67,230,223,.35); background: rgba(28,36,62,.9); }
+    .icon-button:disabled { opacity: .4; cursor: default; }
+
+    .stats {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.12fr;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: linear-gradient(120deg, rgba(21,27,50,.84), rgba(12,17,34,.72));
+      box-shadow: 0 10px 35px rgba(0,0,0,.16);
+    }
+
+    .stat { position: relative; padding: 10px 13px; }
+    .stat + .stat::before { content: ""; position: absolute; left: 0; top: 22%; bottom: 22%; width: 1px; background: var(--line); }
+    .stat-label { display: block; color: var(--muted); font-size: 10px; letter-spacing: .08em; }
+    .stat-value { display: block; margin-top: 3px; font-size: 20px; line-height: 1.1; font-variant-numeric: tabular-nums; font-weight: 720; letter-spacing: .02em; }
+    .stat:nth-child(2) .stat-value { color: #c4b5ff; }
+    .timer-stat .stat-value { color: var(--cyan); }
+    .timer-stat.danger .stat-value { color: #ff708d; animation: timerPulse .8s ease-in-out infinite alternate; }
+
+    @keyframes timerPulse { to { text-shadow: 0 0 14px rgba(255,80,120,.75); } }
+
+    .level-line { justify-content: space-between; flex: 0 0 auto; min-height: 23px; gap: 12px; }
+    .level-title { font-size: 12px; color: #aeb9d6; white-space: nowrap; }
+    .level-title strong { margin-left: 7px; color: #eef2ff; font-size: 13px; font-weight: 650; }
+    .level-dots { display: flex; align-items: center; gap: 5px; }
+    .level-dot { width: 5px; height: 5px; border-radius: 9px; background: #2b3351; transition: width .25s, background .25s; }
+    .level-dot.done { background: #65728f; }
+    .level-dot.current { width: 17px; background: var(--cyan); box-shadow: 0 0 9px rgba(67,230,223,.45); }
+
+    .play-area {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .board-frame {
+      position: relative;
+      width: min(100%, 54svh);
+      max-width: 480px;
+      aspect-ratio: 1;
+      flex: 0 1 auto;
+      padding: 7px;
+      border: 1px solid rgba(127,153,226,.17);
+      border-radius: 23px;
+      background: linear-gradient(145deg, rgba(25,32,57,.86), rgba(10,14,29,.92));
+      box-shadow: 0 22px 55px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.025);
+    }
+
+    #board {
+      --size: 4;
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-columns: repeat(var(--size), 1fr);
+      grid-template-rows: repeat(var(--size), 1fr);
+      overflow: hidden;
+      border: 1px solid rgba(120,145,211,.12);
+      border-radius: 17px;
+      background: rgba(5,8,20,.72);
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    #riverSvg { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+    .river-glow, .river-core, .river-shine { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .river-glow { stroke-width: .66; opacity: .17; }
+    .river-core { stroke-width: .38; opacity: .96; }
+    .river-shine { stroke: #fff; stroke-width: .045; opacity: .25; stroke-dasharray: .06 .35; animation: riverFlow 1.8s linear infinite; }
+    @keyframes riverFlow { to { stroke-dashoffset: -.82; } }
+
+    .cell {
+      --river-color: transparent;
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      border-right: 1px solid rgba(129,153,216,.075);
+      border-bottom: 1px solid rgba(129,153,216,.075);
+      background: rgba(255,255,255,.012);
+      transition: background .12s;
+    }
+
+    .cell.filled { background: color-mix(in srgb, var(--river-color) 7%, transparent); }
+    .cell.cursor::after {
+      content: "";
+      position: absolute;
+      z-index: 5;
+      inset: 5%;
+      border: 2px solid rgba(255,255,255,.72);
+      border-radius: 8px;
+      pointer-events: none;
+      animation: cursorBlink .85s ease-in-out infinite alternate;
+    }
+    @keyframes cursorBlink { to { border-color: rgba(67,230,223,.9); } }
+
+    .node {
+      position: relative;
+      z-index: 4;
+      width: 48%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: var(--node-color);
+      box-shadow: 0 0 8px color-mix(in srgb, var(--node-color) 62%, transparent), inset 0 0 0 2px rgba(255,255,255,.24);
+      transition: transform .16s, box-shadow .16s;
+      pointer-events: none;
+    }
+
+    .node::before {
+      content: "";
+      position: absolute;
+      inset: -23%;
+      border: 1px solid color-mix(in srgb, var(--node-color) 36%, transparent);
+      border-radius: 50%;
+    }
+
+    .node::after {
+      content: "";
+      position: absolute;
+      width: 27%;
+      height: 27%;
+      left: 20%;
+      top: 16%;
+      border-radius: 50%;
+      background: rgba(255,255,255,.62);
+      filter: blur(.5px);
+    }
+
+    .cell.connected .node { transform: scale(.87); box-shadow: 0 0 15px var(--node-color), inset 0 0 0 2px rgba(255,255,255,.38); }
+    .cell.active .node { transform: scale(1.12); }
+    .cell.blocked { animation: blocked .22s linear; }
+    @keyframes blocked { 33% { transform: translateX(-2px); } 66% { transform: translateX(2px); } }
+
+    .timer-track { width: min(94%, 440px); height: 3px; overflow: hidden; border-radius: 4px; background: rgba(126,147,204,.12); }
+    #timerFill { width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #756cf4, var(--cyan)); box-shadow: 0 0 8px rgba(67,230,223,.35); transform-origin: left; transition: background .2s; }
+    #timerFill.danger { background: linear-gradient(90deg, #ff9c68, #ff527c); }
+
+    .progress-meta { width: 100%; justify-content: space-between; color: var(--muted); font-size: 11px; }
+    .progress-meta strong { color: #cbd5ed; font-weight: 550; font-variant-numeric: tabular-nums; }
+
+    .footer { flex: 0 0 auto; text-align: center; color: var(--muted); }
+    .objective { margin: 0; color: #b7c1da; font-size: 12px; line-height: 1.5; }
+    .objective::before { content: ""; display: inline-block; width: 5px; height: 5px; margin: 0 7px 2px 0; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 7px var(--cyan); }
+    .gesture-tip { margin: 3px 0 0; font-size: 10px; line-height: 1.5; }
+    .keyboard-tip { display: none; }
+    #liveMessage { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+    .pause-layer {
+      position: absolute;
+      z-index: 10;
+      inset: 7px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 17px;
+      background: rgba(7,10,23,.88);
+      backdrop-filter: blur(12px);
+      text-align: center;
+    }
+
+    .pause-symbol { color: var(--cyan); font-size: 34px; letter-spacing: 5px; text-shadow: 0 0 20px rgba(67,230,223,.45); }
+    .pause-layer h2 { margin: 12px 0 5px; font-size: 20px; }
+    .pause-layer p { margin: 0 0 18px; color: var(--muted); font-size: 12px; }
+
+    .primary-button, .secondary-button {
+      min-height: 45px;
+      padding: 0 24px;
+      border-radius: 13px;
+      font-size: 14px;
+      font-weight: 650;
+      letter-spacing: .04em;
+      transition: transform .15s, filter .15s;
+    }
+
+    .primary-button { color: #07131b; background: linear-gradient(110deg, #6df2dc, #63cfea); box-shadow: 0 8px 25px rgba(67,230,223,.18); }
+    .secondary-button { color: #bac5df; border: 1px solid var(--line); background: rgba(255,255,255,.035); }
+    .primary-button:active, .secondary-button:active { transform: scale(.96); }
+    .primary-button:hover, .secondary-button:hover { filter: brightness(1.08); }
+
+    .modal-backdrop {
+      position: fixed;
+      z-index: 50;
+      inset: 0;
+      padding: 20px;
+      display: grid;
+      place-items: center;
+      background: rgba(3,5,14,.76);
+      backdrop-filter: blur(9px);
+      animation: fadeIn .22s ease-out;
+    }
+
+    .modal-card {
+      width: min(100%, 380px);
+      padding: 27px 24px 22px;
+      border: 1px solid rgba(133,161,231,.2);
+      border-radius: 25px;
+      background: linear-gradient(150deg, rgba(26,33,59,.98), rgba(11,15,31,.98));
+      box-shadow: 0 30px 90px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);
+      text-align: center;
+      animation: cardIn .3s cubic-bezier(.2,.8,.2,1);
+    }
+
+    @keyframes fadeIn { from { opacity: 0; } }
+    @keyframes cardIn { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+    .modal-icon { width: 62px; height: 62px; margin: 0 auto 15px; display: grid; place-items: center; border: 1px solid rgba(67,230,223,.25); border-radius: 20px; color: var(--cyan); background: rgba(67,230,223,.08); box-shadow: 0 0 30px rgba(67,230,223,.08); font-size: 29px; }
+    .modal-card.failure .modal-icon { color: #ff708d; border-color: rgba(255,112,141,.25); background: rgba(255,112,141,.08); }
+    .modal-eyebrow { color: var(--cyan); font-size: 10px; letter-spacing: .18em; }
+    .modal-card.failure .modal-eyebrow { color: #ff8ba3; }
+    .modal-card h2 { margin: 7px 0 8px; font-size: 25px; letter-spacing: .04em; }
+    .modal-description { margin: 0 auto; max-width: 285px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .modal-stats { margin: 21px 0; padding: 14px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .modal-stat { flex: 1; min-width: 0; }
+    .modal-stat + .modal-stat { border-left: 1px solid var(--line); }
+    .modal-stat span { display: block; color: var(--muted); font-size: 10px; }
+    .modal-stat strong { display: block; margin-top: 5px; color: #f3f6ff; font-size: 18px; font-variant-numeric: tabular-nums; }
+    .modal-actions { display: grid; gap: 9px; }
+    .modal-actions button { width: 100%; }
+
+    @media (hover: hover) and (pointer: fine) {
+      .keyboard-tip { display: inline; }
+    }
+
+    @media (max-height: 650px) {
+      #app { gap: 7px; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(7px, env(safe-area-inset-bottom)); }
+      .brand-mark { width: 34px; height: 34px; border-radius: 11px; }
+      h1 { font-size: 18px; }
+      .brand-subtitle { display: none; }
+      .icon-button { height: 34px; }
+      .stat { padding: 7px 12px; }
+      .stat-value { font-size: 17px; }
+      .board-frame { width: min(100%, 49svh); }
+      .play-area { gap: 7px; }
+      .gesture-tip { display: none; }
+    }
+
+    @media (max-width: 350px) {
+      #app { padding-left: 11px; padding-right: 11px; }
+      .icon-button { padding: 0 9px; }
+      .button-label { display: none; }
+      .stat { padding-left: 10px; padding-right: 10px; }
+      .stat-value { font-size: 18px; }
+      .modal-card { padding: 22px 18px 18px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none">
+            <path d="M5 9c5-6 9 6 15 0s7 0 7 0M5 16c5-6 9 6 15 0s7 0 7 0M5 23c5-6 9 6 15 0s7 0 7 0" stroke="#62e8e0" stroke-width="2.3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div>
+          <h1>连线成河</h1>
+          <div class="brand-subtitle">FLOW LINES</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="icon-button" id="restartButton" type="button" aria-label="重开本关" title="重开本关（R）">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 4v6h6M5.5 15a7 7 0 1 0 .5-7l-2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="button-label">重开</span>
+        </button>
+        <button class="icon-button" id="pauseButton" type="button" aria-label="暂停游戏" title="暂停（P）">
+          <svg id="pauseIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 5v14M16 5v14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          <span class="button-label" id="pauseLabel">暂停</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="stats" aria-label="游戏数据">
+      <div class="stat"><span class="stat-label">本局得分</span><strong class="stat-value" id="scoreValue">0</strong></div>
+      <div class="stat"><span class="stat-label">最高分</span><strong class="stat-value" id="bestValue">0</strong></div>
+      <div class="stat timer-stat" id="timerStat"><span class="stat-label">剩余时间</span><strong class="stat-value" id="timeValue">01:15</strong></div>
+    </section>
+
+    <div class="level-line">
+      <div class="level-title">关卡 <span id="levelNumber">1 / 6</span><strong id="levelName">初遇</strong></div>
+      <div class="level-dots" id="levelDots" aria-label="关卡进度"></div>
+    </div>
+
+    <section class="play-area" aria-label="游戏区域">
+      <div class="board-frame">
+        <div id="board" tabindex="0" role="grid" aria-label="连线棋盘。拖拽连接同色圆点，方向键移动，空格开始或结束连线。"></div>
+        <div class="pause-layer" id="pauseLayer" hidden>
+          <div class="pause-symbol" aria-hidden="true">Ⅱ</div>
+          <h2>河流已静止</h2>
+          <p>休息一下，倒计时也暂停了</p>
+          <button class="primary-button" id="resumeButton" type="button">继续游戏</button>
+        </div>
+      </div>
+      <div class="timer-track" aria-hidden="true"><div id="timerFill"></div></div>
+      <div class="progress-meta">
+        <span>已覆盖 <strong id="filledValue">0 / 16</strong> 格</span>
+        <span>已接通 <strong id="pairsValue">0 / 3</strong> 条河</span>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p class="objective">连接所有同色圆点，并让河道覆盖每一格</p>
+      <p class="gesture-tip">按住圆点或河道拖拽 · 沿原路返回可撤销 · 交叉重画会截断旧河道<br><span class="keyboard-tip">键盘：方向键移动，空格开始 / 结束，P 暂停，R 重开</span></p>
+    </footer>
+    <div id="liveMessage" aria-live="polite"></div>
+  </main>
+
+  <div class="modal-backdrop" id="modal" hidden>
+    <section class="modal-card" id="modalCard" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDescription">
+      <div class="modal-icon" id="modalIcon" aria-hidden="true">✓</div>
+      <div class="modal-eyebrow" id="modalEyebrow">关卡完成</div>
+      <h2 id="modalTitle">河流贯通！</h2>
+      <p class="modal-description" id="modalDescription"></p>
+      <div class="modal-stats" id="modalStats"></div>
+      <div class="modal-actions">
+        <button class="primary-button" id="modalPrimary" type="button">下一关</button>
+        <button class="secondary-button" id="modalSecondary" type="button">重玩本关</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    'use strict';
+
+    // 所有颜色与文字都集中管理，避免在逻辑中散落硬编码。
+    const PALETTE = {
+      cyan:   { name: '青色', value: '#43e6df' },
+      pink:   { name: '粉色', value: '#ff64a6' },
+      gold:   { name: '金色', value: '#ffd166' },
+      violet: { name: '紫色', value: '#a78bfa' },
+      green:  { name: '绿色', value: '#6ee7a0' },
+      orange: { name: '橙色', value: '#ff9666' },
+      blue:   { name: '蓝色', value: '#64a9ff' }
+    };
+    const COLOR_ORDER = Object.keys(PALETTE);
+    const BEST_KEY = 'flow-lines-best-v1';
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+
+    // 每关保存一组已验证的完整河道；圆点由每条河道的首尾自动生成。
+    const LEVEL_BLUEPRINTS = [
+      {
+        name: '初遇', size: 4, time: 75,
+        paths: {
+          cyan: '0,0 0,1 1,1 1,0 2,0 3,0 3,1',
+          pink: '0,2 0,3 1,3 1,2 2,2 2,1',
+          gold: '2,3 3,3 3,2'
+        }
+      },
+      {
+        name: '涟漪', size: 5, time: 85,
+        paths: {
+          cyan: '0,0 0,1 0,2 1,2 1,1 1,0 2,0',
+          pink: '0,3 0,4 1,4 1,3 2,3 2,2 2,1',
+          gold: '3,0 4,0 4,1 3,1 3,2 4,2',
+          violet: '2,4 3,4 4,4 4,3 3,3'
+        }
+      },
+      {
+        name: '汇流', size: 5, time: 95,
+        paths: {
+          cyan: '0,2 0,1 0,0 1,0 1,1 2,1 2,0',
+          pink: '0,3 0,4 1,4 1,3 1,2 2,2',
+          violet: '2,3 2,4 3,4 3,3',
+          gold: '3,2 3,1 3,0 4,0 4,1',
+          green: '4,2 4,3 4,4'
+        }
+      },
+      {
+        name: '回湾', size: 6, time: 115,
+        paths: {
+          cyan: '0,2 0,1 0,0 1,0 1,1',
+          pink: '0,3 0,4 0,5 1,5 2,5',
+          violet: '1,4 1,3 1,2 2,2 2,3 3,3 4,3 4,4',
+          gold: '2,1 2,0 3,0 4,0 5,0 5,1',
+          green: '2,4 3,4 3,5 4,5 5,5 5,4',
+          orange: '3,2 3,1 4,1 4,2 5,2 5,3'
+        }
+      },
+      { name: '潮汐', size: 7, time: 140, snake: [10, 10, 10, 10, 9] },
+      { name: '星河', size: 7, time: 155, snake: [5, 8, 6, 9, 7, 6, 8] }
+    ];
+
+    // 蛇形完整路径用于构造后期大关卡，切段后仍保证每关必有解。
+    function makeSnake(size) {
+      const result = [];
+      for (let row = 0; row < size; row++) {
+        if (row % 2 === 0) {
+          for (let col = 0; col < size; col++) result.push(row * size + col);
+        } else {
+          for (let col = size - 1; col >= 0; col--) result.push(row * size + col);
+        }
+      }
+      return result;
+    }
+
+    function buildLevels() {
+      return LEVEL_BLUEPRINTS.map(blueprint => {
+        const solution = {};
+        if (blueprint.snake) {
+          const snake = makeSnake(blueprint.size);
+          let offset = 0;
+          blueprint.snake.forEach((length, index) => {
+            solution[COLOR_ORDER[index]] = snake.slice(offset, offset + length);
+            offset += length;
+          });
+        } else {
+          Object.entries(blueprint.paths).forEach(([color, coordinates]) => {
+            solution[color] = coordinates.split(' ').map(point => {
+              const [row, col] = point.split(',').map(Number);
+              return row * blueprint.size + col;
+            });
+          });
+        }
+
+        const colors = Object.keys(solution);
+        const endpointMap = new Map();
+        colors.forEach(color => {
+          const path = solution[color];
+          const start = path[0];
+          const end = path[path.length - 1];
+          endpointMap.set(start, { color, other: end });
+          endpointMap.set(end, { color, other: start });
+        });
+        return { ...blueprint, solution, colors, endpointMap };
+      });
+    }
+
+    const LEVELS = buildLevels();
+    const $ = id => document.getElementById(id);
+    const elements = {
+      board: $('board'), score: $('scoreValue'), best: $('bestValue'), time: $('timeValue'),
+      timerStat: $('timerStat'), timerFill: $('timerFill'), levelNumber: $('levelNumber'),
+      levelName: $('levelName'), levelDots: $('levelDots'), filled: $('filledValue'),
+      pairs: $('pairsValue'), restart: $('restartButton'), pause: $('pauseButton'),
+      pauseLabel: $('pauseLabel'), pauseIcon: $('pauseIcon'), pauseLayer: $('pauseLayer'),
+      resume: $('resumeButton'), live: $('liveMessage'), modal: $('modal'),
+      modalCard: $('modalCard'), modalIcon: $('modalIcon'), modalEyebrow: $('modalEyebrow'),
+      modalTitle: $('modalTitle'), modalDescription: $('modalDescription'),
+      modalStats: $('modalStats'), modalPrimary: $('modalPrimary'), modalSecondary: $('modalSecondary')
+    };
+
+    const riverSvg = document.createElementNS(SVG_NS, 'svg');
+    riverSvg.id = 'riverSvg';
+    riverSvg.setAttribute('aria-hidden', 'true');
+
+    const state = {
+      levelIndex: 0,
+      level: LEVELS[0],
+      paths: {},
+      status: 'playing',
+      score: 0,
+      levelStartScore: 0,
+      best: readBest(),
+      timeLeft: LEVELS[0].time,
+      deadline: 0,
+      moves: 0,
+      activeColor: null,
+      pointerId: null,
+      cursor: 0,
+      input: 'pointer',
+      modalTimer: null
+    };
+
+    // localStorage 在隐私模式下可能不可用，读写都需静默降级。
+    function readBest() {
+      try {
+        const value = Number(localStorage.getItem(BEST_KEY));
+        return Number.isFinite(value) && value > 0 ? value : 0;
+      } catch (_) {
+        return 0;
+      }
+    }
+
+    function saveBest() {
+      if (state.score <= state.best) return;
+      state.best = state.score;
+      try { localStorage.setItem(BEST_KEY, String(state.best)); } catch (_) { /* 无存储权限时仅保留本次记录 */ }
+    }
+
+    function formatTime(seconds) {
+      const safe = Math.max(0, Math.ceil(seconds));
+      return `${String(Math.floor(safe / 60)).padStart(2, '0')}:${String(safe % 60).padStart(2, '0')}`;
+    }
+
+    function vibrate(pattern) {
+      if (navigator.vibrate) navigator.vibrate(pattern);
+    }
+
+    function announce(message) {
+      elements.live.textContent = message;
+    }
+
+    function getOccupancy() {
+      const occupied = Array(state.level.size * state.level.size).fill(null);
+      state.level.colors.forEach(color => {
+        state.paths[color].forEach(index => { occupied[index] = color; });
+      });
+      return occupied;
+    }
+
+    function isConnected(color) {
+      const path = state.paths[color];
+      if (!path || path.length < 2) return false;
+      const endpoint = state.level.endpointMap.get(path[0]);
+      return Boolean(endpoint && endpoint.color === color && endpoint.other === path[path.length - 1]);
+    }
+
+    function getProgress() {
+      const occupied = getOccupancy();
+      const filled = occupied.reduce((sum, color) => sum + (color ? 1 : 0), 0);
+      const pairs = state.level.colors.reduce((sum, color) => sum + (isConnected(color) ? 1 : 0), 0);
+      return { filled, pairs };
+    }
+
+    function checkWin() {
+      const total = state.level.size * state.level.size;
+      const progress = getProgress();
+      return progress.filled === total && progress.pairs === state.level.colors.length;
+    }
+
+    function makeSvgPath(className, data, color) {
+      const path = document.createElementNS(SVG_NS, 'path');
+      path.setAttribute('class', className);
+      path.setAttribute('d', data);
+      if (color) path.setAttribute('stroke', color);
+      return path;
+    }
+
+    function renderRivers() {
+      riverSvg.replaceChildren();
+      const size = state.level.size;
+      state.level.colors.forEach(color => {
+        const path = state.paths[color];
+        if (path.length < 2) return;
+        const data = path.map((index, order) => {
+          const x = index % size + .5;
+          const y = Math.floor(index / size) + .5;
+          return `${order ? 'L' : 'M'}${x} ${y}`;
+        }).join(' ');
+        const hex = PALETTE[color].value;
+        riverSvg.append(
+          makeSvgPath('river-glow', data, hex),
+          makeSvgPath('river-core', data, hex),
+          makeSvgPath('river-shine', data)
+        );
+      });
+    }
+
+    function renderBoard() {
+      const occupied = getOccupancy();
+      const size = state.level.size;
+      const cells = elements.board.querySelectorAll('.cell');
+      cells.forEach((cell, index) => {
+        const color = occupied[index];
+        const endpoint = state.level.endpointMap.get(index);
+        cell.classList.toggle('filled', Boolean(color));
+        cell.classList.toggle('connected', Boolean(endpoint && isConnected(endpoint.color)));
+        cell.classList.toggle('active', Boolean(endpoint && endpoint.color === state.activeColor));
+        cell.classList.toggle('cursor', state.input === 'keyboard' && state.cursor === index && state.status === 'playing');
+        cell.style.setProperty('--river-color', color ? PALETTE[color].value : 'transparent');
+
+        const row = Math.floor(index / size) + 1;
+        const col = index % size + 1;
+        const detail = endpoint ? `${PALETTE[endpoint.color].name}圆点` : color ? `${PALETTE[color].name}河道` : '空格';
+        cell.setAttribute('aria-label', `第${row}行第${col}列，${detail}`);
+      });
+      renderRivers();
+      const progress = getProgress();
+      elements.filled.textContent = `${progress.filled} / ${size * size}`;
+      elements.pairs.textContent = `${progress.pairs} / ${state.level.colors.length}`;
+    }
+
+    function renderTimer() {
+      elements.time.textContent = formatTime(state.timeLeft);
+      const danger = state.timeLeft <= 10 && state.status === 'playing';
+      elements.timerStat.classList.toggle('danger', danger);
+      elements.timerFill.classList.toggle('danger', danger);
+      elements.timerFill.style.transform = `scaleX(${Math.max(0, state.timeLeft / state.level.time)})`;
+    }
+
+    function renderHud() {
+      elements.score.textContent = state.score.toLocaleString('zh-CN');
+      elements.best.textContent = state.best.toLocaleString('zh-CN');
+      elements.levelNumber.textContent = `${state.levelIndex + 1} / ${LEVELS.length}`;
+      elements.levelName.textContent = state.level.name;
+      elements.pause.disabled = !['playing', 'paused'].includes(state.status);
+      elements.pauseLabel.textContent = state.status === 'paused' ? '继续' : '暂停';
+      elements.pause.setAttribute('aria-label', state.status === 'paused' ? '继续游戏' : '暂停游戏');
+      elements.pauseIcon.innerHTML = state.status === 'paused'
+        ? '<path d="m9 5 10 7-10 7V5Z" fill="currentColor"/>'
+        : '<path d="M8 5v14M16 5v14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>';
+      renderTimer();
+    }
+
+    function buildBoard() {
+      const { size, endpointMap, colors } = state.level;
+      elements.board.replaceChildren(riverSvg);
+      elements.board.style.setProperty('--size', size);
+      elements.board.setAttribute('aria-rowcount', size);
+      elements.board.setAttribute('aria-colcount', size);
+      riverSvg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+      const fragment = document.createDocumentFragment();
+
+      for (let index = 0; index < size * size; index++) {
+        const cell = document.createElement('div');
+        const row = Math.floor(index / size);
+        const col = index % size;
+        cell.className = 'cell';
+        cell.dataset.index = index;
+        cell.setAttribute('role', 'gridcell');
+        cell.setAttribute('aria-rowindex', row + 1);
+        cell.setAttribute('aria-colindex', col + 1);
+        const endpoint = endpointMap.get(index);
+        if (endpoint) {
+          const node = document.createElement('span');
+          node.className = 'node';
+          node.style.setProperty('--node-color', PALETTE[endpoint.color].value);
+          cell.append(node);
+        }
+        fragment.append(cell);
+      }
+      elements.board.append(fragment);
+
+      elements.levelDots.replaceChildren();
+      LEVELS.forEach((_, index) => {
+        const dot = document.createElement('span');
+        dot.className = `level-dot${index < state.levelIndex ? ' done' : index === state.levelIndex ? ' current' : ''}`;
+        elements.levelDots.append(dot);
+      });
+      elements.levelDots.setAttribute('aria-label', `共${LEVELS.length}关，当前第${state.levelIndex + 1}关，${colors.length}条河流`);
+    }
+
+    function loadLevel(index) {
+      clearTimeout(state.modalTimer);
+      closeModal();
+      state.levelIndex = index;
+      state.level = LEVELS[index];
+      state.paths = {};
+      state.level.colors.forEach(color => { state.paths[color] = []; });
+      state.status = 'playing';
+      state.timeLeft = state.level.time;
+      state.deadline = performance.now() + state.timeLeft * 1000;
+      state.moves = 0;
+      state.activeColor = null;
+      state.pointerId = null;
+      state.cursor = state.level.solution[state.level.colors[0]][0];
+      state.input = 'pointer';
+      elements.pauseLayer.hidden = true;
+      elements.board.setAttribute('aria-disabled', 'false');
+      buildBoard();
+      renderHud();
+      renderBoard();
+      announce(`第${index + 1}关，${state.level.name}。连接${state.level.colors.length}组同色圆点并填满棋盘。`);
+    }
+
+    function restartLevel() {
+      state.score = state.levelStartScore;
+      loadLevel(state.levelIndex);
+    }
+
+    function restartRun() {
+      state.score = 0;
+      state.levelStartScore = 0;
+      loadLevel(0);
+    }
+
+    function nextLevel() {
+      state.levelStartScore = state.score;
+      loadLevel(Math.min(state.levelIndex + 1, LEVELS.length - 1));
+    }
+
+    // 从圆点或已有河道起笔；从河道中段起笔会保留前半段。
+    function beginGesture(index) {
+      if (state.status !== 'playing') return false;
+      const endpoint = state.level.endpointMap.get(index);
+      const occupied = getOccupancy();
+      let color = null;
+
+      if (endpoint) {
+        color = endpoint.color;
+        state.paths[color] = [index];
+      } else if (occupied[index]) {
+        color = occupied[index];
+        const cutAt = state.paths[color].indexOf(index);
+        state.paths[color] = state.paths[color].slice(0, cutAt + 1);
+      } else {
+        announce('请从圆点或已有河道开始拖拽。');
+        return false;
+      }
+
+      state.activeColor = color;
+      state.cursor = index;
+      state.moves++;
+      renderBoard();
+      return true;
+    }
+
+    function flashBlocked(index) {
+      const cell = elements.board.querySelector(`[data-index="${index}"]`);
+      if (!cell) return;
+      cell.classList.remove('blocked');
+      void cell.offsetWidth;
+      cell.classList.add('blocked');
+      setTimeout(() => cell.classList.remove('blocked'), 240);
+    }
+
+    // 每次只前进一个正交相邻格，禁止斜连、越点和不同色圆点。
+    function extendActive(target) {
+      const color = state.activeColor;
+      if (!color || state.status !== 'playing') return false;
+      const path = state.paths[color];
+      if (!path.length) return false;
+      const last = path[path.length - 1];
+      if (last === target) return false;
+      const size = state.level.size;
+      const distance = Math.abs(Math.floor(last / size) - Math.floor(target / size)) + Math.abs(last % size - target % size);
+      if (distance !== 1) return false;
+
+      // 拖回自己的旧路径即撤销到对应位置。
+      const ownIndex = path.indexOf(target);
+      if (ownIndex !== -1) {
+        state.paths[color] = path.slice(0, ownIndex + 1);
+        state.cursor = target;
+        renderBoard();
+        return true;
+      }
+
+      const endpoint = state.level.endpointMap.get(target);
+      if (endpoint && endpoint.color !== color) {
+        flashBlocked(target);
+        announce('不同颜色的圆点不可穿过。');
+        return false;
+      }
+
+      // 穿过其他河道时截断它，避免双线占同一格，也让重画更顺手。
+      const occupied = getOccupancy();
+      const otherColor = occupied[target];
+      if (otherColor && otherColor !== color) {
+        const cutAt = state.paths[otherColor].indexOf(target);
+        state.paths[otherColor] = state.paths[otherColor].slice(0, cutAt);
+      }
+
+      path.push(target);
+      state.cursor = target;
+
+      if (endpoint) {
+        state.activeColor = null;
+        vibrate(12);
+        announce(`${PALETTE[color].name}河流已接通。`);
+      }
+      renderBoard();
+      if (checkWin()) completeLevel();
+      return true;
+    }
+
+    function endGesture() {
+      state.activeColor = null;
+      state.pointerId = null;
+      if (state.status === 'playing') renderBoard();
+    }
+
+    function pointToCell(clientX, clientY) {
+      const rect = elements.board.getBoundingClientRect();
+      if (clientX < rect.left || clientX >= rect.right || clientY < rect.top || clientY >= rect.bottom) return null;
+      const col = Math.floor((clientX - rect.left) / rect.width * state.level.size);
+      const row = Math.floor((clientY - rect.top) / rect.height * state.level.size);
+      return row * state.level.size + col;
+    }
+
+    // 快速滑动时补齐指针事件之间跨过的格子，避免断线或跳格。
+    function traceTo(target) {
+      const size = state.level.size;
+      let guard = 0;
+      while (state.activeColor && guard < size * 2) {
+        const path = state.paths[state.activeColor];
+        const last = path[path.length - 1];
+        if (last === target) break;
+        const row = Math.floor(last / size);
+        const col = last % size;
+        const targetRow = Math.floor(target / size);
+        const targetCol = target % size;
+        const rowDistance = targetRow - row;
+        const colDistance = targetCol - col;
+        let next;
+        if (Math.abs(colDistance) >= Math.abs(rowDistance) && colDistance !== 0) {
+          next = row * size + col + Math.sign(colDistance);
+        } else {
+          next = (row + Math.sign(rowDistance)) * size + col;
+        }
+        if (!extendActive(next)) break;
+        guard++;
+      }
+    }
+
+    function pauseGame(auto = false) {
+      if (state.status !== 'playing') return;
+      state.timeLeft = Math.max(0, (state.deadline - performance.now()) / 1000);
+      state.status = 'paused';
+      endGesture();
+      elements.pauseLayer.hidden = false;
+      elements.board.setAttribute('aria-disabled', 'true');
+      renderHud();
+      renderBoard();
+      if (!auto) elements.resume.focus({ preventScroll: true });
+      announce('游戏已暂停。');
+    }
+
+    function resumeGame() {
+      if (state.status !== 'paused') return;
+      state.status = 'playing';
+      state.deadline = performance.now() + state.timeLeft * 1000;
+      elements.pauseLayer.hidden = true;
+      elements.board.setAttribute('aria-disabled', 'false');
+      renderHud();
+      renderBoard();
+      elements.board.focus({ preventScroll: true });
+      announce('继续游戏。');
+    }
+
+    function togglePause() {
+      if (state.status === 'playing') pauseGame();
+      else if (state.status === 'paused') resumeGame();
+    }
+
+    function openModal({ failure = false, icon, eyebrow, title, description, stats, primaryText, onPrimary, secondaryText, onSecondary }) {
+      elements.modalCard.classList.toggle('failure', failure);
+      elements.modalIcon.textContent = icon;
+      elements.modalEyebrow.textContent = eyebrow;
+      elements.modalTitle.textContent = title;
+      elements.modalDescription.textContent = description;
+      elements.modalStats.replaceChildren();
+      stats.forEach(([label, value]) => {
+        const item = document.createElement('div');
+        item.className = 'modal-stat';
+        const labelNode = document.createElement('span');
+        const valueNode = document.createElement('strong');
+        labelNode.textContent = label;
+        valueNode.textContent = value;
+        item.append(labelNode, valueNode);
+        elements.modalStats.append(item);
+      });
+      elements.modalPrimary.textContent = primaryText;
+      elements.modalPrimary.onclick = onPrimary;
+      elements.modalSecondary.hidden = !secondaryText;
+      elements.modalSecondary.textContent = secondaryText || '';
+      elements.modalSecondary.onclick = onSecondary || null;
+      elements.modal.hidden = false;
+      setTimeout(() => elements.modalPrimary.focus({ preventScroll: true }), 60);
+    }
+
+    function closeModal() {
+      elements.modal.hidden = true;
+    }
+
+    function completeLevel() {
+      if (state.status !== 'playing') return;
+      state.timeLeft = Math.max(0, (state.deadline - performance.now()) / 1000);
+      state.activeColor = null;
+      state.pointerId = null;
+      const finalLevel = state.levelIndex === LEVELS.length - 1;
+      state.status = finalLevel ? 'won' : 'levelComplete';
+
+      // 覆盖棋盘给基础分，剩余时间与较少操作提供额外奖励。
+      const base = state.level.size * state.level.size * 40;
+      const timeBonus = Math.ceil(state.timeLeft) * 12;
+      const efficiencyBonus = Math.max(0, state.level.colors.length * 4 - state.moves) * 30;
+      const earned = base + timeBonus + efficiencyBonus;
+      state.score += earned;
+      saveBest();
+      renderHud();
+      renderBoard();
+      vibrate(finalLevel ? [25, 45, 25, 45, 60] : [20, 35, 35]);
+
+      state.modalTimer = setTimeout(() => {
+        if (finalLevel) {
+          openModal({
+            icon: '✦', eyebrow: '全部关卡完成', title: '星河全线贯通',
+            description: '所有圆点已经相连，每一条路都汇成了发光的河。新的最高分等你刷新！',
+            stats: [['最终得分', state.score.toLocaleString('zh-CN')], ['最高分', state.best.toLocaleString('zh-CN')], ['完成关卡', LEVELS.length]],
+            primaryText: '再玩一次', onPrimary: restartRun,
+            secondaryText: '重玩最终关', onSecondary: restartLevel
+          });
+        } else {
+          openModal({
+            icon: '✓', eyebrow: `第 ${state.levelIndex + 1} 关完成`, title: '河流贯通！',
+            description: '同色圆点已经相连，棋盘也被河道完整覆盖。准备前往下一片水域。',
+            stats: [['本关得分', `+${earned.toLocaleString('zh-CN')}`], ['剩余时间', formatTime(state.timeLeft)], ['操作次数', state.moves]],
+            primaryText: '下一关', onPrimary: nextLevel,
+            secondaryText: '重玩本关', onSecondary: restartLevel
+          });
+        }
+      }, 360);
+    }
+
+    function gameOver() {
+      if (state.status !== 'playing') return;
+      state.timeLeft = 0;
+      state.status = 'gameOver';
+      endGesture();
+      saveBest();
+      renderHud();
+      renderBoard();
+      vibrate([40, 60, 40]);
+      openModal({
+        failure: true, icon: '⌛', eyebrow: '时间耗尽', title: '河流尚未贯通',
+        description: '别灰心，试试先连接边缘的圆点，再利用弯道填满中间的空格。',
+        stats: [['当前得分', state.score.toLocaleString('zh-CN')], ['最高分', state.best.toLocaleString('zh-CN')], ['当前关卡', `${state.levelIndex + 1} / ${LEVELS.length}`]],
+        primaryText: '重试本关', onPrimary: restartLevel,
+        secondaryText: '从第一关重新开始', onSecondary: restartRun
+      });
+      announce('时间耗尽，游戏结束。');
+    }
+
+    // Pointer Events 同时覆盖触屏、鼠标与触控笔，指针捕获保证拖出棋盘也不丢失手势。
+    elements.board.addEventListener('pointerdown', event => {
+      if (!event.isPrimary || event.button !== 0 || state.status !== 'playing') return;
+      const index = pointToCell(event.clientX, event.clientY);
+      if (index === null) return;
+      event.preventDefault();
+      state.input = 'pointer';
+      elements.board.focus({ preventScroll: true });
+      if (beginGesture(index)) {
+        state.pointerId = event.pointerId;
+        elements.board.setPointerCapture(event.pointerId);
+      }
+    });
+
+    elements.board.addEventListener('pointermove', event => {
+      if (event.pointerId !== state.pointerId || !state.activeColor || state.status !== 'playing') return;
+      event.preventDefault();
+      const index = pointToCell(event.clientX, event.clientY);
+      if (index !== null) traceTo(index);
+    });
+
+    function finishPointer(event) {
+      if (event.pointerId !== state.pointerId) return;
+      event.preventDefault();
+      if (elements.board.hasPointerCapture(event.pointerId)) elements.board.releasePointerCapture(event.pointerId);
+      endGesture();
+    }
+    elements.board.addEventListener('pointerup', finishPointer);
+    elements.board.addEventListener('pointercancel', finishPointer);
+    elements.board.addEventListener('contextmenu', event => event.preventDefault());
+
+    // 键盘模式：空格起笔/收笔，方向键逐格绘制，操作逻辑与拖拽共用。
+    elements.board.addEventListener('keydown', event => {
+      if (state.status !== 'playing') return;
+      const size = state.level.size;
+      const row = Math.floor(state.cursor / size);
+      const col = state.cursor % size;
+      let target = state.cursor;
+      if (event.key === 'ArrowUp' && row > 0) target -= size;
+      else if (event.key === 'ArrowDown' && row < size - 1) target += size;
+      else if (event.key === 'ArrowLeft' && col > 0) target -= 1;
+      else if (event.key === 'ArrowRight' && col < size - 1) target += 1;
+      else if (event.key === ' ' || event.key === 'Enter') {
+        event.preventDefault();
+        state.input = 'keyboard';
+        if (state.activeColor) endGesture();
+        else beginGesture(state.cursor);
+        return;
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        endGesture();
+        return;
+      } else {
+        return;
+      }
+      event.preventDefault();
+      state.input = 'keyboard';
+      if (state.activeColor) extendActive(target);
+      else {
+        state.cursor = target;
+        renderBoard();
+      }
+    });
+
+    elements.pause.addEventListener('click', togglePause);
+    elements.resume.addEventListener('click', resumeGame);
+    elements.restart.addEventListener('click', restartLevel);
+
+    document.addEventListener('keydown', event => {
+      if (event.ctrlKey || event.metaKey || event.altKey || !elements.modal.hidden) return;
+      if (event.key.toLowerCase() === 'p' && ['playing', 'paused'].includes(state.status)) {
+        event.preventDefault();
+        togglePause();
+      } else if (event.key.toLowerCase() === 'r' && ['playing', 'paused'].includes(state.status)) {
+        event.preventDefault();
+        restartLevel();
+      }
+    });
+
+    // 禁止移动端双击缩放、双指手势和页面橡皮筋滚动。
+    document.addEventListener('dblclick', event => event.preventDefault(), { passive: false });
+    document.addEventListener('gesturestart', event => event.preventDefault(), { passive: false });
+    document.addEventListener('touchmove', event => event.preventDefault(), { passive: false });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && state.status === 'playing') pauseGame(true);
+    });
+
+    // 使用真实截止时间计时，后台切换或低帧率不会让倒计时越走越慢。
+    setInterval(() => {
+      if (state.status !== 'playing') return;
+      state.timeLeft = Math.max(0, (state.deadline - performance.now()) / 1000);
+      renderTimer();
+      if (state.timeLeft <= 0) gameOver();
+    }, 100);
+
+    loadLevel(0);
+  </script>
+</body>
+</html>

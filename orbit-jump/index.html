@@ -1,0 +1,1504 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070815">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>环绕跳跃 · Orbit Jump</title>
+  <style>
+    /* ---------- 基础与移动端约束 ---------- */
+    :root {
+      color-scheme: dark;
+      --bg: #070815;
+      --panel: rgba(17, 21, 42, 0.68);
+      --line: rgba(142, 164, 255, 0.14);
+      --text: #f4f7ff;
+      --muted: #8992b3;
+      --cyan: #62f6ff;
+      --violet: #9b7bff;
+      --danger: #ff547d;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 8%, rgba(91, 60, 180, 0.2), transparent 34%),
+        radial-gradient(circle at 90% 80%, rgba(20, 158, 180, 0.12), transparent 38%),
+        var(--bg);
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    button {
+      border: 0;
+      color: inherit;
+      font: inherit;
+      touch-action: none;
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    /* ---------- 页面布局 ---------- */
+    .app {
+      position: relative;
+      isolation: isolate;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 560px;
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: calc(14px + env(safe-area-inset-top)) 18px calc(14px + env(safe-area-inset-bottom));
+    }
+
+    .app::before,
+    .app::after {
+      position: absolute;
+      z-index: -1;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      content: "";
+      filter: blur(80px);
+      opacity: 0.13;
+      pointer-events: none;
+    }
+
+    .app::before {
+      top: 12%;
+      left: -120px;
+      background: var(--violet);
+    }
+
+    .app::after {
+      right: -130px;
+      bottom: 8%;
+      background: var(--cyan);
+    }
+
+    .topbar {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .brand-mark {
+      position: relative;
+      width: 38px;
+      height: 38px;
+      flex: 0 0 auto;
+      border: 1px solid rgba(98, 246, 255, 0.5);
+      border-radius: 50%;
+      box-shadow: inset 0 0 12px rgba(98, 246, 255, 0.08), 0 0 16px rgba(98, 246, 255, 0.08);
+      transform: rotate(-28deg);
+    }
+
+    .brand-mark::before {
+      position: absolute;
+      inset: 7px;
+      border: 1px solid rgba(155, 123, 255, 0.65);
+      border-radius: 50%;
+      content: "";
+    }
+
+    .brand-mark::after {
+      position: absolute;
+      top: -3px;
+      left: 15px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 12px var(--cyan);
+      content: "";
+    }
+
+    .brand-copy strong,
+    .brand-copy small {
+      display: block;
+    }
+
+    .brand-copy strong {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+    }
+
+    .brand-copy small {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 9px;
+      letter-spacing: 0.24em;
+    }
+
+    .pause-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 82px;
+      height: 40px;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(19, 24, 47, 0.7);
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.04);
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color 160ms ease, background 160ms ease, opacity 160ms ease;
+    }
+
+    .pause-button:disabled {
+      cursor: default;
+      opacity: 0.38;
+    }
+
+    .pause-icon {
+      color: var(--cyan);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: -0.12em;
+    }
+
+    /* ---------- 数据面板 ---------- */
+    .hud {
+      flex: 0 0 auto;
+      margin-top: 16px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr 0.8fr;
+      gap: 9px;
+    }
+
+    .stat {
+      min-width: 0;
+      padding: 11px 13px 10px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: linear-gradient(145deg, rgba(25, 30, 57, 0.76), rgba(13, 17, 35, 0.58));
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.035);
+    }
+
+    .stat-label {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+    }
+
+    .stat-value {
+      display: block;
+      overflow: hidden;
+      font-size: clamp(20px, 6vw, 27px);
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      line-height: 1.1;
+      text-overflow: ellipsis;
+    }
+
+    .stat:first-child .stat-value {
+      color: var(--cyan);
+      text-shadow: 0 0 18px rgba(98, 246, 255, 0.24);
+    }
+
+    .stat:last-child .stat-value {
+      color: #d9d2ff;
+    }
+
+    .progress-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 11px;
+    }
+
+    .progress-track {
+      position: relative;
+      height: 4px;
+      flex: 1;
+      overflow: hidden;
+      border-radius: 99px;
+      background: rgba(132, 148, 202, 0.12);
+    }
+
+    .progress-fill {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--violet), var(--cyan));
+      box-shadow: 0 0 10px rgba(98, 246, 255, 0.5);
+      transition: width 100ms linear;
+    }
+
+    .time-text {
+      min-width: 38px;
+      color: var(--muted);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+
+    /* ---------- 游戏画布 ---------- */
+    .stage {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 180px;
+      margin: 4px -8px 0;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    .footer {
+      flex: 0 0 auto;
+      padding-top: 4px;
+      text-align: center;
+    }
+
+    .gesture-hint {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #a3accb;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+    }
+
+    .tap-icon {
+      position: relative;
+      width: 18px;
+      height: 18px;
+      border: 1px solid rgba(98, 246, 255, 0.4);
+      border-radius: 50%;
+    }
+
+    .tap-icon::after {
+      position: absolute;
+      inset: 5px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+      content: "";
+    }
+
+    .key-hint {
+      margin-top: 5px;
+      color: #565f80;
+      font-size: 10px;
+    }
+
+    /* ---------- 开始、暂停与结算弹窗 ---------- */
+    .overlay {
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: calc(20px + env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom));
+      visibility: hidden;
+      background: rgba(4, 5, 14, 0.68);
+      opacity: 0;
+      pointer-events: none;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: opacity 180ms ease, visibility 180ms ease;
+    }
+
+    .overlay.is-visible {
+      visibility: visible;
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal {
+      position: relative;
+      width: min(100%, 370px);
+      overflow: hidden;
+      padding: 30px 26px 25px;
+      border: 1px solid rgba(141, 160, 255, 0.2);
+      border-radius: 27px;
+      background:
+        radial-gradient(circle at 50% 0, rgba(104, 82, 190, 0.18), transparent 46%),
+        linear-gradient(155deg, rgba(25, 29, 55, 0.98), rgba(10, 13, 29, 0.98));
+      box-shadow: 0 28px 90px rgba(0, 0, 0, 0.5), inset 0 1px rgba(255, 255, 255, 0.05);
+      text-align: center;
+      transform: translateY(12px) scale(0.98);
+      transition: transform 220ms ease;
+    }
+
+    .overlay.is-visible .modal {
+      transform: translateY(0) scale(1);
+    }
+
+    .modal::before {
+      position: absolute;
+      top: 0;
+      left: 22%;
+      width: 56%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      content: "";
+      opacity: 0.65;
+    }
+
+    .modal-icon {
+      position: relative;
+      width: 66px;
+      height: 66px;
+      margin: 0 auto 19px;
+      border: 1px solid rgba(98, 246, 255, 0.48);
+      border-radius: 50%;
+      box-shadow: 0 0 28px rgba(98, 246, 255, 0.09), inset 0 0 20px rgba(98, 246, 255, 0.06);
+    }
+
+    .modal-icon::before {
+      position: absolute;
+      inset: 13px;
+      border: 1px solid rgba(155, 123, 255, 0.6);
+      border-radius: 50%;
+      content: "";
+    }
+
+    .modal-icon::after {
+      position: absolute;
+      top: 4px;
+      left: 28px;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 15px var(--cyan);
+      content: "";
+    }
+
+    .modal[data-state="over"] .modal-icon {
+      border-color: rgba(255, 84, 125, 0.6);
+      box-shadow: 0 0 28px rgba(255, 84, 125, 0.12);
+    }
+
+    .modal[data-state="over"] .modal-icon::after {
+      background: var(--danger);
+      box-shadow: 0 0 15px var(--danger);
+    }
+
+    .modal-eyebrow {
+      margin-bottom: 7px;
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.25em;
+    }
+
+    .modal h1 {
+      margin: 0;
+      font-size: 30px;
+      font-weight: 750;
+      letter-spacing: 0.08em;
+    }
+
+    .modal-description {
+      max-width: 285px;
+      margin: 13px auto 0;
+      color: #9ba5c5;
+      font-size: 13px;
+      line-height: 1.75;
+    }
+
+    .control-hints {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .control-hints span {
+      padding: 6px 10px;
+      border: 1px solid rgba(137, 153, 219, 0.14);
+      border-radius: 8px;
+      color: #8993b5;
+      background: rgba(110, 126, 190, 0.05);
+      font-size: 10px;
+    }
+
+    .result {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .result-item {
+      padding: 12px 8px;
+      border: 1px solid rgba(140, 157, 221, 0.12);
+      border-radius: 13px;
+      background: rgba(5, 8, 21, 0.3);
+    }
+
+    .result-item span,
+    .result-item strong {
+      display: block;
+    }
+
+    .result-item span {
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .result-item strong {
+      color: var(--cyan);
+      font-size: 23px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .result-item:last-child strong {
+      color: #d6ceff;
+    }
+
+    .new-record {
+      display: inline-block;
+      margin-top: 13px;
+      padding: 5px 10px;
+      border: 1px solid rgba(98, 246, 255, 0.22);
+      border-radius: 99px;
+      color: var(--cyan);
+      background: rgba(98, 246, 255, 0.06);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+    }
+
+    .modal-actions {
+      display: grid;
+      gap: 9px;
+      margin-top: 23px;
+    }
+
+    .primary-button,
+    .secondary-button {
+      width: 100%;
+      min-height: 49px;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: transform 120ms ease, filter 120ms ease;
+    }
+
+    .primary-button {
+      color: #07121c;
+      background: linear-gradient(105deg, #79f8ff, #8ed9ff 52%, #b8a2ff);
+      box-shadow: 0 9px 28px rgba(98, 246, 255, 0.17), inset 0 1px rgba(255, 255, 255, 0.65);
+      font-size: 15px;
+      font-weight: 750;
+      letter-spacing: 0.08em;
+    }
+
+    .secondary-button {
+      min-height: 42px;
+      border: 1px solid var(--line);
+      color: #929cbd;
+      background: rgba(16, 20, 40, 0.7);
+      font-size: 12px;
+    }
+
+    .primary-button:active,
+    .secondary-button:active,
+    .pause-button:active {
+      transform: scale(0.97);
+    }
+
+    @media (hover: hover) {
+      .primary-button:hover,
+      .secondary-button:hover {
+        filter: brightness(1.08);
+      }
+
+      .pause-button:not(:disabled):hover {
+        border-color: rgba(98, 246, 255, 0.32);
+        background: rgba(26, 33, 60, 0.85);
+      }
+    }
+
+    /* ---------- 小屏与横屏适配 ---------- */
+    @media (max-height: 650px) and (orientation: portrait) {
+      .app {
+        padding-top: calc(9px + env(safe-area-inset-top));
+        padding-bottom: calc(9px + env(safe-area-inset-bottom));
+      }
+
+      .hud {
+        margin-top: 10px;
+      }
+
+      .stat {
+        padding: 8px 11px;
+      }
+
+      .progress-row {
+        margin-top: 8px;
+      }
+
+      .stage {
+        min-height: 140px;
+      }
+
+      .key-hint {
+        display: none;
+      }
+
+      .modal {
+        padding-top: 22px;
+        padding-bottom: 20px;
+      }
+
+      .modal-icon {
+        width: 52px;
+        height: 52px;
+        margin-bottom: 13px;
+      }
+
+      .modal-icon::after {
+        left: 21px;
+      }
+    }
+
+    @media (orientation: landscape) and (max-height: 540px) {
+      .app {
+        display: grid;
+        grid-template-columns: minmax(180px, 0.72fr) minmax(260px, 1.28fr);
+        grid-template-rows: auto auto 1fr auto;
+        max-width: 960px;
+        column-gap: 20px;
+        padding: calc(10px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));
+      }
+
+      .topbar {
+        grid-column: 1;
+        grid-row: 1;
+      }
+
+      .hud {
+        grid-column: 1;
+        grid-row: 2;
+        align-self: start;
+        margin-top: 12px;
+      }
+
+      .stage {
+        grid-column: 2;
+        grid-row: 1 / 5;
+        min-height: 0;
+        margin: 0;
+      }
+
+      .footer {
+        grid-column: 1;
+        grid-row: 4;
+        align-self: end;
+      }
+
+      .brand-copy small,
+      .key-hint {
+        display: none;
+      }
+
+      .brand-mark {
+        width: 32px;
+        height: 32px;
+      }
+
+      .brand-mark::after {
+        left: 12px;
+      }
+
+      .stats {
+        gap: 6px;
+      }
+
+      .stat {
+        padding: 8px;
+      }
+
+      .stat-value {
+        font-size: 20px;
+      }
+
+      .stat-label {
+        font-size: 9px;
+      }
+
+      .pause-button {
+        min-width: 68px;
+        height: 34px;
+      }
+
+      .modal {
+        width: min(100%, 410px);
+        padding: 17px 24px;
+      }
+
+      .modal-icon {
+        display: none;
+      }
+
+      .modal h1 {
+        font-size: 25px;
+      }
+
+      .modal-description {
+        margin-top: 8px;
+        line-height: 1.55;
+      }
+
+      .control-hints,
+      .result {
+        margin-top: 11px;
+      }
+
+      .modal-actions {
+        grid-template-columns: 1fr 1fr;
+        margin-top: 13px;
+      }
+
+      .modal-actions:has(.secondary-button[hidden]) {
+        grid-template-columns: 1fr;
+      }
+
+      .primary-button,
+      .secondary-button {
+        min-height: 42px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="环绕跳跃小游戏">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div class="brand-copy">
+          <strong>环绕跳跃</strong>
+          <small>ORBIT JUMP</small>
+        </div>
+      </div>
+      <button class="pause-button" id="pauseButton" type="button" aria-label="暂停游戏" disabled>
+        <span class="pause-icon" id="pauseIcon" aria-hidden="true">Ⅱ</span>
+        <span id="pauseLabel">暂停</span>
+      </button>
+    </header>
+
+    <section class="hud" aria-label="游戏数据">
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-label">当前分数</span>
+          <strong class="stat-value" id="score">00000</strong>
+        </div>
+        <div class="stat">
+          <span class="stat-label">最高分</span>
+          <strong class="stat-value" id="bestScore">00000</strong>
+        </div>
+        <div class="stat">
+          <span class="stat-label">已躲避</span>
+          <strong class="stat-value" id="passedCount">00</strong>
+        </div>
+      </div>
+      <div class="progress-row">
+        <div class="progress-track" id="progressTrack" role="progressbar" aria-label="跃迁进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <span class="time-text" id="timeText">60 秒</span>
+      </div>
+    </section>
+
+    <section class="stage" id="stage" aria-label="游戏区域：轻触切换内外轨道">
+      <canvas id="gameCanvas" role="img" aria-label="小球在内外两条环形轨道间跳跃，躲避粉色障碍"></canvas>
+    </section>
+
+    <footer class="footer">
+      <div class="gesture-hint">
+        <span class="tap-icon" aria-hidden="true"></span>
+        <span>轻触游戏区域，切换内外轨道</span>
+      </div>
+      <div class="key-hint">空格 / 点击跳跃 · P / Esc 暂停</div>
+    </footer>
+  </main>
+
+  <div class="overlay is-visible" id="overlay" aria-hidden="false">
+    <section class="modal" id="modal" data-state="ready" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDescription">
+      <div class="modal-icon" aria-hidden="true"></div>
+      <div class="modal-eyebrow" id="modalEyebrow">轨道生存挑战</div>
+      <h1 id="modalTitle">环绕跳跃</h1>
+      <p class="modal-description" id="modalDescription">轻触切换内外轨道，避开霓虹障碍。坚持 60 秒即可完成跃迁。</p>
+
+      <div class="control-hints" id="controlHints">
+        <span>轻触 / 点击：跳跃</span>
+        <span>空格键：跳跃</span>
+      </div>
+
+      <div class="result" id="result" hidden>
+        <div class="result-item">
+          <span id="resultScoreLabel">本局分数</span>
+          <strong id="resultScore">0</strong>
+        </div>
+        <div class="result-item">
+          <span>历史最高</span>
+          <strong id="resultBest">0</strong>
+        </div>
+      </div>
+      <span class="new-record" id="newRecord" hidden>✦ 新纪录 ✦</span>
+
+      <div class="modal-actions">
+        <button class="primary-button" id="primaryButton" type="button">开始游戏</button>
+        <button class="secondary-button" id="secondaryButton" type="button" hidden>重新开始</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // ---------- 常量与页面元素 ----------
+      const TAU = Math.PI * 2;
+      const GAME_DURATION = 60;
+      const JUMP_DURATION = 0.17;
+      const STORAGE_KEY = "orbit-jump-best-v1";
+
+      const stage = document.getElementById("stage");
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const scoreEl = document.getElementById("score");
+      const bestEl = document.getElementById("bestScore");
+      const passedEl = document.getElementById("passedCount");
+      const timeEl = document.getElementById("timeText");
+      const progressFill = document.getElementById("progressFill");
+      const progressTrack = document.getElementById("progressTrack");
+      const pauseButton = document.getElementById("pauseButton");
+      const pauseIcon = document.getElementById("pauseIcon");
+      const pauseLabel = document.getElementById("pauseLabel");
+      const overlay = document.getElementById("overlay");
+      const modal = document.getElementById("modal");
+      const modalEyebrow = document.getElementById("modalEyebrow");
+      const modalTitle = document.getElementById("modalTitle");
+      const modalDescription = document.getElementById("modalDescription");
+      const controlHints = document.getElementById("controlHints");
+      const result = document.getElementById("result");
+      const resultScoreLabel = document.getElementById("resultScoreLabel");
+      const resultScore = document.getElementById("resultScore");
+      const resultBest = document.getElementById("resultBest");
+      const newRecord = document.getElementById("newRecord");
+      const primaryButton = document.getElementById("primaryButton");
+      const secondaryButton = document.getElementById("secondaryButton");
+
+      // ---------- 游戏状态 ----------
+      let state = "ready";
+      let width = 1;
+      let height = 1;
+      let dpr = 1;
+      let centerX = 0;
+      let centerY = 0;
+      let innerRadius = 80;
+      let outerRadius = 112;
+      let ballSize = 9;
+      let elapsed = 0;
+      let passed = 0;
+      let bestScore = loadBestScore();
+      let isNewRecord = false;
+      let lastDisplayedScore = -1;
+      let obstacles = [];
+      let particles = [];
+      let trail = [];
+      let stars = [];
+      let lastLane = 0;
+      let laneStreak = 0;
+      let ambientTime = 0;
+      let shake = 0;
+      let lastFrameTime = performance.now();
+
+      const player = {
+        theta: -Math.PI / 2,
+        lane: 0,
+        radius: innerRadius,
+        jumpFrom: innerRadius,
+        jumpTime: JUMP_DURATION
+      };
+
+      // localStorage 在隐私模式下可能不可用，需静默降级。
+      function loadBestScore() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10);
+          return Number.isFinite(value) && value > 0 ? value : 0;
+        } catch (error) {
+          return 0;
+        }
+      }
+
+      function saveBestScore(value) {
+        try {
+          localStorage.setItem(STORAGE_KEY, String(value));
+        } catch (error) {
+          // 存储失败不影响本局游戏。
+        }
+      }
+
+      function randomBetween(min, max) {
+        return min + Math.random() * (max - min);
+      }
+
+      function currentSpeed() {
+        return 1 + elapsed * 0.008;
+      }
+
+      function currentScore() {
+        return Math.floor(elapsed * 10) + passed * 50 + (state === "won" ? 1000 : 0);
+      }
+
+      function trackRadius(lane) {
+        return lane === 0 ? innerRadius : outerRadius;
+      }
+
+      function orbitPoint(theta, radius) {
+        return {
+          x: centerX + Math.cos(theta) * radius,
+          y: centerY + Math.sin(theta) * radius
+        };
+      }
+
+      // ---------- 画布尺寸与星空 ----------
+      function resizeCanvas() {
+        const rect = stage.getBoundingClientRect();
+        width = Math.max(1, rect.width);
+        height = Math.max(1, rect.height);
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        centerX = width / 2;
+        centerY = height / 2;
+        outerRadius = Math.min(width, height) * 0.35;
+        innerRadius = outerRadius * 0.72;
+        ballSize = Math.max(6, Math.min(10, outerRadius * 0.065));
+        player.radius = trackRadius(player.lane);
+        player.jumpFrom = player.radius;
+        player.jumpTime = JUMP_DURATION;
+        trail = [];
+        createStars();
+      }
+
+      function createStars() {
+        const count = Math.round(Math.min(110, Math.max(45, width * height / 5200)));
+        stars = Array.from({ length: count }, () => ({
+          x: Math.random(),
+          y: Math.random(),
+          size: randomBetween(0.35, 1.35),
+          alpha: randomBetween(0.15, 0.65),
+          phase: randomBetween(0, TAU)
+        }));
+      }
+
+      // ---------- 障碍生成与游戏重置 ----------
+      function addObstacle(angle) {
+        let lane = Math.random() < 0.5 ? 0 : 1;
+        if (laneStreak >= 2 && lane === lastLane) {
+          lane = 1 - lane;
+        }
+        laneStreak = lane === lastLane ? laneStreak + 1 : 1;
+        lastLane = lane;
+        obstacles.push({
+          angle,
+          lane,
+          width: randomBetween(0.18, 0.25)
+        });
+      }
+
+      function ensureObstacles() {
+        let newestAngle = obstacles.length
+          ? obstacles[obstacles.length - 1].angle
+          : player.theta + 2.1;
+
+        // 始终提前生成一整圈障碍，让玩家能预判下一步。
+        while (newestAngle < player.theta + TAU) {
+          newestAngle += currentSpeed() * randomBetween(0.92, 1.32);
+          addObstacle(newestAngle);
+        }
+      }
+
+      function resetGame() {
+        elapsed = 0;
+        passed = 0;
+        obstacles = [];
+        particles = [];
+        trail = [];
+        shake = 0;
+        isNewRecord = false;
+        lastDisplayedScore = -1;
+        lastLane = 0;
+        laneStreak = 0;
+        player.theta = -Math.PI / 2;
+        player.lane = 0;
+        player.radius = innerRadius;
+        player.jumpFrom = innerRadius;
+        player.jumpTime = JUMP_DURATION;
+
+        let angle = player.theta + 2.2;
+        while (angle < player.theta + TAU) {
+          addObstacle(angle);
+          angle += randomBetween(1.08, 1.48);
+        }
+        updateHUD();
+      }
+
+      // ---------- 跳跃、暂停与结算 ----------
+      function jump() {
+        if (state !== "playing") return;
+        const position = orbitPoint(player.theta, player.radius);
+        player.jumpFrom = player.radius;
+        player.lane = 1 - player.lane;
+        player.jumpTime = 0;
+        spawnBurst(position.x, position.y, "#62f6ff", 9, 62);
+      }
+
+      function startGame() {
+        state = "playing";
+        resetGame();
+        hideModal();
+        syncPauseButton();
+        lastFrameTime = performance.now();
+      }
+
+      function pauseGame() {
+        if (state !== "playing") return;
+        state = "paused";
+        syncPauseButton();
+        showModal();
+      }
+
+      function resumeGame() {
+        if (state !== "paused") return;
+        state = "playing";
+        hideModal();
+        syncPauseButton();
+        lastFrameTime = performance.now();
+      }
+
+      function togglePause() {
+        if (state === "playing") pauseGame();
+        else if (state === "paused") resumeGame();
+      }
+
+      function finishGame(won) {
+        if (state !== "playing") return;
+        state = won ? "won" : "over";
+        const position = orbitPoint(player.theta, player.radius);
+
+        if (won) {
+          ["#62f6ff", "#9b7bff", "#ffffff", "#ff8fb1"].forEach((color) => {
+            spawnBurst(position.x, position.y, color, 12, 145);
+          });
+        } else {
+          spawnBurst(position.x, position.y, "#ff547d", 42, 180);
+          shake = 1;
+        }
+
+        const score = currentScore();
+        isNewRecord = score > bestScore;
+        if (isNewRecord) {
+          bestScore = score;
+          saveBestScore(bestScore);
+        }
+        updateHUD();
+        syncPauseButton();
+        showModal();
+      }
+
+      function syncPauseButton() {
+        const available = state === "playing" || state === "paused";
+        pauseButton.disabled = !available;
+        pauseLabel.textContent = state === "paused" ? "继续" : "暂停";
+        pauseIcon.textContent = state === "paused" ? "▶" : "Ⅱ";
+        pauseButton.setAttribute("aria-label", state === "paused" ? "继续游戏" : "暂停游戏");
+      }
+
+      // ---------- 弹窗与数据展示 ----------
+      function showModal() {
+        modal.dataset.state = state;
+        controlHints.hidden = state !== "ready";
+        result.hidden = state === "ready";
+        secondaryButton.hidden = state !== "paused";
+        newRecord.hidden = !isNewRecord || (state !== "over" && state !== "won");
+        resultScoreLabel.textContent = state === "paused" ? "当前分数" : "本局分数";
+        resultScore.textContent = currentScore().toLocaleString("zh-CN");
+        resultBest.textContent = bestScore.toLocaleString("zh-CN");
+
+        if (state === "ready") {
+          modalEyebrow.textContent = "轨道生存挑战";
+          modalTitle.textContent = "环绕跳跃";
+          modalDescription.textContent = "轻触切换内外轨道，避开霓虹障碍。坚持 60 秒即可完成跃迁。";
+          primaryButton.textContent = "开始游戏";
+        } else if (state === "paused") {
+          modalEyebrow.textContent = "跃迁待机";
+          modalTitle.textContent = "已暂停";
+          modalDescription.textContent = "深呼吸，观察轨道，准备好后继续前进。";
+          primaryButton.textContent = "继续游戏";
+        } else if (state === "won") {
+          modalEyebrow.textContent = "航线已完成";
+          modalTitle.textContent = "跃迁成功";
+          modalDescription.textContent = "你已穿越全部障碍，获得 1000 分通关奖励！";
+          primaryButton.textContent = "再玩一次";
+        } else {
+          modalEyebrow.textContent = "检测到轨道碰撞";
+          modalTitle.textContent = "跃迁失败";
+          modalDescription.textContent = "别灰心，提前观察障碍所在轨道，再调整跳跃节奏。";
+          primaryButton.textContent = "再来一局";
+        }
+
+        overlay.classList.add("is-visible");
+        overlay.setAttribute("aria-hidden", "false");
+      }
+
+      function hideModal() {
+        overlay.classList.remove("is-visible");
+        overlay.setAttribute("aria-hidden", "true");
+      }
+
+      function updateHUD() {
+        const score = currentScore();
+        if (score !== lastDisplayedScore) {
+          scoreEl.textContent = String(score).padStart(5, "0");
+          lastDisplayedScore = score;
+        }
+        bestEl.textContent = String(bestScore).padStart(5, "0");
+        passedEl.textContent = String(passed).padStart(2, "0");
+        timeEl.textContent = `${Math.max(0, Math.ceil(GAME_DURATION - elapsed))} 秒`;
+        const progress = Math.min(100, elapsed / GAME_DURATION * 100);
+        progressFill.style.width = `${progress}%`;
+        progressTrack.setAttribute("aria-valuenow", String(Math.round(progress)));
+      }
+
+      // ---------- 粒子特效 ----------
+      function spawnBurst(x, y, color, count, speed) {
+        for (let i = 0; i < count; i += 1) {
+          const angle = Math.random() * TAU;
+          const velocity = speed * randomBetween(0.25, 1);
+          const life = randomBetween(0.35, 0.85);
+          particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * velocity,
+            vy: Math.sin(angle) * velocity,
+            life,
+            maxLife: life,
+            size: randomBetween(1.2, 3.4),
+            color
+          });
+        }
+      }
+
+      function updateEffects(dt) {
+        for (let i = particles.length - 1; i >= 0; i -= 1) {
+          const particle = particles[i];
+          particle.life -= dt;
+          if (particle.life <= 0) {
+            particles.splice(i, 1);
+            continue;
+          }
+          const drag = Math.pow(0.975, dt * 60);
+          particle.vx *= drag;
+          particle.vy *= drag;
+          particle.x += particle.vx * dt;
+          particle.y += particle.vy * dt;
+        }
+
+        for (let i = trail.length - 1; i >= 0; i -= 1) {
+          trail[i].life -= dt;
+          if (trail[i].life <= 0) trail.splice(i, 1);
+        }
+        shake = Math.max(0, shake - dt * 2.6);
+      }
+
+      // ---------- 主循环与碰撞检测 ----------
+      function update(dt) {
+        elapsed = Math.min(GAME_DURATION, elapsed + dt);
+        player.theta += currentSpeed() * dt;
+
+        if (player.jumpTime < JUMP_DURATION) {
+          player.jumpTime = Math.min(JUMP_DURATION, player.jumpTime + dt);
+          const t = player.jumpTime / JUMP_DURATION;
+          const eased = 1 - Math.pow(1 - t, 3);
+          player.radius = player.jumpFrom + (trackRadius(player.lane) - player.jumpFrom) * eased;
+        } else {
+          player.radius = trackRadius(player.lane);
+        }
+
+        trail.push({ theta: player.theta, radius: player.radius, life: 0.25 });
+        if (trail.length > 32) trail.shift();
+        ensureObstacles();
+
+        // 先检测碰撞，再记录安全通过的障碍，避免低帧率下漏判。
+        for (let i = obstacles.length - 1; i >= 0; i -= 1) {
+          const obstacle = obstacles[i];
+          const delta = obstacle.angle - player.theta;
+          const collisionAngle = obstacle.width / 2 + ballSize / Math.max(player.radius, 1);
+          const radialDistance = Math.abs(player.radius - trackRadius(obstacle.lane));
+
+          if (Math.abs(delta) < collisionAngle && radialDistance < ballSize * 1.9) {
+            finishGame(false);
+            return;
+          }
+
+          if (delta < -collisionAngle) {
+            obstacles.splice(i, 1);
+            passed += 1;
+          }
+        }
+
+        if (elapsed >= GAME_DURATION) {
+          finishGame(true);
+          return;
+        }
+        updateHUD();
+      }
+
+      function frame(now) {
+        const dt = Math.min(0.04, Math.max(0, (now - lastFrameTime) / 1000));
+        lastFrameTime = now;
+        ambientTime += dt;
+
+        if (state === "playing") update(dt);
+        updateEffects(dt);
+        draw();
+        requestAnimationFrame(frame);
+      }
+
+      // ---------- Canvas 绘制 ----------
+      function draw() {
+        ctx.clearRect(0, 0, width, height);
+        drawStars();
+
+        ctx.save();
+        if (shake > 0) {
+          ctx.translate(randomBetween(-1, 1) * shake * 8, randomBetween(-1, 1) * shake * 8);
+        }
+        drawCore();
+        drawOrbits();
+        drawObstacles();
+        drawTrail();
+        if (state !== "over") drawPlayer();
+        drawParticles();
+        ctx.restore();
+      }
+
+      function drawStars() {
+        for (const star of stars) {
+          const twinkle = 0.72 + Math.sin(ambientTime * 1.4 + star.phase) * 0.28;
+          ctx.globalAlpha = star.alpha * twinkle;
+          ctx.fillStyle = "#c8d8ff";
+          ctx.beginPath();
+          ctx.arc(star.x * width, star.y * height, star.size, 0, TAU);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      function drawCore() {
+        const coreRadius = innerRadius * 0.49;
+        const glow = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, coreRadius * 1.8);
+        glow.addColorStop(0, "rgba(91, 77, 173, 0.22)");
+        glow.addColorStop(0.55, "rgba(48, 44, 111, 0.12)");
+        glow.addColorStop(1, "rgba(13, 15, 37, 0)");
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, coreRadius * 1.8, 0, TAU);
+        ctx.fill();
+
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(ambientTime * 0.08);
+        ctx.setLineDash([2, 7]);
+        ctx.strokeStyle = "rgba(155, 123, 255, 0.22)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(0, 0, coreRadius * 1.18, 0, TAU);
+        ctx.stroke();
+        ctx.restore();
+
+        const core = ctx.createRadialGradient(
+          centerX - coreRadius * 0.25,
+          centerY - coreRadius * 0.3,
+          0,
+          centerX,
+          centerY,
+          coreRadius
+        );
+        core.addColorStop(0, "rgba(39, 43, 85, 0.96)");
+        core.addColorStop(1, "rgba(11, 14, 32, 0.96)");
+        ctx.fillStyle = core;
+        ctx.strokeStyle = "rgba(147, 135, 255, 0.2)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, coreRadius, 0, TAU);
+        ctx.fill();
+        ctx.stroke();
+
+        const progress = Math.min(1, elapsed / GAME_DURATION);
+        ctx.strokeStyle = "rgba(98, 246, 255, 0.68)";
+        ctx.lineWidth = 2;
+        ctx.lineCap = "round";
+        ctx.shadowColor = "#62f6ff";
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, coreRadius - 5, -Math.PI / 2, -Math.PI / 2 + TAU * progress);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "rgba(237, 242, 255, 0.9)";
+        ctx.font = `600 ${Math.max(14, coreRadius * 0.34)}px system-ui, sans-serif`;
+        ctx.fillText(`${Math.floor(progress * 100)}%`, centerX, centerY - 4);
+        ctx.fillStyle = "rgba(137, 146, 179, 0.75)";
+        ctx.font = `500 ${Math.max(8, coreRadius * 0.14)}px system-ui, sans-serif`;
+        ctx.fillText("跃迁进度", centerX, centerY + coreRadius * 0.28);
+      }
+
+      function drawOrbits() {
+        for (let lane = 0; lane < 2; lane += 1) {
+          const radius = trackRadius(lane);
+          ctx.strokeStyle = lane === 0 ? "rgba(91, 181, 218, 0.14)" : "rgba(129, 117, 219, 0.15)";
+          ctx.lineWidth = 12;
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, radius, 0, TAU);
+          ctx.stroke();
+
+          ctx.strokeStyle = lane === 0 ? "rgba(98, 246, 255, 0.28)" : "rgba(155, 123, 255, 0.3)";
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, radius, 0, TAU);
+          ctx.stroke();
+        }
+
+        // 细小刻度强化仪表与星轨质感。
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(ambientTime * 0.025);
+        for (let i = 0; i < 36; i += 1) {
+          const angle = i / 36 * TAU;
+          const length = i % 3 === 0 ? 5 : 2.5;
+          ctx.strokeStyle = i % 3 === 0 ? "rgba(147, 160, 218, 0.2)" : "rgba(147, 160, 218, 0.1)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(angle) * (outerRadius + 11), Math.sin(angle) * (outerRadius + 11));
+          ctx.lineTo(Math.cos(angle) * (outerRadius + 11 + length), Math.sin(angle) * (outerRadius + 11 + length));
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawObstacles() {
+        ctx.save();
+        ctx.lineCap = "round";
+        for (const obstacle of obstacles) {
+          const radius = trackRadius(obstacle.lane);
+          const start = obstacle.angle - obstacle.width / 2;
+          const end = obstacle.angle + obstacle.width / 2;
+          const color = obstacle.lane === 0 ? "#ff7b72" : "#ff4f93";
+
+          ctx.shadowColor = color;
+          ctx.shadowBlur = 17;
+          ctx.strokeStyle = color;
+          ctx.globalAlpha = 0.28;
+          ctx.lineWidth = ballSize * 2.25;
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, radius, start, end);
+          ctx.stroke();
+
+          ctx.globalAlpha = 1;
+          ctx.shadowBlur = 9;
+          ctx.lineWidth = ballSize * 1.25;
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, radius, start, end);
+          ctx.stroke();
+
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = "rgba(255, 235, 245, 0.85)";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, radius, start + 0.018, end - 0.018);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawTrail() {
+        ctx.save();
+        for (const point of trail) {
+          const alpha = Math.max(0, point.life / 0.25);
+          const position = orbitPoint(point.theta, point.radius);
+          ctx.globalAlpha = alpha * 0.25;
+          ctx.fillStyle = "#62f6ff";
+          ctx.beginPath();
+          ctx.arc(position.x, position.y, ballSize * alpha * 0.7, 0, TAU);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function drawPlayer() {
+        const position = orbitPoint(player.theta, player.radius);
+        const pulse = 1 + Math.sin(ambientTime * 7) * 0.06;
+
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        const glow = ctx.createRadialGradient(position.x, position.y, 0, position.x, position.y, ballSize * 3.2);
+        glow.addColorStop(0, "rgba(98, 246, 255, 0.5)");
+        glow.addColorStop(0.35, "rgba(98, 246, 255, 0.16)");
+        glow.addColorStop(1, "rgba(98, 246, 255, 0)");
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(position.x, position.y, ballSize * 3.2, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.save();
+        ctx.shadowColor = "#62f6ff";
+        ctx.shadowBlur = 18;
+        ctx.fillStyle = "#62f6ff";
+        ctx.beginPath();
+        ctx.arc(position.x, position.y, ballSize * pulse, 0, TAU);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        const ball = ctx.createRadialGradient(
+          position.x - ballSize * 0.3,
+          position.y - ballSize * 0.35,
+          0,
+          position.x,
+          position.y,
+          ballSize
+        );
+        ball.addColorStop(0, "#ffffff");
+        ball.addColorStop(0.35, "#c8fdff");
+        ball.addColorStop(1, "#42dce9");
+        ctx.fillStyle = ball;
+        ctx.beginPath();
+        ctx.arc(position.x, position.y, ballSize * 0.72, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawParticles() {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        for (const particle of particles) {
+          ctx.globalAlpha = Math.max(0, particle.life / particle.maxLife);
+          ctx.fillStyle = particle.color;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size, 0, TAU);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // ---------- 触屏、鼠标与键盘操作 ----------
+      stage.addEventListener("pointerdown", (event) => {
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        event.preventDefault();
+        jump();
+      }, { passive: false });
+
+      window.addEventListener("keydown", (event) => {
+        if (event.repeat) return;
+        const onButton = event.target instanceof HTMLButtonElement;
+        const jumpKey = event.code === "Space" || event.code === "ArrowUp" || event.code === "ArrowDown";
+
+        if (jumpKey && !onButton) {
+          event.preventDefault();
+          if (state === "playing") jump();
+          else if (state === "ready" || state === "over" || state === "won") startGame();
+          else if (state === "paused") resumeGame();
+        } else if ((event.code === "KeyP" || event.code === "Escape") && !onButton) {
+          event.preventDefault();
+          togglePause();
+        } else if (event.code === "Enter" && !onButton && state !== "playing") {
+          event.preventDefault();
+          if (state === "paused") resumeGame();
+          else startGame();
+        }
+      });
+
+      pauseButton.addEventListener("click", togglePause);
+      primaryButton.addEventListener("click", () => {
+        if (state === "paused") resumeGame();
+        else startGame();
+      });
+      secondaryButton.addEventListener("click", startGame);
+
+      // 阻止浏览器手势、双击缩放与橡皮筋滚动。
+      document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("dblclick", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("contextmenu", (event) => event.preventDefault());
+
+      // 切到后台时自动暂停，避免返回后猝不及防地失败。
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && state === "playing") pauseGame();
+      });
+
+      window.addEventListener("resize", resizeCanvas);
+      if ("ResizeObserver" in window) {
+        new ResizeObserver(resizeCanvas).observe(stage);
+      }
+
+      // ---------- 启动 ----------
+      resizeCanvas();
+      resetGame();
+      syncPauseButton();
+      showModal();
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>

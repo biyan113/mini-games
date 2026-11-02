@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070913">
+  <meta name="description" content="60 秒霓虹打靶训练，测试你的反应速度。">
+  <title>打靶训练 · 60 秒反应挑战</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070913;
+      --panel: rgba(15, 19, 38, 0.86);
+      --line: rgba(142, 164, 255, 0.16);
+      --text: #f4f7ff;
+      --muted: #8992b3;
+      --cyan: #55f6ff;
+      --pink: #ff4fd8;
+      --violet: #9270ff;
+      --danger: #ff6f91;
+      --safe-top: max(14px, env(safe-area-inset-top));
+      --safe-right: max(14px, env(safe-area-inset-right));
+      --safe-bottom: max(14px, env(safe-area-inset-bottom));
+      --safe-left: max(14px, env(safe-area-inset-left));
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 4%, rgba(72, 73, 190, 0.24), transparent 34%),
+        radial-gradient(circle at 94% 88%, rgba(255, 79, 216, 0.11), transparent 34%),
+        var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.22;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.55) 0.6px, transparent 0.6px);
+      background-size: 31px 31px;
+      mask-image: linear-gradient(to bottom, black, transparent 75%);
+    }
+
+    button {
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 4px;
+    }
+
+    .app {
+      position: relative;
+      width: min(100%, 620px);
+      height: 100%;
+      margin: 0 auto;
+      padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      gap: 12px;
+    }
+
+    /* 顶部品牌区 */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 46px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .brand-mark {
+      position: relative;
+      width: 43px;
+      height: 43px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(85, 246, 255, 0.32);
+      border-radius: 14px;
+      color: var(--cyan);
+      background: linear-gradient(145deg, rgba(85, 246, 255, 0.12), rgba(146, 112, 255, 0.09));
+      box-shadow: inset 0 0 18px rgba(85, 246, 255, 0.06), 0 0 24px rgba(85, 246, 255, 0.07);
+    }
+
+    .brand-mark svg {
+      width: 25px;
+      height: 25px;
+      filter: drop-shadow(0 0 6px rgba(85, 246, 255, 0.65));
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 19px;
+      line-height: 1.2;
+      letter-spacing: 0.12em;
+    }
+
+    .subtitle {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+    }
+
+    .header-tag {
+      padding: 7px 9px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: #aab4d8;
+      background: rgba(15, 19, 38, 0.54);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+    }
+
+    /* 数据仪表盘 */
+    .hud {
+      padding: 11px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(20, 25, 49, 0.9), rgba(11, 14, 29, 0.86));
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.2), inset 0 1px rgba(255, 255, 255, 0.025);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .stat {
+      min-width: 0;
+      padding: 0 10px;
+      text-align: center;
+    }
+
+    .stat + .stat {
+      border-left: 1px solid var(--line);
+    }
+
+    .stat-label {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+    }
+
+    .stat-value {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 3px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: clamp(21px, 6vw, 27px);
+      font-weight: 750;
+      line-height: 1.15;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+    }
+
+    .stat-unit {
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 10px;
+      font-weight: 500;
+    }
+
+    #scoreValue {
+      color: var(--cyan);
+      text-shadow: 0 0 16px rgba(85, 246, 255, 0.28);
+    }
+
+    #bestValue {
+      color: #e5dfff;
+    }
+
+    .stat-value.bump {
+      animation: number-bump 180ms ease-out;
+    }
+
+    .time-track {
+      height: 3px;
+      margin-top: 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.065);
+    }
+
+    .time-progress {
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--violet), var(--cyan));
+      box-shadow: 0 0 10px rgba(85, 246, 255, 0.55);
+      transform-origin: left center;
+      will-change: transform;
+    }
+
+    .time-progress.urgent {
+      background: linear-gradient(90deg, var(--pink), var(--danger));
+      box-shadow: 0 0 10px rgba(255, 79, 216, 0.6);
+    }
+
+    /* 打靶区域 */
+    .arena {
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+      isolation: isolate;
+      border: 1px solid rgba(117, 140, 231, 0.22);
+      border-radius: 24px;
+      background-color: rgba(8, 11, 25, 0.78);
+      background-image:
+        linear-gradient(rgba(101, 128, 211, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(101, 128, 211, 0.045) 1px, transparent 1px),
+        radial-gradient(circle at center, rgba(72, 87, 165, 0.1), transparent 65%);
+      background-size: 32px 32px, 32px 32px, 100% 100%;
+      box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.32), 0 18px 50px rgba(0, 0, 0, 0.2);
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .arena::after {
+      content: "";
+      position: absolute;
+      inset: 9px;
+      z-index: -1;
+      pointer-events: none;
+      border: 1px solid rgba(255, 255, 255, 0.025);
+      border-radius: 17px;
+    }
+
+    .corner {
+      position: absolute;
+      z-index: 2;
+      width: 19px;
+      height: 19px;
+      pointer-events: none;
+      border-color: rgba(85, 246, 255, 0.55);
+      border-style: solid;
+    }
+
+    .corner-tl { top: 9px; left: 9px; border-width: 2px 0 0 2px; border-radius: 8px 0 0; }
+    .corner-tr { top: 9px; right: 9px; border-width: 2px 2px 0 0; border-radius: 0 8px 0 0; }
+    .corner-bl { bottom: 9px; left: 9px; border-width: 0 0 2px 2px; border-radius: 0 0 0 8px; }
+    .corner-br { right: 9px; bottom: 9px; border-width: 0 2px 2px 0; border-radius: 0 0 8px; }
+
+    .arena-topbar {
+      position: absolute;
+      z-index: 4;
+      top: 17px;
+      left: 18px;
+      right: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .status-pill,
+    .combo-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 5px 9px;
+      border: 1px solid rgba(132, 153, 225, 0.13);
+      border-radius: 999px;
+      color: #9ba6c9;
+      background: rgba(8, 11, 25, 0.72);
+      backdrop-filter: blur(8px);
+      font-size: 10px;
+      letter-spacing: 0.04em;
+    }
+
+    .status-dot {
+      width: 5px;
+      height: 5px;
+      margin-right: 6px;
+      border-radius: 50%;
+      background: var(--muted);
+      box-shadow: 0 0 7px currentColor;
+    }
+
+    .arena.live .status-dot {
+      color: var(--cyan);
+      background: var(--cyan);
+      animation: status-pulse 1.4s ease-in-out infinite;
+    }
+
+    .combo-pill {
+      color: #adb6d5;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .combo-pill.hot {
+      color: var(--pink);
+      border-color: rgba(255, 79, 216, 0.28);
+      text-shadow: 0 0 10px rgba(255, 79, 216, 0.5);
+    }
+
+    .arena-placeholder {
+      position: absolute;
+      inset: 52px 20px 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: rgba(143, 157, 200, 0.42);
+      pointer-events: none;
+      text-align: center;
+    }
+
+    .placeholder-reticle {
+      width: 72px;
+      height: 72px;
+      opacity: 0.5;
+    }
+
+    .arena-placeholder p {
+      margin: 0;
+      font-size: 12px;
+      letter-spacing: 0.14em;
+    }
+
+    .arena-footer {
+      position: absolute;
+      z-index: 4;
+      right: 18px;
+      bottom: 16px;
+      left: 18px;
+      display: flex;
+      justify-content: space-between;
+      color: rgba(139, 151, 188, 0.66);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      pointer-events: none;
+    }
+
+    /* 纯 CSS 霓虹靶，点击区域不小于 58px */
+    .target {
+      --size: 76px;
+      position: absolute;
+      z-index: 6;
+      width: var(--size);
+      height: var(--size);
+      padding: 0;
+      border: 2px solid rgba(85, 246, 255, 0.92);
+      border-radius: 50%;
+      opacity: 0;
+      background:
+        radial-gradient(circle, #fff 0 7%, var(--pink) 8% 16%, rgba(255, 79, 216, 0.18) 17% 29%, var(--cyan) 30% 33%, rgba(85, 246, 255, 0.08) 34% 55%, rgba(85, 246, 255, 0.8) 56% 58%, rgba(7, 9, 19, 0.8) 59%);
+      box-shadow:
+        0 0 0 5px rgba(85, 246, 255, 0.055),
+        0 0 20px rgba(85, 246, 255, 0.38),
+        inset 0 0 18px rgba(85, 246, 255, 0.25);
+      transform: translate(-50%, -50%);
+      will-change: left, top, transform;
+    }
+
+    .target::before,
+    .target::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      pointer-events: none;
+      background: rgba(85, 246, 255, 0.8);
+      box-shadow: 0 0 6px rgba(85, 246, 255, 0.65);
+      transform: translate(-50%, -50%);
+    }
+
+    .target::before { width: 116%; height: 1px; }
+    .target::after { width: 1px; height: 116%; }
+
+    .target.is-visible {
+      animation: target-in 160ms cubic-bezier(0.2, 1.6, 0.5, 1) forwards;
+    }
+
+    .effects {
+      position: absolute;
+      inset: 0;
+      z-index: 8;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .float-score {
+      position: absolute;
+      color: var(--cyan);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 17px;
+      font-weight: 800;
+      text-shadow: 0 0 12px rgba(85, 246, 255, 0.75);
+      transform: translate(-50%, -50%);
+      animation: score-float 650ms ease-out forwards;
+      white-space: nowrap;
+    }
+
+    .float-score.miss {
+      color: var(--danger);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-shadow: 0 0 10px rgba(255, 111, 145, 0.5);
+    }
+
+    .hit-ring {
+      position: absolute;
+      width: 52px;
+      height: 52px;
+      border: 2px solid var(--pink);
+      border-radius: 50%;
+      box-shadow: 0 0 14px rgba(255, 79, 216, 0.6), inset 0 0 12px rgba(255, 79, 216, 0.25);
+      transform: translate(-50%, -50%);
+      animation: hit-ring 420ms ease-out forwards;
+    }
+
+    /* 底部控制 */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .pause-button {
+      min-width: 112px;
+      min-height: 45px;
+      padding: 0 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid rgba(133, 153, 224, 0.22);
+      border-radius: 14px;
+      color: #c5cdea;
+      background: rgba(18, 23, 44, 0.88);
+      font-size: 13px;
+      transition: border-color 160ms, background 160ms, transform 160ms;
+    }
+
+    .pause-button svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    .pause-button:disabled {
+      opacity: 0.38;
+      cursor: default;
+    }
+
+    .control-tip {
+      flex: 1;
+      margin: 0;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.5;
+      text-align: right;
+      letter-spacing: 0.04em;
+    }
+
+    /* 开始、暂停与结算共用弹窗 */
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+      display: grid;
+      place-items: center;
+      background: rgba(4, 6, 15, 0.74);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      animation: modal-fade 180ms ease-out;
+    }
+
+    .dialog {
+      position: relative;
+      width: min(100%, 400px);
+      max-height: 100%;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      padding: 28px 24px 23px;
+      border: 1px solid rgba(115, 143, 234, 0.28);
+      border-radius: 26px;
+      text-align: center;
+      background:
+        radial-gradient(circle at 50% 0, rgba(85, 246, 255, 0.08), transparent 42%),
+        linear-gradient(150deg, rgba(22, 27, 52, 0.98), rgba(10, 13, 28, 0.98));
+      box-shadow: 0 26px 80px rgba(0, 0, 0, 0.48), inset 0 1px rgba(255, 255, 255, 0.045);
+      animation: dialog-in 240ms cubic-bezier(0.2, 0.9, 0.3, 1.1);
+    }
+
+    .dialog::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 25%;
+      width: 50%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      box-shadow: 0 0 12px rgba(85, 246, 255, 0.6);
+    }
+
+    .dialog-icon {
+      width: 62px;
+      height: 62px;
+      margin: 0 auto 17px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(85, 246, 255, 0.28);
+      border-radius: 20px;
+      color: var(--cyan);
+      background: rgba(85, 246, 255, 0.06);
+      box-shadow: 0 0 26px rgba(85, 246, 255, 0.09);
+    }
+
+    .dialog-icon svg {
+      width: 34px;
+      height: 34px;
+      filter: drop-shadow(0 0 7px rgba(85, 246, 255, 0.55));
+    }
+
+    .dialog-kicker {
+      margin: 0 0 8px;
+      color: var(--cyan);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 10px;
+      letter-spacing: 0.17em;
+      text-transform: uppercase;
+    }
+
+    .dialog h2 {
+      margin: 0;
+      font-size: clamp(22px, 6vw, 28px);
+      line-height: 1.3;
+      letter-spacing: 0.04em;
+    }
+
+    .dialog-description {
+      margin: 12px auto 0;
+      max-width: 310px;
+      color: #9ca6c7;
+      font-size: 13px;
+      line-height: 1.75;
+    }
+
+    .tips {
+      margin: 20px 0 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .tip {
+      padding: 11px 5px;
+      border: 1px solid rgba(131, 150, 217, 0.12);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.022);
+    }
+
+    .tip strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #e9edff;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 15px;
+    }
+
+    .tip span {
+      color: var(--muted);
+      font-size: 9px;
+    }
+
+    .result-grid {
+      margin: 20px 0 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border: 1px solid rgba(131, 150, 217, 0.14);
+      border-radius: 15px;
+      background: rgba(4, 7, 18, 0.3);
+    }
+
+    .result-item {
+      padding: 13px 4px;
+    }
+
+    .result-item + .result-item {
+      border-left: 1px solid rgba(131, 150, 217, 0.12);
+    }
+
+    .result-item strong {
+      display: block;
+      color: var(--cyan);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 21px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .result-item span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 9px;
+      letter-spacing: 0.06em;
+    }
+
+    .dialog-actions {
+      margin-top: 22px;
+      display: grid;
+      gap: 9px;
+    }
+
+    .primary-button,
+    .secondary-button {
+      width: 100%;
+      min-height: 50px;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      transition: transform 150ms, filter 150ms, box-shadow 150ms;
+    }
+
+    .primary-button {
+      color: #061014;
+      background: linear-gradient(105deg, #65f8ff, #77e9ff 52%, #b8a2ff);
+      box-shadow: 0 8px 25px rgba(85, 246, 255, 0.2), inset 0 1px rgba(255, 255, 255, 0.65);
+    }
+
+    .secondary-button {
+      min-height: 44px;
+      border: 1px solid rgba(137, 156, 222, 0.19);
+      color: #aeb8d8;
+      background: rgba(255, 255, 255, 0.025);
+      font-size: 12px;
+    }
+
+    .keyboard-note {
+      margin: 13px 0 0;
+      color: #697392;
+      font-size: 9px;
+      letter-spacing: 0.04em;
+    }
+
+    @media (hover: hover) {
+      .pause-button:not(:disabled):hover,
+      .secondary-button:hover {
+        border-color: rgba(85, 246, 255, 0.42);
+        background: rgba(34, 42, 73, 0.9);
+      }
+
+      .primary-button:hover {
+        filter: brightness(1.08);
+        box-shadow: 0 10px 32px rgba(85, 246, 255, 0.3);
+      }
+    }
+
+    .pause-button:not(:disabled):active,
+    .primary-button:active,
+    .secondary-button:active {
+      transform: scale(0.97);
+    }
+
+    @media (max-height: 620px) {
+      .app { gap: 8px; }
+      .header { min-height: 38px; }
+      .brand-mark { width: 37px; height: 37px; border-radius: 12px; }
+      .brand-mark svg { width: 21px; height: 21px; }
+      .subtitle { display: none; }
+      .hud { padding: 8px; border-radius: 15px; }
+      .time-track { margin-top: 7px; }
+      .stat-value { font-size: 21px; }
+      .pause-button { min-height: 40px; }
+      .dialog { padding: 20px 20px 18px; }
+      .dialog-icon { width: 48px; height: 48px; margin-bottom: 11px; border-radius: 15px; }
+      .dialog-icon svg { width: 27px; height: 27px; }
+      .dialog-description { margin-top: 8px; line-height: 1.55; }
+      .tips, .result-grid { margin-top: 13px; }
+      .dialog-actions { margin-top: 15px; }
+      .primary-button { min-height: 45px; }
+      .keyboard-note { display: none; }
+    }
+
+    @media (max-width: 350px) {
+      .header-tag { display: none; }
+      .stat { padding: 0 5px; }
+      .control-tip { font-size: 9px; }
+      .dialog { padding-right: 18px; padding-left: 18px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 1ms !important;
+      }
+    }
+
+    @keyframes target-in {
+      from { opacity: 0; transform: translate(-50%, -50%) scale(0.45) rotate(-18deg); }
+      to { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0); }
+    }
+
+    @keyframes score-float {
+      0% { opacity: 0; transform: translate(-50%, -30%) scale(0.75); }
+      18% { opacity: 1; }
+      100% { opacity: 0; transform: translate(-50%, -150%) scale(1.08); }
+    }
+
+    @keyframes hit-ring {
+      from { opacity: 1; transform: translate(-50%, -50%) scale(0.45); }
+      to { opacity: 0; transform: translate(-50%, -50%) scale(1.8); }
+    }
+
+    @keyframes number-bump {
+      50% { transform: scale(1.15); }
+    }
+
+    @keyframes status-pulse {
+      50% { opacity: 0.35; box-shadow: 0 0 12px var(--cyan); }
+    }
+
+    @keyframes modal-fade {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes dialog-in {
+      from { opacity: 0; transform: translateY(12px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.7">
+            <circle cx="16" cy="16" r="9"></circle>
+            <circle cx="16" cy="16" r="3"></circle>
+            <path d="M16 2v7M16 23v7M2 16h7M23 16h7"></path>
+          </svg>
+        </div>
+        <div>
+          <h1>打靶训练</h1>
+          <p class="subtitle">60 秒 · 反应力挑战</p>
+        </div>
+      </div>
+      <span class="header-tag">AIM // 01</span>
+    </header>
+
+    <section class="hud" aria-label="游戏数据">
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-label">当前得分</span>
+          <div class="stat-value" id="scoreValue" aria-live="polite">0000</div>
+        </div>
+        <div class="stat">
+          <span class="stat-label">剩余时间</span>
+          <div class="stat-value"><span id="timeValue">60.0</span><span class="stat-unit">秒</span></div>
+        </div>
+        <div class="stat">
+          <span class="stat-label">最高纪录</span>
+          <div class="stat-value" id="bestValue">0000</div>
+        </div>
+      </div>
+      <div class="time-track" aria-hidden="true"><div class="time-progress" id="timeProgress"></div></div>
+    </section>
+
+    <main class="arena" id="arena" aria-label="打靶区域">
+      <i class="corner corner-tl"></i><i class="corner corner-tr"></i>
+      <i class="corner corner-bl"></i><i class="corner corner-br"></i>
+
+      <div class="arena-topbar">
+        <span class="status-pill"><i class="status-dot"></i><span id="statusText" aria-live="polite">等待开始</span></span>
+        <span class="combo-pill" id="comboValue">连击 × 0</span>
+      </div>
+
+      <div class="arena-placeholder" id="arenaPlaceholder">
+        <svg class="placeholder-reticle" viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true">
+          <circle cx="40" cy="40" r="24"></circle>
+          <circle cx="40" cy="40" r="13" stroke-dasharray="3 4"></circle>
+          <path d="M40 3v23M40 54v23M3 40h23M54 40h23"></path>
+          <circle cx="40" cy="40" r="2" fill="currentColor"></circle>
+        </svg>
+        <p>目标待命 · 准备开始</p>
+      </div>
+
+      <button class="target" id="target" type="button" aria-label="靶子，点击命中" hidden></button>
+      <div class="effects" id="effects" aria-hidden="true"></div>
+
+      <div class="arena-footer">
+        <span id="hitCount">命中 00</span>
+        <span>TAP TO FIRE</span>
+      </div>
+    </main>
+
+    <footer class="controls">
+      <button class="pause-button" id="pauseButton" type="button" disabled>
+        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><rect x="4" y="3" width="4" height="14" rx="1"></rect><rect x="12" y="3" width="4" height="14" rx="1"></rect></svg>
+        <span>暂停</span>
+      </button>
+      <p class="control-tip">快速轻点靶心得分<br>误触会中断连击</p>
+    </footer>
+  </div>
+
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDescription">
+    <div class="dialog">
+      <div class="dialog-icon" aria-hidden="true">
+        <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="20" cy="20" r="12"></circle>
+          <circle cx="20" cy="20" r="5"></circle>
+          <path d="M20 2v9M20 29v9M2 20h9M29 20h9"></path>
+        </svg>
+      </div>
+      <p class="dialog-kicker" id="modalKicker">REACTION TRAINING</p>
+      <h2 id="modalTitle">锁定目标，一击即中</h2>
+      <p class="dialog-description" id="modalDescription">靶子会在随机位置出现，快速轻点即可得分。保持连击，挑战你的反应极限！</p>
+
+      <div class="tips" id="startTips">
+        <div class="tip"><strong>60s</strong><span>限时挑战</span></div>
+        <div class="tip"><strong>+10</strong><span>基础命中分</span></div>
+        <div class="tip"><strong>×5</strong><span>连击奖励</span></div>
+      </div>
+
+      <div class="result-grid" id="resultGrid" hidden>
+        <div class="result-item"><strong id="finalScore">0</strong><span>本局得分</span></div>
+        <div class="result-item"><strong id="finalHits">0</strong><span>命中目标</span></div>
+        <div class="result-item"><strong id="finalAccuracy">0%</strong><span>命中率</span></div>
+      </div>
+
+      <div class="dialog-actions">
+        <button class="primary-button" id="primaryButton" type="button">开始训练</button>
+        <button class="secondary-button" id="secondaryButton" type="button" hidden>重新开始</button>
+      </div>
+      <p class="keyboard-note" id="keyboardNote">键盘玩家：Tab 选中靶子，Enter 射击 · P 暂停</p>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // 常量与 DOM 引用集中管理，方便调整游戏节奏。
+      const GAME_DURATION = 60_000;
+      const BEST_SCORE_KEY = "neonAimTrainerBestScore";
+      const $ = (id) => document.getElementById(id);
+
+      const arena = $("arena");
+      const target = $("target");
+      const effects = $("effects");
+      const scoreValue = $("scoreValue");
+      const timeValue = $("timeValue");
+      const bestValue = $("bestValue");
+      const timeProgress = $("timeProgress");
+      const statusText = $("statusText");
+      const comboValue = $("comboValue");
+      const hitCount = $("hitCount");
+      const placeholder = $("arenaPlaceholder");
+      const pauseButton = $("pauseButton");
+      const modal = $("modal");
+      const modalKicker = $("modalKicker");
+      const modalTitle = $("modalTitle");
+      const modalDescription = $("modalDescription");
+      const startTips = $("startTips");
+      const resultGrid = $("resultGrid");
+      const primaryButton = $("primaryButton");
+      const secondaryButton = $("secondaryButton");
+      const keyboardNote = $("keyboardNote");
+
+      let gameState = "idle"; // idle、playing、paused、ended
+      let score = 0;
+      let hits = 0;
+      let shots = 0;
+      let combo = 0;
+      let remaining = GAME_DURATION;
+      let endTime = 0;
+      let bestScore = loadBestScore();
+      let animationFrame = 0;
+      let spawnTimer = 0;
+      let lifeTimer = 0;
+      let primaryAction = "start";
+
+      // 隐私模式或本地文件限制下，读写失败也不会影响游戏。
+      function loadBestScore() {
+        try {
+          const saved = Number.parseInt(localStorage.getItem(BEST_SCORE_KEY), 10);
+          return Number.isFinite(saved) && saved > 0 ? saved : 0;
+        } catch (error) {
+          return 0;
+        }
+      }
+
+      function saveBestScore() {
+        try {
+          localStorage.setItem(BEST_SCORE_KEY, String(bestScore));
+        } catch (error) {
+          // 无法持久化时仍保留本次页面会话中的最高分。
+        }
+      }
+
+      function randomBetween(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      function formatScore(value) {
+        return String(value).padStart(4, "0");
+      }
+
+      function clearGameTimers() {
+        window.clearTimeout(spawnTimer);
+        window.clearTimeout(lifeTimer);
+        spawnTimer = 0;
+        lifeTimer = 0;
+      }
+
+      function updateHud() {
+        scoreValue.textContent = formatScore(score);
+        bestValue.textContent = formatScore(bestScore);
+        timeValue.textContent = (remaining / 1000).toFixed(1);
+        timeProgress.style.transform = `scaleX(${Math.max(0, remaining / GAME_DURATION)})`;
+        timeProgress.classList.toggle("urgent", remaining <= 10_000);
+        comboValue.textContent = `连击 × ${combo}`;
+        comboValue.classList.toggle("hot", combo >= 5);
+        hitCount.textContent = `命中 ${String(hits).padStart(2, "0")}`;
+      }
+
+      function bumpScore() {
+        scoreValue.classList.remove("bump");
+        void scoreValue.offsetWidth;
+        scoreValue.classList.add("bump");
+      }
+
+      function setStatus(message) {
+        statusText.textContent = message;
+      }
+
+      function hideTarget() {
+        target.classList.remove("is-visible");
+        target.hidden = true;
+      }
+
+      // 根据场地尺寸放置靶子，预留顶部状态栏和底部信息栏。
+      function placeTarget(size) {
+        const width = arena.clientWidth;
+        const height = arena.clientHeight;
+        const radius = size / 2;
+        const minX = radius + 16;
+        const maxX = Math.max(minX, width - radius - 16);
+        const minY = Math.max(radius + 14, 62);
+        const maxY = Math.max(minY, height - radius - 46);
+
+        target.style.left = `${randomBetween(minX, maxX)}px`;
+        target.style.top = `${randomBetween(minY, maxY)}px`;
+      }
+
+      function spawnTarget() {
+        if (gameState !== "playing") return;
+
+        const size = Math.round(randomBetween(64, 86));
+        target.style.setProperty("--size", `${size}px`);
+        placeTarget(size);
+        target.hidden = false;
+        target.classList.remove("is-visible");
+        void target.offsetWidth; // 重新触发出现动画。
+        target.classList.add("is-visible");
+        setStatus("目标出现");
+
+        // 随时间推进逐渐缩短靶子停留时间，提升后半程挑战性。
+        const progress = (GAME_DURATION - remaining) / GAME_DURATION;
+        const lifetime = Math.round(1450 - progress * 650 + randomBetween(0, 220));
+        lifeTimer = window.setTimeout(escapeTarget, lifetime);
+      }
+
+      function scheduleTarget(delay) {
+        window.clearTimeout(spawnTimer);
+        if (gameState !== "playing") return;
+        spawnTimer = window.setTimeout(spawnTarget, delay ?? randomBetween(150, 380));
+      }
+
+      function escapeTarget() {
+        if (gameState !== "playing") return;
+        hideTarget();
+        combo = 0;
+        setStatus("目标消失 · 集中注意力");
+        updateHud();
+        scheduleTarget();
+      }
+
+      function createEffect(className, x, y, text) {
+        const element = document.createElement("span");
+        element.className = className;
+        element.style.left = `${x}px`;
+        element.style.top = `${y}px`;
+        if (text) element.textContent = text;
+        effects.appendChild(element);
+        window.setTimeout(() => element.remove(), 700);
+      }
+
+      function hitTarget(event) {
+        if (gameState !== "playing" || target.hidden) return;
+        event.preventDefault();
+        event.stopPropagation();
+
+        window.clearTimeout(lifeTimer);
+        window.clearTimeout(spawnTimer);
+        const x = Number.parseFloat(target.style.left);
+        const y = Number.parseFloat(target.style.top);
+        hideTarget();
+
+        shots += 1;
+        hits += 1;
+        combo += 1;
+        // 每达成 5 连击增加 2 分奖励，单靶最多额外获得 10 分。
+        const bonus = Math.min(10, Math.floor(combo / 5) * 2);
+        const points = 10 + bonus;
+        score += points;
+
+        createEffect("hit-ring", x, y);
+        createEffect("float-score", x, y - 25, `+${points}`);
+        setStatus(combo >= 5 ? `${combo} 连击 · 火力全开` : "命中 · 漂亮");
+        updateHud();
+        bumpScore();
+
+        // 支持的设备上提供轻微触感反馈。
+        if (navigator.vibrate) navigator.vibrate(12);
+        scheduleTarget(randomBetween(110, 280));
+      }
+
+      function registerMiss(event) {
+        if (gameState !== "playing" || target.hidden) return;
+        const bounds = arena.getBoundingClientRect();
+        shots += 1;
+        combo = 0;
+        createEffect(
+          "float-score miss",
+          event.clientX - bounds.left,
+          event.clientY - bounds.top,
+          "未命中"
+        );
+        setStatus("误触 · 连击中断");
+        updateHud();
+      }
+
+      // 使用高精度时间戳计时，避免定时器节流导致 60 秒不准确。
+      function tick(now) {
+        if (gameState !== "playing") return;
+        remaining = Math.max(0, endTime - now);
+        updateHud();
+        if (remaining <= 0) {
+          endGame();
+          return;
+        }
+        animationFrame = window.requestAnimationFrame(tick);
+      }
+
+      function startGame() {
+        clearGameTimers();
+        window.cancelAnimationFrame(animationFrame);
+        hideTarget();
+        effects.replaceChildren();
+
+        score = 0;
+        hits = 0;
+        shots = 0;
+        combo = 0;
+        remaining = GAME_DURATION;
+        gameState = "playing";
+        endTime = performance.now() + GAME_DURATION;
+
+        modal.hidden = true;
+        placeholder.hidden = true;
+        arena.classList.add("live");
+        pauseButton.disabled = false;
+        setStatus("搜寻目标中");
+        updateHud();
+        scheduleTarget(260);
+        animationFrame = window.requestAnimationFrame(tick);
+      }
+
+      function pauseGame() {
+        if (gameState !== "playing") return;
+        remaining = Math.max(0, endTime - performance.now());
+        gameState = "paused";
+        clearGameTimers();
+        window.cancelAnimationFrame(animationFrame);
+        hideTarget();
+        pauseButton.disabled = true;
+        arena.classList.remove("live");
+        updateHud();
+        showModal("paused");
+      }
+
+      function resumeGame() {
+        if (gameState !== "paused") return;
+        gameState = "playing";
+        endTime = performance.now() + remaining;
+        modal.hidden = true;
+        arena.classList.add("live");
+        pauseButton.disabled = false;
+        setStatus("搜寻目标中");
+        scheduleTarget(220);
+        animationFrame = window.requestAnimationFrame(tick);
+      }
+
+      function endGame() {
+        if (gameState !== "playing" && gameState !== "paused") return;
+        gameState = "ended";
+        remaining = 0;
+        clearGameTimers();
+        window.cancelAnimationFrame(animationFrame);
+        hideTarget();
+        arena.classList.remove("live");
+        pauseButton.disabled = true;
+        setStatus("训练结束");
+
+        const previousBest = bestScore;
+        if (score > bestScore) {
+          bestScore = score;
+          saveBestScore();
+        }
+        updateHud();
+        showModal("ended", score > previousBest && score > 0);
+      }
+
+      // 同一个弹窗承载开始、暂停和结算三种状态。
+      function showModal(mode, isNewBest = false) {
+        startTips.hidden = mode !== "idle";
+        resultGrid.hidden = mode !== "ended";
+        secondaryButton.hidden = mode !== "paused";
+        keyboardNote.hidden = mode === "paused";
+
+        if (mode === "idle") {
+          modalKicker.textContent = "REACTION TRAINING";
+          modalTitle.textContent = "锁定目标，一击即中";
+          modalDescription.textContent = "靶子会在随机位置出现，快速轻点即可得分。每 5 连击获得额外加分，误触会中断连击！";
+          primaryButton.textContent = "开始训练";
+          primaryAction = "start";
+        } else if (mode === "paused") {
+          modalKicker.textContent = "TRAINING PAUSED";
+          modalTitle.textContent = "喘口气，再继续";
+          modalDescription.textContent = `还剩 ${(remaining / 1000).toFixed(1)} 秒。计时和靶子已暂停，准备好后继续训练。`;
+          primaryButton.textContent = "继续训练";
+          primaryAction = "resume";
+        } else {
+          modalKicker.textContent = isNewBest ? "NEW HIGH SCORE" : "TRAINING COMPLETE";
+          modalTitle.textContent = isNewBest ? "新纪录，神枪手！" : score >= 400 ? "表现出色！" : "训练结束";
+          modalDescription.textContent = isNewBest
+            ? `你刷新了最高纪录！当前最高分 ${bestScore} 分，再来一局继续突破。`
+            : `本局最高纪录为 ${bestScore} 分。保持专注，下一次会更好。`;
+          $("finalScore").textContent = score;
+          $("finalHits").textContent = hits;
+          $("finalAccuracy").textContent = `${shots ? Math.round((hits / shots) * 100) : 0}%`;
+          primaryButton.textContent = "再来一局";
+          primaryAction = "start";
+        }
+
+        modal.hidden = false;
+        window.requestAnimationFrame(() => primaryButton.focus({ preventScroll: true }));
+      }
+
+      target.addEventListener("pointerdown", hitTarget);
+      target.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") hitTarget(event);
+      });
+      arena.addEventListener("pointerdown", registerMiss);
+      pauseButton.addEventListener("click", pauseGame);
+      primaryButton.addEventListener("click", () => {
+        if (primaryAction === "resume") resumeGame();
+        else startGame();
+      });
+      secondaryButton.addEventListener("click", startGame);
+
+      // 键盘快捷键兼容桌面端；切换后台时自动暂停，保证挑战公平。
+      document.addEventListener("keydown", (event) => {
+        if ((event.key.toLowerCase() === "p" || event.key === "Escape") &&
+            (gameState === "playing" || gameState === "paused")) {
+          event.preventDefault();
+          if (gameState === "playing") pauseGame();
+          else resumeGame();
+        }
+      });
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && gameState === "playing") pauseGame();
+      });
+
+      window.addEventListener("resize", () => {
+        if (gameState === "playing" && !target.hidden) {
+          placeTarget(Number.parseFloat(target.style.getPropertyValue("--size")) || 76);
+        }
+      });
+
+      // 阻止移动端双击缩放、双指缩放手势及页面拖动。
+      document.addEventListener("dblclick", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("touchmove", (event) => {
+        if (!event.target.closest(".dialog")) event.preventDefault();
+      }, { passive: false });
+
+      updateHud();
+      showModal("idle");
+    })();
+  </script>
+</body>
+</html>

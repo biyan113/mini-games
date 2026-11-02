@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070b16">
+  <meta name="color-scheme" content="dark">
+  <title>霓虹飞镖</title>
+  <style>
+    /* ---------- 基础与移动端约束 ---------- */
+    :root {
+      color-scheme: dark;
+      --bg: #070b16;
+      --panel: rgba(15, 23, 43, 0.78);
+      --line: rgba(139, 163, 255, 0.14);
+      --text: #f3f7ff;
+      --muted: #8290ad;
+      --cyan: #42efff;
+      --pink: #ff4fa3;
+      --violet: #9b7bff;
+      --safe-top: max(12px, env(safe-area-inset-top));
+      --safe-bottom: max(12px, env(safe-area-inset-bottom));
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 10%, rgba(76, 52, 164, 0.2), transparent 36%),
+        radial-gradient(circle at 90% 80%, rgba(0, 207, 255, 0.12), transparent 34%),
+        var(--bg);
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body::before {
+      position: fixed;
+      inset: 0;
+      content: "";
+      pointer-events: none;
+      opacity: 0.22;
+      background-image:
+        linear-gradient(rgba(104, 132, 205, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(104, 132, 205, 0.1) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: linear-gradient(to bottom, black, transparent 85%);
+    }
+
+    button {
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    button:focus-visible,
+    .arena:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    button:disabled {
+      cursor: default;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    /* ---------- 页面骨架 ---------- */
+    .app {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+      width: min(100%, 520px);
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: var(--safe-top) 14px var(--safe-bottom);
+    }
+
+    .header {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 44px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .brand-mark {
+      position: relative;
+      width: 40px;
+      height: 40px;
+      flex: 0 0 auto;
+      border: 1px solid rgba(66, 239, 255, 0.4);
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--pink) 0 12%, #141b31 13% 30%, var(--cyan) 31% 34%, #11182a 35% 61%, rgba(155, 123, 255, 0.65) 62% 65%, #0b1120 66%);
+      box-shadow: 0 0 22px rgba(66, 239, 255, 0.18), inset 0 0 12px rgba(66, 239, 255, 0.12);
+    }
+
+    .brand-mark::after {
+      position: absolute;
+      width: 17px;
+      height: 2px;
+      content: "";
+      transform: rotate(-42deg);
+      transform-origin: right center;
+      top: 18px;
+      right: 18px;
+      background: linear-gradient(90deg, transparent, #fff);
+      box-shadow: 0 0 7px var(--cyan);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      line-height: 1.15;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.28em;
+    }
+
+    .pause-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-width: 78px;
+      min-height: 44px;
+      padding: 0 13px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(17, 25, 45, 0.75);
+      color: #c5d0e8;
+      font-size: 13px;
+      font-weight: 650;
+      transition: border-color 160ms, background 160ms, opacity 160ms;
+    }
+
+    .pause-btn:active:not(:disabled) {
+      background: rgba(39, 52, 82, 0.85);
+    }
+
+    .pause-btn:disabled {
+      opacity: 0.38;
+    }
+
+    .pause-icon {
+      width: 12px;
+      height: 14px;
+      border-right: 4px solid currentColor;
+      border-left: 4px solid currentColor;
+    }
+
+    .pause-btn.is-paused .pause-icon {
+      width: 0;
+      height: 0;
+      margin-left: 2px;
+      border-top: 7px solid transparent;
+      border-right: 0;
+      border-bottom: 7px solid transparent;
+      border-left: 11px solid currentColor;
+    }
+
+    /* ---------- 分数面板 ---------- */
+    .stats {
+      display: grid;
+      flex: 0 0 auto;
+      grid-template-columns: 1.15fr 1fr 1fr;
+      gap: 8px;
+    }
+
+    .stat {
+      position: relative;
+      min-width: 0;
+      padding: 10px 8px 9px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: linear-gradient(145deg, rgba(20, 30, 53, 0.86), rgba(11, 17, 32, 0.78));
+      text-align: center;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+    }
+
+    .stat.primary {
+      border-color: rgba(66, 239, 255, 0.25);
+      background: linear-gradient(145deg, rgba(20, 52, 69, 0.72), rgba(12, 22, 40, 0.85));
+    }
+
+    .stat.primary::after {
+      position: absolute;
+      right: 18%;
+      bottom: -16px;
+      left: 18%;
+      height: 20px;
+      content: "";
+      background: var(--cyan);
+      filter: blur(22px);
+      opacity: 0.22;
+    }
+
+    .stat-label {
+      display: block;
+      margin-bottom: 2px;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 650;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+
+    .stat-value {
+      display: block;
+      font-size: 25px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.15;
+    }
+
+    .primary .stat-value {
+      color: var(--cyan);
+      text-shadow: 0 0 16px rgba(66, 239, 255, 0.38);
+    }
+
+    .stat-value small {
+      margin-left: 2px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 500;
+    }
+
+    /* ---------- 靶场卡片 ---------- */
+    .game-card {
+      position: relative;
+      display: flex;
+      flex: 1 1 auto;
+      flex-direction: column;
+      min-height: 0;
+      padding: 11px;
+      overflow: hidden;
+      border: 1px solid rgba(132, 157, 238, 0.16);
+      border-radius: 24px;
+      background: linear-gradient(160deg, rgba(17, 27, 49, 0.87), rgba(8, 13, 26, 0.91));
+      box-shadow: 0 20px 55px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .round-info {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 25px;
+      padding: 0 3px;
+      color: #b7c3db;
+      font-size: 12px;
+    }
+
+    .phase-label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 9px var(--cyan);
+      animation: breathe 1.6s ease-in-out infinite;
+    }
+
+    .remaining {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .remaining strong {
+      margin: 0 2px;
+      color: var(--text);
+      font-size: 16px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .goal-track {
+      flex: 0 0 auto;
+      height: 3px;
+      margin: 7px 3px 3px;
+      overflow: hidden;
+      border-radius: 9px;
+      background: rgba(123, 145, 194, 0.11);
+    }
+
+    .goal-fill {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--violet), var(--cyan));
+      box-shadow: 0 0 10px rgba(66, 239, 255, 0.5);
+      transition: width 280ms ease;
+    }
+
+    .arena {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: hidden;
+      border-radius: 18px;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    .toast {
+      position: absolute;
+      z-index: 3;
+      top: 10%;
+      left: 50%;
+      padding: 7px 14px;
+      transform: translate(-50%, 8px) scale(0.85);
+      border: 1px solid rgba(66, 239, 255, 0.3);
+      border-radius: 99px;
+      background: rgba(7, 15, 28, 0.88);
+      color: var(--cyan);
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      box-shadow: 0 0 25px rgba(66, 239, 255, 0.12);
+    }
+
+    .toast.miss {
+      border-color: rgba(150, 164, 194, 0.25);
+      color: #a9b4ca;
+      box-shadow: none;
+    }
+
+    .toast.show {
+      animation: score-pop 900ms ease both;
+    }
+
+    .play-hint {
+      flex: 0 0 auto;
+      padding: 7px 2px 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+      text-align: center;
+    }
+
+    .play-hint strong {
+      color: #c9d5ec;
+      font-weight: 600;
+    }
+
+    .desktop-hint {
+      color: #64728f;
+    }
+
+    /* ---------- 主操作按钮 ---------- */
+    .throw-btn {
+      position: relative;
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 58px;
+      padding: 0 18px;
+      overflow: hidden;
+      border: 1px solid rgba(99, 243, 255, 0.58);
+      border-radius: 18px;
+      background: linear-gradient(110deg, #146a83, #17607e 48%, #4a367d);
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: 0.24em;
+      box-shadow: 0 8px 28px rgba(21, 175, 207, 0.17), inset 0 1px 0 rgba(255, 255, 255, 0.17);
+      transition: transform 100ms, filter 150ms, opacity 150ms;
+    }
+
+    .throw-btn::before {
+      position: absolute;
+      top: -100%;
+      left: -20%;
+      width: 28%;
+      height: 300%;
+      content: "";
+      transform: rotate(24deg);
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+      animation: button-shine 4s ease-in-out infinite;
+    }
+
+    .throw-btn:active:not(:disabled) {
+      transform: scale(0.975);
+      filter: brightness(1.18);
+    }
+
+    .throw-btn:disabled {
+      border-color: rgba(123, 145, 194, 0.18);
+      background: linear-gradient(110deg, #202b40, #252a42);
+      color: #7f8ca8;
+      box-shadow: none;
+      letter-spacing: 0.12em;
+    }
+
+    .throw-btn:disabled::before {
+      display: none;
+    }
+
+    .dart-icon {
+      width: 23px;
+      height: 23px;
+      flex: 0 0 auto;
+      filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.35));
+    }
+
+    .key-hint {
+      position: absolute;
+      right: 14px;
+      padding: 3px 6px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 5px;
+      color: rgba(255, 255, 255, 0.58);
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+
+    /* ---------- 暂停层与结算弹窗 ---------- */
+    .pause-overlay {
+      position: absolute;
+      z-index: 5;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 18px;
+      background: rgba(5, 9, 19, 0.74);
+      backdrop-filter: blur(7px);
+    }
+
+    .pause-content {
+      padding: 22px;
+      text-align: center;
+    }
+
+    .pause-symbol {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 50px;
+      height: 50px;
+      margin-bottom: 11px;
+      border: 1px solid rgba(66, 239, 255, 0.3);
+      border-radius: 50%;
+      color: var(--cyan);
+      font-size: 21px;
+      box-shadow: 0 0 24px rgba(66, 239, 255, 0.1);
+    }
+
+    .pause-content h2 {
+      margin: 0 0 5px;
+      font-size: 21px;
+    }
+
+    .pause-content p {
+      margin: 0 0 17px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .resume-btn {
+      min-width: 136px;
+      min-height: 46px;
+      border: 1px solid rgba(66, 239, 255, 0.45);
+      border-radius: 13px;
+      background: rgba(27, 108, 128, 0.55);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .modal {
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(3, 6, 13, 0.8);
+      backdrop-filter: blur(10px);
+      animation: fade-in 220ms ease both;
+    }
+
+    .modal-card {
+      position: relative;
+      width: min(100%, 380px);
+      padding: 29px 24px 23px;
+      overflow: hidden;
+      border: 1px solid rgba(123, 221, 255, 0.24);
+      border-radius: 27px;
+      background:
+        radial-gradient(circle at 50% 0, rgba(63, 201, 255, 0.12), transparent 38%),
+        linear-gradient(155deg, #17213a, #0c1223 70%);
+      text-align: center;
+      box-shadow: 0 28px 90px rgba(0, 0, 0, 0.55), 0 0 45px rgba(66, 239, 255, 0.07);
+      animation: modal-in 350ms cubic-bezier(0.2, 0.85, 0.25, 1.15) both;
+    }
+
+    .result-emblem {
+      display: grid;
+      place-items: center;
+      width: 67px;
+      height: 67px;
+      margin: 0 auto 15px;
+      border: 1px solid rgba(66, 239, 255, 0.4);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(66, 239, 255, 0.16), rgba(66, 239, 255, 0.025));
+      color: var(--cyan);
+      font-size: 29px;
+      font-weight: 900;
+      text-shadow: 0 0 17px currentColor;
+      box-shadow: 0 0 30px rgba(66, 239, 255, 0.1);
+    }
+
+    .modal-card.is-loss .result-emblem {
+      border-color: rgba(255, 79, 163, 0.32);
+      background: radial-gradient(circle, rgba(255, 79, 163, 0.13), transparent);
+      color: var(--pink);
+    }
+
+    .result-kicker {
+      margin: 0 0 5px;
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.26em;
+    }
+
+    .is-loss .result-kicker {
+      color: var(--pink);
+    }
+
+    .modal-card h2 {
+      margin: 0;
+      font-size: 26px;
+      letter-spacing: 0.05em;
+    }
+
+    .result-desc {
+      min-height: 38px;
+      margin: 10px 0 18px;
+      color: #96a5c2;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .record-badge {
+      display: inline-block;
+      margin: -7px 0 14px;
+      padding: 4px 10px;
+      border: 1px solid rgba(255, 212, 99, 0.32);
+      border-radius: 99px;
+      background: rgba(255, 196, 66, 0.08);
+      color: #ffda78;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .result-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      margin-bottom: 20px;
+      padding: 14px 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .result-stats > div + div {
+      border-left: 1px solid var(--line);
+    }
+
+    .result-stats span {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .result-stats strong {
+      font-size: 22px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .restart-btn {
+      width: 100%;
+      min-height: 52px;
+      border: 1px solid rgba(66, 239, 255, 0.5);
+      border-radius: 15px;
+      background: linear-gradient(105deg, #176e85, #254f83);
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      box-shadow: 0 8px 25px rgba(22, 157, 187, 0.15);
+    }
+
+    .restart-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* ---------- 动画与紧凑屏幕 ---------- */
+    @keyframes breathe {
+      50% { opacity: 0.4; transform: scale(0.75); }
+    }
+
+    @keyframes score-pop {
+      0% { opacity: 0; transform: translate(-50%, 10px) scale(0.8); }
+      18% { opacity: 1; transform: translate(-50%, 0) scale(1.06); }
+      68% { opacity: 1; transform: translate(-50%, -4px) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -20px) scale(0.96); }
+    }
+
+    @keyframes button-shine {
+      0%, 55% { transform: translateX(-80px) rotate(24deg); }
+      85%, 100% { transform: translateX(430px) rotate(24deg); }
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes modal-in {
+      from { opacity: 0; transform: translateY(16px) scale(0.94); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @media (pointer: coarse) {
+      .key-hint,
+      .desktop-hint {
+        display: none;
+      }
+    }
+
+    @media (max-height: 650px) {
+      .app { gap: 8px; }
+      .brand-mark { width: 35px; height: 35px; }
+      .brand-mark::after { top: 16px; right: 16px; }
+      .brand h1 { font-size: 18px; }
+      .stat { padding-top: 7px; padding-bottom: 7px; }
+      .stat-value { font-size: 22px; }
+      .game-card { padding: 8px 10px; border-radius: 20px; }
+      .play-hint { padding-top: 4px; }
+      .throw-btn { min-height: 52px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .live-dot,
+      .throw-btn::before {
+        animation: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="霓虹飞镖小游戏">
+    <header class="header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <h1>霓虹飞镖</h1>
+          <p>NEON DARTS</p>
+        </div>
+      </div>
+      <button class="pause-btn" id="pauseBtn" type="button" aria-label="暂停游戏">
+        <span class="pause-icon" aria-hidden="true"></span>
+        <span id="pauseText">暂停</span>
+      </button>
+    </header>
+
+    <section class="stats" aria-label="分数信息">
+      <div class="stat primary">
+        <span class="stat-label">当前得分</span>
+        <strong class="stat-value" id="score">0</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">胜利目标</span>
+        <strong class="stat-value">180<small>分</small></strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">最高分</span>
+        <strong class="stat-value" id="bestScore">0</strong>
+      </div>
+    </section>
+
+    <section class="game-card" aria-label="飞镖靶场">
+      <div class="round-info">
+        <span class="phase-label"><i class="live-dot" aria-hidden="true"></i><span id="phaseLabel">瞄准时机</span></span>
+        <span class="remaining">剩余<strong id="dartsLeft">10</strong>/ 10 镖</span>
+      </div>
+      <div class="goal-track" aria-hidden="true"><div class="goal-fill" id="goalFill"></div></div>
+
+      <div class="arena" id="arena" role="button" tabindex="0" aria-label="轻点掷出飞镖" aria-describedby="playHint">
+        <canvas id="gameCanvas">你的浏览器不支持 Canvas，请更换现代浏览器。</canvas>
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+        <div class="pause-overlay" id="pauseOverlay" hidden>
+          <div class="pause-content">
+            <span class="pause-symbol" aria-hidden="true">Ⅱ</span>
+            <h2>游戏已暂停</h2>
+            <p>调整一下，再瞄准靶心</p>
+            <button class="resume-btn" id="resumeBtn" type="button">继续游戏</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="play-hint" id="playHint">
+        <strong>看准摆动准星，轻点靶面或下方按钮掷镖</strong>
+        <span class="desktop-hint"> · 也可按空格</span><br>
+        由外向内依次 5 / 10 / 15 / 20 / 25 / 50 分
+      </div>
+    </section>
+
+    <button class="throw-btn" id="throwBtn" type="button">
+      <svg class="dart-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 20 17.5 6.5M13.8 4.2l6-1-1 6M15.5 5.5l3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="m4 20 1-4 3 3-4 1Z" fill="currentColor"/>
+      </svg>
+      <span id="throwText">掷镖</span>
+      <span class="key-hint" aria-hidden="true">SPACE</span>
+    </button>
+  </main>
+
+  <div class="modal" id="resultModal" role="dialog" aria-modal="true" aria-labelledby="resultTitle" hidden>
+    <div class="modal-card" id="resultCard">
+      <div class="result-emblem" id="resultEmblem" aria-hidden="true">✓</div>
+      <p class="result-kicker" id="resultKicker">挑战成功</p>
+      <h2 id="resultTitle">靶心之王！</h2>
+      <p class="result-desc" id="resultDesc"></p>
+      <span class="record-badge" id="recordBadge" hidden>✦ 新纪录诞生</span>
+      <div class="result-stats">
+        <div><span>本局得分</span><strong id="finalScore">0</strong></div>
+        <div><span>命中镖数</span><strong id="hitCount">0</strong></div>
+        <div><span>历史最高</span><strong id="finalBest">0</strong></div>
+      </div>
+      <button class="restart-btn" id="restartBtn" type="button">再来一局</button>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // ---------- 常量与页面元素 ----------
+      const TOTAL_DARTS = 10;
+      const TARGET_SCORE = 180;
+      const THROW_DURATION = 0.34;
+      const STORAGE_KEY = "neon-darts-best-v1";
+      const $ = (id) => document.getElementById(id);
+
+      const canvas = $("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const arena = $("arena");
+      const scoreEl = $("score");
+      const bestScoreEl = $("bestScore");
+      const dartsLeftEl = $("dartsLeft");
+      const goalFill = $("goalFill");
+      const phaseLabel = $("phaseLabel");
+      const pauseBtn = $("pauseBtn");
+      const pauseText = $("pauseText");
+      const pauseOverlay = $("pauseOverlay");
+      const resumeBtn = $("resumeBtn");
+      const throwBtn = $("throwBtn");
+      const throwText = $("throwText");
+      const toast = $("toast");
+      const resultModal = $("resultModal");
+      const resultCard = $("resultCard");
+      const restartBtn = $("restartBtn");
+
+      // 本地存储在隐私模式下可能不可用，读写都做好降级。
+      function loadBest() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(STORAGE_KEY), 10);
+          return Number.isFinite(value) && value > 0 ? value : 0;
+        } catch {
+          return 0;
+        }
+      }
+
+      function saveBest(value) {
+        try {
+          localStorage.setItem(STORAGE_KEY, String(value));
+        } catch {
+          // 无法写入时仍保留本次页面内的最高分。
+        }
+      }
+
+      // ---------- 游戏状态 ----------
+      let phase = "playing"; // playing / throwing / paused / ending / over
+      let score = 0;
+      let bestScore = loadBest();
+      let startingBest = bestScore;
+      let dartsLeft = TOTAL_DARTS;
+      let swingAngle = 0;
+      let driftAngle = 0;
+      let swingSpeed = 2.1;
+      let throwAnimation = null;
+      let finishTimer = 0;
+      let hits = [];
+      let particles = [];
+      let impactPulse = null;
+      let previousTime = performance.now();
+      const view = { width: 0, height: 0, dpr: 1 };
+
+      // 根据准星到靶心的距离计算环数得分。
+      function pointsForRadius(radius) {
+        if (radius <= 0.10) return 50;
+        if (radius <= 0.22) return 25;
+        if (radius <= 0.40) return 20;
+        if (radius <= 0.58) return 15;
+        if (radius <= 0.76) return 10;
+        if (radius <= 0.94) return 5;
+        return 0;
+      }
+
+      // 使用归一化坐标，屏幕旋转或缩放后命中位置仍保持一致。
+      function currentAim() {
+        return {
+          x: Math.sin(swingAngle) * 0.88,
+          y: Math.sin(driftAngle + 0.8) * 0.055
+        };
+      }
+
+      function updateHUD() {
+        scoreEl.textContent = score;
+        bestScoreEl.textContent = bestScore;
+        dartsLeftEl.textContent = dartsLeft;
+        goalFill.style.width = `${Math.min(100, score / TARGET_SCORE * 100)}%`;
+
+        const labels = {
+          playing: "瞄准时机",
+          throwing: "飞镖出手",
+          paused: "已暂停",
+          ending: "本局结算",
+          over: "挑战完成"
+        };
+        phaseLabel.textContent = labels[phase];
+        pauseOverlay.hidden = phase !== "paused";
+        pauseBtn.classList.toggle("is-paused", phase === "paused");
+        pauseText.textContent = phase === "paused" ? "继续" : "暂停";
+        pauseBtn.setAttribute("aria-label", phase === "paused" ? "继续游戏" : "暂停游戏");
+        pauseBtn.disabled = !(phase === "playing" || phase === "paused");
+        throwBtn.disabled = phase !== "playing";
+        throwText.textContent = phase === "paused" ? "游戏已暂停" : phase === "throwing" ? "飞行中…" : phase === "ending" ? "结算中…" : phase === "over" ? "本局结束" : "掷镖";
+      }
+
+      function resetGame() {
+        phase = "playing";
+        score = 0;
+        dartsLeft = TOTAL_DARTS;
+        startingBest = bestScore;
+        swingAngle = 0;
+        driftAngle = 0;
+        swingSpeed = 2.1;
+        throwAnimation = null;
+        finishTimer = 0;
+        hits = [];
+        particles = [];
+        impactPulse = null;
+        resultModal.hidden = true;
+        toast.classList.remove("show");
+        previousTime = performance.now();
+        updateHUD();
+        arena.focus({ preventScroll: true });
+      }
+
+      // ---------- 掷镖、命中与结算 ----------
+      function throwDart() {
+        if (phase !== "playing") return;
+        const aim = currentAim();
+        const points = pointsForRadius(Math.hypot(aim.x, aim.y));
+        throwAnimation = { ...aim, points, time: 0 };
+        phase = "throwing";
+        updateHUD();
+      }
+
+      function showScoreToast(points) {
+        const names = { 50: "正中靶心", 25: "漂亮", 20: "好准", 15: "不错", 10: "命中", 5: "擦中外环", 0: "脱靶" };
+        toast.textContent = points > 0 ? `${names[points]} · +${points}` : "脱靶 · +0";
+        toast.classList.toggle("miss", points === 0);
+        toast.classList.remove("show");
+        void toast.offsetWidth; // 重新触发连续命中的弹出动画。
+        toast.classList.add("show");
+      }
+
+      function completeThrow() {
+        const shot = throwAnimation;
+        if (!shot) return;
+
+        throwAnimation = null;
+        dartsLeft -= 1;
+        score += shot.points;
+        hits.push({ x: shot.x, y: shot.y, points: shot.points });
+        impactPulse = { x: shot.x, y: shot.y, life: 0.45 };
+        spawnParticles(shot);
+        showScoreToast(shot.points);
+
+        if (score > bestScore) {
+          bestScore = score;
+          saveBest(bestScore);
+        }
+
+        if (dartsLeft === 0) {
+          phase = "ending";
+          finishTimer = 0.8;
+        } else {
+          phase = "playing";
+          // 每投一镖略微提速，保留流畅且逐步上升的挑战。
+          swingSpeed = Math.min(3.1, swingSpeed + 0.075);
+        }
+        updateHUD();
+      }
+
+      function finishGame() {
+        const won = score >= TARGET_SCORE;
+        const hitCount = hits.filter((hit) => hit.points > 0).length;
+        phase = "over";
+        updateHUD();
+
+        resultCard.classList.toggle("is-loss", !won);
+        $("resultEmblem").textContent = won ? "✓" : "↻";
+        $("resultKicker").textContent = won ? "挑战成功" : "本轮结束";
+        $("resultTitle").textContent = won ? "靶心之王！" : "就差一点！";
+        $("resultDesc").textContent = won
+          ? `10 镖拿下 ${score} 分，成功突破 ${TARGET_SCORE} 分目标！`
+          : `距离 ${TARGET_SCORE} 分还差 ${TARGET_SCORE - score} 分，稳住准星再试一次。`;
+        $("finalScore").textContent = score;
+        $("hitCount").textContent = hitCount;
+        $("finalBest").textContent = bestScore;
+        $("recordBadge").hidden = !(score > startingBest && score > 0);
+        resultModal.hidden = false;
+        restartBtn.focus({ preventScroll: true });
+      }
+
+      function togglePause() {
+        if (phase === "playing") {
+          phase = "paused";
+          updateHUD();
+          resumeBtn.focus({ preventScroll: true });
+        } else if (phase === "paused") {
+          phase = "playing";
+          previousTime = performance.now();
+          updateHUD();
+          pauseBtn.focus({ preventScroll: true });
+        }
+      }
+
+      // ---------- Canvas 尺寸与绘制工具 ----------
+      function resizeCanvas() {
+        const rect = arena.getBoundingClientRect();
+        view.width = Math.max(1, rect.width);
+        view.height = Math.max(1, rect.height);
+        view.dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(view.width * view.dpr);
+        canvas.height = Math.round(view.height * view.dpr);
+        ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+      }
+
+      function geometry() {
+        const radius = Math.max(28, Math.min(view.width * 0.43, view.height * 0.42));
+        return { cx: view.width / 2, cy: view.height / 2 + 3, radius };
+      }
+
+      function circle(x, y, radius) {
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+      }
+
+      function drawBoard(cx, cy, radius) {
+        // 靶后光晕让霓虹效果柔和，而非单纯高亮描边。
+        const glow = ctx.createRadialGradient(cx, cy, radius * 0.1, cx, cy, radius * 1.35);
+        glow.addColorStop(0, "rgba(54, 222, 255, 0.08)");
+        glow.addColorStop(0.65, "rgba(112, 73, 255, 0.06)");
+        glow.addColorStop(1, "rgba(5, 9, 20, 0)");
+        ctx.fillStyle = glow;
+        ctx.fillRect(cx - radius * 1.4, cy - radius * 1.4, radius * 2.8, radius * 2.8);
+
+        ctx.save();
+        ctx.shadowColor = "rgba(55, 224, 255, 0.22)";
+        ctx.shadowBlur = 24;
+        circle(cx, cy, radius);
+        ctx.fillStyle = "#09101f";
+        ctx.fill();
+        ctx.restore();
+
+        // 由外向内叠放圆盘，形成清晰的六个计分环。
+        const rings = [
+          { size: 0.94, color: "#111c30", stroke: "rgba(128, 160, 222, 0.32)" },
+          { size: 0.76, color: "#21162d", stroke: "rgba(255, 79, 163, 0.34)" },
+          { size: 0.58, color: "#0d2430", stroke: "rgba(66, 239, 255, 0.3)" },
+          { size: 0.40, color: "#241831", stroke: "rgba(174, 103, 255, 0.38)" },
+          { size: 0.22, color: "#0d3036", stroke: "rgba(66, 239, 255, 0.58)" },
+          { size: 0.10, color: "#501b3b", stroke: "rgba(255, 92, 169, 0.85)" }
+        ];
+
+        rings.forEach((ring) => {
+          circle(cx, cy, radius * ring.size);
+          ctx.fillStyle = ring.color;
+          ctx.fill();
+          ctx.strokeStyle = ring.stroke;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        });
+
+        // 放射刻线只作装饰，不影响本游戏的环数计分规则。
+        ctx.save();
+        circle(cx, cy, radius * 0.94);
+        ctx.clip();
+        for (let i = 0; i < 20; i += 1) {
+          const angle = i * Math.PI / 10;
+          ctx.beginPath();
+          ctx.moveTo(cx + Math.cos(angle) * radius * 0.1, cy + Math.sin(angle) * radius * 0.1);
+          ctx.lineTo(cx + Math.cos(angle) * radius * 0.94, cy + Math.sin(angle) * radius * 0.94);
+          ctx.strokeStyle = i % 2 ? "rgba(136, 160, 208, 0.065)" : "rgba(136, 160, 208, 0.11)";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // 外圈刻度与双层轮廓。
+        for (let i = 0; i < 40; i += 1) {
+          const angle = i * Math.PI / 20 - Math.PI / 2;
+          const inner = radius * (i % 5 === 0 ? 0.965 : 0.978);
+          ctx.beginPath();
+          ctx.moveTo(cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner);
+          ctx.lineTo(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius);
+          ctx.strokeStyle = i % 5 === 0 ? "rgba(66, 239, 255, 0.8)" : "rgba(133, 161, 215, 0.35)";
+          ctx.lineWidth = i % 5 === 0 ? 1.5 : 1;
+          ctx.stroke();
+        }
+        circle(cx, cy, radius);
+        ctx.strokeStyle = "rgba(111, 159, 217, 0.34)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // 将每环分值直接标在靶面上，无需另查规则。
+        const labels = [
+          { text: "5", y: 0.85 },
+          { text: "10", y: 0.67 },
+          { text: "15", y: 0.49 },
+          { text: "20", y: 0.31 },
+          { text: "25", y: 0.16 }
+        ];
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `700 ${Math.max(8, radius * 0.072)}px system-ui, sans-serif`;
+        labels.forEach((label) => {
+          ctx.fillStyle = "rgba(224, 235, 255, 0.75)";
+          ctx.fillText(label.text, cx, cy - radius * label.y);
+        });
+        ctx.fillStyle = "#ffd8e9";
+        ctx.font = `800 ${Math.max(8, radius * 0.068)}px system-ui, sans-serif`;
+        ctx.fillText("50", cx, cy + 0.5);
+      }
+
+      function drawDart(x, y, scale, color = "#42efff") {
+        // 镖尖位于 (x, y)，镖尾朝右下方倾斜。
+        const tailX = x + 12 * scale;
+        const tailY = y + 16 * scale;
+        ctx.save();
+        ctx.lineCap = "round";
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 7 * scale;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(tailX, tailY);
+        ctx.strokeStyle = "#d8f8ff";
+        ctx.lineWidth = 1.5 * scale;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(tailX - 1 * scale, tailY - 2 * scale);
+        ctx.lineTo(tailX + 7 * scale, tailY + 1 * scale);
+        ctx.lineTo(tailX + 2 * scale, tailY + 8 * scale);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        circle(x, y, 2.1 * scale);
+        ctx.fillStyle = "#ffffff";
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawHits(cx, cy, radius) {
+        hits.forEach((hit, index) => {
+          const x = cx + hit.x * radius;
+          const y = cy + hit.y * radius;
+          const color = hit.points >= 25 ? "#ff4fa3" : hit.points > 0 ? "#42efff" : "#71809e";
+          ctx.save();
+          ctx.globalAlpha = 0.9;
+          circle(x, y, radius * 0.038);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.restore();
+          drawDart(x, y, Math.max(0.62, radius / 155), color);
+
+          // 小序号方便回顾每支镖的落点。
+          ctx.fillStyle = "rgba(220, 232, 255, 0.68)";
+          ctx.font = `600 ${Math.max(7, radius * 0.052)}px system-ui, sans-serif`;
+          ctx.textAlign = "center";
+          ctx.fillText(String(index + 1), x + radius * 0.065, y + radius * 0.02);
+        });
+      }
+
+      function drawAim(cx, cy, radius) {
+        const aim = throwAnimation || currentAim();
+        const x = cx + aim.x * radius;
+        const y = cy + aim.y * radius;
+        const fade = throwAnimation ? Math.max(0.25, 1 - throwAnimation.time / THROW_DURATION) : 1;
+
+        ctx.save();
+        ctx.globalAlpha = fade;
+        circle(cx, cy, radius * 0.96);
+        ctx.clip();
+        ctx.strokeStyle = "rgba(66, 239, 255, 0.22)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 6]);
+        ctx.beginPath();
+        ctx.moveTo(cx - radius, y);
+        ctx.lineTo(cx + radius, y);
+        ctx.moveTo(x, cy - radius);
+        ctx.lineTo(x, cy + radius);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.shadowColor = "#42efff";
+        ctx.shadowBlur = 12;
+        circle(x, y, Math.max(9, radius * 0.072));
+        ctx.strokeStyle = "rgba(128, 247, 255, 0.95)";
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+        circle(x, y, 2.2);
+        ctx.fillStyle = "#ffffff";
+        ctx.fill();
+        ctx.restore();
+
+        // 靶上方的三角指针与准星同步左右摆动。
+        ctx.save();
+        ctx.globalAlpha = fade;
+        ctx.shadowColor = "#42efff";
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.moveTo(x - 6, cy - radius - 15);
+        ctx.lineTo(x + 6, cy - radius - 15);
+        ctx.lineTo(x, cy - radius - 6);
+        ctx.closePath();
+        ctx.fillStyle = "#71f5ff";
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawProjectile(cx, cy, radius) {
+        if (!throwAnimation) return;
+        const progress = Math.min(1, throwAnimation.time / THROW_DURATION);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const targetX = cx + throwAnimation.x * radius;
+        const targetY = cy + throwAnimation.y * radius;
+        const startX = targetX + radius * 0.9;
+        const startY = targetY + radius * 1.15;
+        const x = startX + (targetX - startX) * eased;
+        const y = startY + (targetY - startY) * eased;
+
+        ctx.save();
+        ctx.globalAlpha = 0.32 * (1 - progress);
+        ctx.beginPath();
+        ctx.moveTo(x + radius * 0.28, y + radius * 0.34);
+        ctx.lineTo(x, y);
+        ctx.strokeStyle = "#42efff";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+        drawDart(x, y, Math.max(1, radius / 120), "#ff4fa3");
+      }
+
+      function spawnParticles(shot) {
+        if (shot.points === 0) return;
+        const { cx, cy, radius } = geometry();
+        const x = cx + shot.x * radius;
+        const y = cy + shot.y * radius;
+        const count = shot.points >= 25 ? 20 : 11;
+        for (let i = 0; i < count; i += 1) {
+          const angle = Math.PI * 2 * i / count + Math.random() * 0.35;
+          const speed = 30 + Math.random() * 65;
+          particles.push({
+            x, y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: 0.45 + Math.random() * 0.25,
+            maxLife: 0.7,
+            color: shot.points >= 25 ? "#ff65ae" : "#62f3ff"
+          });
+        }
+      }
+
+      function updateEffects(dt) {
+        particles.forEach((particle) => {
+          particle.x += particle.vx * dt;
+          particle.y += particle.vy * dt;
+          particle.vx *= 0.97;
+          particle.vy = particle.vy * 0.97 + 35 * dt;
+          particle.life -= dt;
+        });
+        particles = particles.filter((particle) => particle.life > 0);
+        if (impactPulse) {
+          impactPulse.life -= dt;
+          if (impactPulse.life <= 0) impactPulse = null;
+        }
+      }
+
+      function drawEffects(cx, cy, radius) {
+        if (impactPulse) {
+          const progress = 1 - impactPulse.life / 0.45;
+          ctx.save();
+          ctx.globalAlpha = (1 - progress) * 0.75;
+          circle(cx + impactPulse.x * radius, cy + impactPulse.y * radius, 7 + progress * radius * 0.18);
+          ctx.strokeStyle = "#82f7ff";
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        particles.forEach((particle) => {
+          ctx.save();
+          ctx.globalAlpha = Math.min(1, particle.life / 0.25);
+          ctx.fillStyle = particle.color;
+          ctx.shadowColor = particle.color;
+          ctx.shadowBlur = 5;
+          circle(particle.x, particle.y, 1.5);
+          ctx.fill();
+          ctx.restore();
+        });
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, view.width, view.height);
+        const { cx, cy, radius } = geometry();
+        drawBoard(cx, cy, radius);
+        drawHits(cx, cy, radius);
+        if (phase === "playing" || phase === "paused" || phase === "throwing") {
+          drawAim(cx, cy, radius);
+        }
+        drawProjectile(cx, cy, radius);
+        drawEffects(cx, cy, radius);
+      }
+
+      // ---------- 主循环：暂停时所有计时和指针都会冻结 ----------
+      function frame(now) {
+        const dt = Math.min(0.034, Math.max(0, (now - previousTime) / 1000));
+        previousTime = now;
+
+        if (phase === "playing") {
+          swingAngle += dt * swingSpeed;
+          driftAngle += dt * 1.25;
+        } else if (phase === "throwing") {
+          throwAnimation.time += dt;
+          if (throwAnimation.time >= THROW_DURATION) completeThrow();
+        } else if (phase === "ending") {
+          finishTimer -= dt;
+          if (finishTimer <= 0) finishGame();
+        }
+
+        if (phase !== "paused") updateEffects(dt);
+        draw();
+        requestAnimationFrame(frame);
+      }
+
+      // ---------- 触摸、鼠标与键盘操作 ----------
+      arena.addEventListener("pointerdown", (event) => {
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        event.preventDefault();
+        throwDart();
+      });
+      arena.addEventListener("contextmenu", (event) => event.preventDefault());
+      throwBtn.addEventListener("click", throwDart);
+      pauseBtn.addEventListener("click", togglePause);
+      resumeBtn.addEventListener("click", togglePause);
+      restartBtn.addEventListener("click", resetGame);
+
+      window.addEventListener("keydown", (event) => {
+        const onButton = event.target instanceof Element && event.target.closest("button");
+        if ((event.code === "Space" || event.code === "Enter") && !onButton) {
+          event.preventDefault();
+          throwDart();
+        } else if (event.code === "KeyP" || event.code === "Escape") {
+          event.preventDefault();
+          togglePause();
+        } else if (event.code === "KeyR" && phase === "over") {
+          resetGame();
+        }
+      }, { passive: false });
+
+      // 禁止移动端双击缩放、双指缩放手势与页面拖动。
+      document.addEventListener("dblclick", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
+
+      // 切到后台时自动暂停，避免回来后错过瞄准节奏。
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && phase === "playing") togglePause();
+      });
+
+      if ("ResizeObserver" in window) {
+        new ResizeObserver(resizeCanvas).observe(arena);
+      } else {
+        window.addEventListener("resize", resizeCanvas);
+      }
+
+      resizeCanvas();
+      updateHUD();
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>

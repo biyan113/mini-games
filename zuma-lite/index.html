@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070a16">
+  <title>霓虹祖玛 · Neon Zuma</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070a16;
+      --panel: rgba(15, 21, 43, .78);
+      --line: rgba(137, 162, 255, .14);
+      --text: #f3f6ff;
+      --muted: #8993b3;
+      --cyan: #55efff;
+      --violet: #9d78ff;
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 15% 10%, rgba(85, 64, 180, .17), transparent 35%),
+        radial-gradient(circle at 90% 85%, rgba(0, 211, 255, .1), transparent 36%),
+        #040610;
+      color: var(--text);
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .2;
+      background-image:
+        linear-gradient(rgba(116, 144, 255, .08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(116, 144, 255, .08) 1px, transparent 1px);
+      background-size: 36px 36px;
+      mask-image: radial-gradient(circle, #000, transparent 78%);
+    }
+
+    button { font: inherit; }
+
+    .app {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      width: min(100%, 520px);
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(12, 17, 35, .98), rgba(5, 8, 20, .99));
+    }
+
+    .topbar {
+      position: relative;
+      z-index: 3;
+      padding: max(12px, env(safe-area-inset-top)) 16px 10px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(18, 24, 49, .92), rgba(10, 14, 30, .78));
+      box-shadow: 0 12px 32px rgba(0, 0, 0, .16);
+    }
+
+    .title-row, .brand, .stats, .footer, .next-ball {
+      display: flex;
+      align-items: center;
+    }
+
+    .title-row { justify-content: space-between; gap: 12px; }
+    .brand { gap: 10px; min-width: 0; }
+
+    .brand-mark {
+      position: relative;
+      flex: 0 0 auto;
+      width: 35px;
+      height: 35px;
+      border: 1px solid rgba(85, 239, 255, .42);
+      border-radius: 50%;
+      box-shadow: inset 0 0 12px rgba(85, 239, 255, .12), 0 0 16px rgba(85, 239, 255, .12);
+    }
+
+    .brand-mark::before, .brand-mark::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+    }
+
+    .brand-mark::before {
+      inset: 7px;
+      border: 2px solid var(--cyan);
+      border-left-color: var(--violet);
+      transform: rotate(-35deg);
+      box-shadow: 0 0 8px rgba(85, 239, 255, .5);
+    }
+
+    .brand-mark::after {
+      inset: 14px;
+      background: #fff;
+      box-shadow: 0 0 9px 3px var(--cyan);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 750;
+      line-height: 1.15;
+      letter-spacing: .12em;
+    }
+
+    .brand-subtitle {
+      display: block;
+      margin-top: 4px;
+      color: #7583ac;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: .28em;
+    }
+
+    .pause-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-width: 76px;
+      min-height: 40px;
+      padding: 8px 12px;
+      border: 1px solid rgba(133, 158, 239, .2);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .035);
+      color: #b8c3e3;
+      font-size: 12px;
+      cursor: pointer;
+      transition: border-color .2s, background .2s, transform .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .pause-button:active { transform: scale(.96); }
+    .pause-button:hover { border-color: rgba(85, 239, 255, .42); background: rgba(85, 239, 255, .07); }
+    .pause-button:disabled { opacity: .4; cursor: default; }
+    .pause-button svg { width: 14px; height: 14px; fill: currentColor; }
+
+    .stats {
+      gap: 8px;
+      margin-top: 11px;
+    }
+
+    .stat {
+      flex: 1;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      min-width: 0;
+      padding: 7px 10px;
+      border: 1px solid rgba(132, 154, 224, .1);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, .022);
+    }
+
+    .stat-label { color: var(--muted); font-size: 10px; white-space: nowrap; }
+    .stat strong {
+      margin-left: 6px;
+      overflow: hidden;
+      color: #eaf0ff;
+      font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      font-size: 15px;
+      font-variant-numeric: tabular-nums;
+      text-overflow: ellipsis;
+    }
+
+    .stat:first-child strong { color: var(--cyan); text-shadow: 0 0 12px rgba(85, 239, 255, .28); }
+    .stat strong.bump { animation: score-bump .25s ease-out; }
+
+    .game-wrap {
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+      background: #070b18;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      outline: none;
+      cursor: crosshair;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .toast {
+      position: absolute;
+      z-index: 4;
+      top: 14px;
+      left: 50%;
+      max-width: calc(100% - 32px);
+      padding: 8px 14px;
+      border: 1px solid rgba(85, 239, 255, .22);
+      border-radius: 999px;
+      background: rgba(8, 13, 29, .82);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .25), inset 0 0 18px rgba(85, 239, 255, .04);
+      color: #c7faff;
+      font-size: 11px;
+      letter-spacing: .06em;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, -8px);
+      transition: opacity .25s, transform .25s;
+      backdrop-filter: blur(10px);
+    }
+
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    .footer {
+      position: relative;
+      z-index: 3;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 48px;
+      padding: 8px 16px max(9px, env(safe-area-inset-bottom));
+      border-top: 1px solid var(--line);
+      background: rgba(10, 14, 30, .94);
+    }
+
+    .next-ball { flex: 0 0 auto; gap: 7px; color: var(--muted); font-size: 10px; }
+
+    .ball-preview {
+      width: 19px;
+      height: 19px;
+      border: 1px solid rgba(255, 255, 255, .45);
+      border-radius: 50%;
+      transition: background .15s, box-shadow .15s;
+    }
+
+    .hint {
+      margin: 0;
+      color: #707c9f;
+      font-size: 10px;
+      line-height: 1.4;
+      text-align: right;
+      letter-spacing: .02em;
+    }
+
+    .fine-pointer { display: none; }
+
+    .modal {
+      position: absolute;
+      z-index: 10;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 22px;
+      background: rgba(3, 5, 14, .68);
+      opacity: 0;
+      transition: opacity .22s ease;
+      backdrop-filter: blur(7px);
+      -webkit-backdrop-filter: blur(7px);
+    }
+
+    .modal.visible { opacity: 1; }
+
+    .modal-card {
+      width: min(100%, 330px);
+      padding: 27px 24px 22px;
+      border: 1px solid rgba(127, 153, 238, .24);
+      border-radius: 24px;
+      background:
+        radial-gradient(circle at 50% 0, rgba(111, 86, 221, .15), transparent 46%),
+        linear-gradient(155deg, rgba(23, 30, 57, .98), rgba(10, 14, 31, .98));
+      box-shadow: 0 24px 80px rgba(0, 0, 0, .52), inset 0 1px rgba(255, 255, 255, .04);
+      text-align: center;
+      transform: translateY(12px) scale(.97);
+      transition: transform .25s ease;
+    }
+
+    .modal.visible .modal-card { transform: translateY(0) scale(1); }
+
+    .modal-icon {
+      display: grid;
+      place-items: center;
+      width: 58px;
+      height: 58px;
+      margin: 0 auto 15px;
+      border: 1px solid rgba(85, 239, 255, .38);
+      border-radius: 50%;
+      background: rgba(85, 239, 255, .06);
+      box-shadow: 0 0 28px rgba(85, 239, 255, .12), inset 0 0 18px rgba(85, 239, 255, .08);
+      color: var(--cyan);
+      font-size: 26px;
+      font-weight: 300;
+    }
+
+    .modal-eyebrow {
+      margin: 0 0 7px;
+      color: #7888b7;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .28em;
+    }
+
+    .modal h2 { margin: 0; font-size: 25px; letter-spacing: .06em; }
+    .modal-message { margin: 10px 0 18px; color: #99a5c5; font-size: 12px; line-height: 1.7; }
+
+    .modal-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .modal-stat {
+      padding: 10px;
+      border: 1px solid rgba(139, 159, 223, .1);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .025);
+    }
+
+    .modal-stat span { display: block; margin-bottom: 4px; color: #7885a7; font-size: 9px; }
+    .modal-stat strong { color: #eef3ff; font-family: ui-monospace, monospace; font-size: 19px; }
+
+    .modal-actions { display: grid; gap: 9px; }
+
+    .action-button {
+      min-height: 46px;
+      border-radius: 13px;
+      font-size: 13px;
+      font-weight: 650;
+      letter-spacing: .06em;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform .15s, filter .15s;
+    }
+
+    .action-button:active { transform: scale(.97); }
+    .action-button:hover { filter: brightness(1.1); }
+
+    .primary {
+      border: 1px solid rgba(130, 248, 255, .48);
+      background: linear-gradient(110deg, #42ddec, #7778f5);
+      box-shadow: 0 8px 25px rgba(70, 206, 238, .18);
+      color: #06111d;
+    }
+
+    .secondary {
+      border: 1px solid rgba(137, 157, 219, .17);
+      background: rgba(255, 255, 255, .03);
+      color: #9aa7c8;
+    }
+
+    @keyframes score-bump {
+      50% { transform: scale(1.18); filter: brightness(1.4); }
+    }
+
+    @media (pointer: fine) {
+      .fine-pointer { display: inline; }
+      .touch-pointer { display: none; }
+    }
+
+    @media (max-height: 620px) {
+      .topbar { padding-bottom: 7px; }
+      .stats { margin-top: 7px; }
+      .stat { padding-top: 5px; padding-bottom: 5px; }
+      .footer { min-height: 42px; padding-top: 6px; padding-bottom: max(6px, env(safe-area-inset-bottom)); }
+    }
+
+    @media (min-width: 600px) and (min-height: 760px) {
+      .app {
+        height: min(900px, calc(100dvh - 36px));
+        border: 1px solid rgba(133, 156, 231, .18);
+        border-radius: 26px;
+        box-shadow: 0 30px 100px rgba(0, 0, 0, .55), 0 0 50px rgba(85, 100, 220, .08);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .modal, .modal-card, .toast, .action-button, .pause-button { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="title-row">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <div>
+            <h1>霓虹祖玛</h1>
+            <span class="brand-subtitle">NEON ORBIT</span>
+          </div>
+        </div>
+        <button class="pause-button" id="pauseButton" type="button" aria-label="暂停游戏">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h4v12H3zm6 0h4v12H9z"/></svg>
+          <span id="pauseText">暂停</span>
+        </button>
+      </div>
+      <div class="stats" aria-label="游戏数据">
+        <div class="stat"><span class="stat-label">分数</span><strong id="scoreValue">0</strong></div>
+        <div class="stat"><span class="stat-label">最高分</span><strong id="bestValue">0</strong></div>
+        <div class="stat"><span class="stat-label">剩余</span><strong id="remainingValue">42</strong></div>
+      </div>
+    </header>
+
+    <main class="game-wrap" id="gameWrap">
+      <canvas id="gameCanvas" tabindex="0" aria-label="祖玛游戏区域：轻点或点击轨道发射彩球"></canvas>
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+      <section class="modal" id="gameModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
+        <div class="modal-card">
+          <div class="modal-icon" id="modalIcon" aria-hidden="true">Ⅱ</div>
+          <p class="modal-eyebrow">NEON ORBIT</p>
+          <h2 id="modalTitle">游戏暂停</h2>
+          <p class="modal-message" id="modalMessage">轨道已冻结，随时继续。</p>
+          <div class="modal-stats">
+            <div class="modal-stat"><span>本局分数</span><strong id="modalScore">0</strong></div>
+            <div class="modal-stat"><span>历史最高</span><strong id="modalBest">0</strong></div>
+          </div>
+          <div class="modal-actions">
+            <button class="action-button primary" id="modalPrimary" type="button">继续游戏</button>
+            <button class="action-button secondary" id="modalSecondary" type="button">重新开始</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="next-ball"><span>下一颗</span><i class="ball-preview" id="nextPreview" aria-hidden="true"></i></div>
+      <p class="hint">
+        <span class="touch-pointer">轻点发射 · 拖动瞄准，松手发射<br>三个及以上同色球即可消除</span>
+        <span class="fine-pointer">移动瞄准 · 点击 / 空格发射<br>方向键调角度 · P 键暂停</span>
+      </p>
+    </footer>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // 基础元素与画布
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      const gameWrap = document.getElementById('gameWrap');
+      const scoreValue = document.getElementById('scoreValue');
+      const bestValue = document.getElementById('bestValue');
+      const remainingValue = document.getElementById('remainingValue');
+      const nextPreview = document.getElementById('nextPreview');
+      const pauseButton = document.getElementById('pauseButton');
+      const pauseText = document.getElementById('pauseText');
+      const toast = document.getElementById('toast');
+      const modal = document.getElementById('gameModal');
+      const modalIcon = document.getElementById('modalIcon');
+      const modalTitle = document.getElementById('modalTitle');
+      const modalMessage = document.getElementById('modalMessage');
+      const modalScore = document.getElementById('modalScore');
+      const modalBest = document.getElementById('modalBest');
+      const modalPrimary = document.getElementById('modalPrimary');
+      const modalSecondary = document.getElementById('modalSecondary');
+
+      // 彩球配色：亮部、主色、暗部均用于绘制立体球面
+      const PALETTE = [
+        { hex: '#25e6ff', light: '#b9fbff', dark: '#08738f' },
+        { hex: '#ff3c91', light: '#ffc0dc', dark: '#94134e' },
+        { hex: '#ffd447', light: '#fff4b0', dark: '#a86709' },
+        { hex: '#8b6cff', light: '#d7cbff', dark: '#43259e' },
+        { hex: '#54ef8a', light: '#c4ffd8', dark: '#137440' }
+      ];
+
+      const STORAGE_KEY = 'neon-zuma-best-v1';
+      const TOTAL_BALLS = 42;
+      const TAU = Math.PI * 2;
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const randomItem = array => array[Math.floor(Math.random() * array.length)];
+      const formatNumber = value => Math.round(value).toLocaleString('zh-CN');
+
+      let width = 0;
+      let height = 0;
+      let dpr = 1;
+      let center = { x: 0, y: 0 };
+      let outerRadius = 0;
+      let ballRadius = 10;
+      let spacing = 22;
+      let path = [];
+      let pathLength = 1;
+      let rotation = 0;
+      let elapsed = 0;
+      let chain = [];
+      let projectiles = [];
+      let particles = [];
+      let floaters = [];
+      let state = 'playing';
+      let score = 0;
+      let best = loadBest();
+      let currentColor = PALETTE[0];
+      let nextColor = PALETTE[1];
+      let aimAngle = -Math.PI / 2;
+      let cooldown = 0;
+      let combo = 0;
+      let comboTimer = 0;
+      let shake = 0;
+      let toastTimer = 0;
+      let lastTime = performance.now();
+      let pointer = { down: false, inside: false, id: null, x: 0, y: 0 };
+
+      // 星点只生成一次，调整尺寸时仍保持相对位置
+      const stars = Array.from({ length: 58 }, () => ({
+        x: Math.random(),
+        y: Math.random(),
+        size: .35 + Math.random() * 1.15,
+        alpha: .12 + Math.random() * .42,
+        phase: Math.random() * TAU
+      }));
+
+      function loadBest() {
+        try {
+          return Math.max(0, Number(localStorage.getItem(STORAGE_KEY)) || 0);
+        } catch (_) {
+          return 0;
+        }
+      }
+
+      function saveBest() {
+        try { localStorage.setItem(STORAGE_KEY, String(best)); } catch (_) { /* 隐私模式下静默降级 */ }
+      }
+
+      // 建立阿基米德螺线，并按真实弧长索引，保证球速均匀
+      function buildPath() {
+        path = [];
+        pathLength = 0;
+        const innerRadius = Math.max(35, outerRadius * .36);
+        const turns = Math.PI * 2 * 2.35;
+        const startAngle = -Math.PI / 2;
+        const samples = 900;
+        let previous = null;
+
+        for (let i = 0; i <= samples; i++) {
+          const t = i / samples;
+          const angle = startAngle + turns * t;
+          const radius = outerRadius - (outerRadius - innerRadius) * t;
+          const point = {
+            x: Math.cos(angle) * radius,
+            y: Math.sin(angle) * radius,
+            s: 0
+          };
+          if (previous) pathLength += Math.hypot(point.x - previous.x, point.y - previous.y);
+          point.s = pathLength;
+          path.push(point);
+          previous = point;
+        }
+      }
+
+      // 将轨道弧长转换成随轨道旋转的屏幕坐标
+      function getPoint(distance) {
+        const target = clamp(distance, 0, pathLength);
+        let low = 0;
+        let high = path.length - 1;
+        while (low < high) {
+          const mid = (low + high) >> 1;
+          if (path[mid].s < target) low = mid + 1;
+          else high = mid;
+        }
+        const b = path[low];
+        const a = path[Math.max(0, low - 1)];
+        const mix = b.s === a.s ? 0 : (target - a.s) / (b.s - a.s);
+        const x = a.x + (b.x - a.x) * mix;
+        const y = a.y + (b.y - a.y) * mix;
+        const cos = Math.cos(rotation);
+        const sin = Math.sin(rotation);
+        return {
+          x: center.x + x * cos - y * sin,
+          y: center.y + x * sin + y * cos
+        };
+      }
+
+      function resizeCanvas() {
+        const rect = gameWrap.getBoundingClientRect();
+        if (rect.width < 1 || rect.height < 1) return;
+        const oldLength = pathLength;
+        width = rect.width;
+        height = rect.height;
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        center = { x: width / 2, y: height * .49 };
+        outerRadius = Math.min(width * .44, height * .39);
+        ballRadius = clamp(width * .027, 8.5, 12);
+        spacing = ballRadius * 2 + 2;
+        buildPath();
+
+        // 横竖屏切换时按轨道比例迁移球链，避免突然判负
+        if (chain.length && oldLength > 1) {
+          const ratio = pathLength / oldLength;
+          chain.forEach(ball => { ball.s *= ratio; });
+          // 尺寸变化后从球头向尾部消除重叠，同时保留核心距离
+          for (let i = chain.length - 2; i >= 0; i--) {
+            chain[i].s = Math.min(chain[i].s, chain[i + 1].s - spacing);
+          }
+        }
+        projectiles = [];
+        particles = [];
+        floaters = [];
+      }
+
+      function pickChainColor() {
+        const available = [...new Set(chain.map(ball => ball.color))];
+        return available.length ? randomItem(available) : randomItem(PALETTE);
+      }
+
+      function updatePreview() {
+        nextPreview.style.background = `radial-gradient(circle at 32% 25%, #fff 0 5%, ${nextColor.light} 17%, ${nextColor.hex} 52%, ${nextColor.dark} 100%)`;
+        nextPreview.style.boxShadow = `0 0 12px ${nextColor.hex}55`;
+      }
+
+      function updateHUD(animate = false) {
+        scoreValue.textContent = formatNumber(score);
+        bestValue.textContent = formatNumber(best);
+        remainingValue.textContent = chain.length;
+        if (animate) {
+          scoreValue.classList.remove('bump');
+          void scoreValue.offsetWidth;
+          scoreValue.classList.add('bump');
+        }
+      }
+
+      function showToast(message, duration = 1500) {
+        clearTimeout(toastTimer);
+        toast.textContent = message;
+        toast.classList.add('show');
+        toastTimer = setTimeout(() => toast.classList.remove('show'), duration);
+      }
+
+      function startGame() {
+        state = 'playing';
+        score = 0;
+        combo = 0;
+        comboTimer = 0;
+        cooldown = 0;
+        elapsed = 0;
+        rotation = -.18;
+        aimAngle = -Math.PI / 2;
+        projectiles = [];
+        particles = [];
+        floaters = [];
+        shake = 0;
+        chain = [];
+
+        // 初始球链不生成现成三连，所有消除都来自玩家操作
+        // 较矮的屏幕自动缩短球链，保证开局留有反应时间
+        const ballCount = Math.max(12, Math.min(TOTAL_BALLS, Math.floor((pathLength * .62 - ballRadius) / spacing)));
+        for (let i = 0; i < ballCount; i++) {
+          let color;
+          do {
+            color = randomItem(PALETTE);
+          } while (i >= 2 && chain[i - 1].color === color && chain[i - 2].color === color);
+          chain.push({ color, s: ballRadius + i * spacing, pulse: 0 });
+        }
+
+        currentColor = pickChainColor();
+        nextColor = pickChainColor();
+        pauseButton.disabled = false;
+        pauseText.textContent = '暂停';
+        pauseButton.setAttribute('aria-label', '暂停游戏');
+        updatePreview();
+        updateHUD();
+        hideModal();
+        showToast('轻点轨道，发射彩球！', 1900);
+        lastTime = performance.now();
+      }
+
+      function showModal() {
+        modalScore.textContent = formatNumber(score);
+        modalBest.textContent = formatNumber(best);
+        modal.hidden = false;
+        requestAnimationFrame(() => {
+          modal.classList.add('visible');
+          modalPrimary.focus({ preventScroll: true });
+        });
+      }
+
+      function hideModal() {
+        modal.classList.remove('visible');
+        modal.hidden = true;
+      }
+
+      function pauseGame() {
+        if (state !== 'playing') return;
+        state = 'paused';
+        pointer.down = false;
+        pauseText.textContent = '继续';
+        pauseButton.setAttribute('aria-label', '继续游戏');
+        modalIcon.textContent = 'Ⅱ';
+        modalIcon.style.color = '#55efff';
+        modalIcon.style.borderColor = 'rgba(85,239,255,.38)';
+        modalTitle.textContent = '游戏暂停';
+        modalMessage.textContent = '轨道已冻结，调整好节奏再出发。';
+        modalPrimary.textContent = '继续游戏';
+        modalSecondary.hidden = false;
+        showModal();
+      }
+
+      function resumeGame() {
+        if (state !== 'paused') return;
+        state = 'playing';
+        pauseText.textContent = '暂停';
+        pauseButton.setAttribute('aria-label', '暂停游戏');
+        hideModal();
+        lastTime = performance.now();
+        canvas.focus({ preventScroll: true });
+      }
+
+      function endGame(result) {
+        if (state !== 'playing') return;
+        state = result;
+        pointer.down = false;
+        pauseButton.disabled = true;
+        if (score > best) best = score;
+        saveBest();
+        updateHUD();
+
+        const won = result === 'win';
+        modalIcon.textContent = won ? '✓' : '!';
+        modalIcon.style.color = won ? '#55efff' : '#ff668f';
+        modalIcon.style.borderColor = won ? 'rgba(85,239,255,.38)' : 'rgba(255,80,130,.42)';
+        modalTitle.textContent = won ? '轨道净化完成' : '彩球抵达核心';
+        modalMessage.textContent = won
+          ? '漂亮！所有彩球都已化为星尘。'
+          : '核心能量过载，再试一次打断球链吧。';
+        modalPrimary.textContent = '再来一局';
+        modalSecondary.hidden = true;
+        showModal();
+      }
+
+      // 从中央发射器射出当前彩球
+      function fireBall() {
+        if (state !== 'playing' || cooldown > 0 || !chain.length) return;
+        const dx = Math.cos(aimAngle);
+        const dy = Math.sin(aimAngle);
+        const speed = Math.max(480, width * 1.42);
+        const muzzle = 42;
+        projectiles.push({
+          x: center.x + dx * muzzle,
+          y: center.y + dy * muzzle,
+          previousX: center.x + dx * (muzzle - 8),
+          previousY: center.y + dy * (muzzle - 8),
+          vx: dx * speed,
+          vy: dy * speed,
+          color: currentColor,
+          dead: false
+        });
+        cooldown = .2;
+        currentColor = nextColor;
+        nextColor = pickChainColor();
+        updatePreview();
+        burst(center.x + dx * muzzle, center.y + dy * muzzle, currentColor.hex, 4, 55);
+      }
+
+      // 根据撞击点位于目标球切线的哪一侧，决定插入前后位置
+      function insertProjectile(hitIndex, projectile) {
+        const hit = chain[hitIndex];
+        const before = getPoint(hit.s - spacing * .48);
+        const after = getPoint(hit.s + spacing * .48);
+        const beforeDistance = (projectile.x - before.x) ** 2 + (projectile.y - before.y) ** 2;
+        const afterDistance = (projectile.x - after.x) ** 2 + (projectile.y - after.y) ** 2;
+        const insertAfter = afterDistance < beforeDistance;
+        const insertIndex = insertAfter ? hitIndex + 1 : hitIndex;
+        const newBall = {
+          color: projectile.color,
+          s: insertAfter ? hit.s + spacing : hit.s,
+          pulse: 1
+        };
+        chain.splice(insertIndex, 0, newBall);
+
+        // 插入时向前挤压球链，保持球与球之间的固定间距
+        for (let i = insertIndex + 1; i < chain.length; i++) {
+          const overlap = spacing - (chain[i].s - chain[i - 1].s);
+          if (overlap > 0) chain[i].s += overlap;
+        }
+        for (let i = insertIndex - 1; i >= 0; i--) {
+          const overlap = spacing - (chain[i + 1].s - chain[i].s);
+          if (overlap > 0) chain[i].s -= overlap;
+        }
+
+        burst(projectile.x, projectile.y, projectile.color.hex, 5, 45);
+        resolveMatchAt(insertIndex);
+      }
+
+      function resolveMatchAt(index) {
+        if (!chain[index]) return false;
+        const color = chain[index].color;
+        let start = index;
+        let end = index;
+        while (start > 0 && chain[start - 1].color === color) start--;
+        while (end < chain.length - 1 && chain[end + 1].color === color) end++;
+        const count = end - start + 1;
+        if (count < 3) return false;
+        removeBalls(start, count);
+        return true;
+      }
+
+      function removeBalls(start, count) {
+        const removed = chain.slice(start, start + count);
+        let x = 0;
+        let y = 0;
+        removed.forEach(ball => {
+          const point = getPoint(ball.s);
+          x += point.x;
+          y += point.y;
+          burst(point.x, point.y, ball.color.hex, 9, 125);
+        });
+        x /= count;
+        y /= count;
+        chain.splice(start, count);
+
+        combo = comboTimer > 0 ? combo + 1 : 1;
+        comboTimer = 1.55;
+        const gained = count * 100 * combo + Math.max(0, count - 3) * 50;
+        score += gained;
+        if (score > best) {
+          best = score;
+          saveBest();
+        }
+        shake = Math.min(9, 2.5 + count * .65 + combo * .45);
+        floaters.push({
+          x, y,
+          text: combo > 1 ? `+${gained}  连锁×${combo}` : `+${gained}`,
+          color: removed[0].color.light,
+          life: 1,
+          maxLife: 1
+        });
+        if (combo > 1) showToast(`连锁反应 × ${combo}`, 900);
+
+        // 若某种颜色已经清空，及时替换弹药，避免生成无效彩球
+        if (chain.length) {
+          if (!chain.some(ball => ball.color === currentColor)) currentColor = pickChainColor();
+          if (!chain.some(ball => ball.color === nextColor)) nextColor = pickChainColor();
+          updatePreview();
+        }
+        updateHUD(true);
+        if (!chain.length) endGame('win');
+      }
+
+      function checkAllMatches() {
+        for (let i = 0; i < chain.length;) {
+          let end = i + 1;
+          while (end < chain.length && chain[end].color === chain[i].color) end++;
+          if (end - i >= 3) {
+            removeBalls(i, end - i);
+            return;
+          }
+          i = end;
+        }
+      }
+
+      function updateChain(dt) {
+        const speed = clamp(width / 39, 7.5, 11);
+        for (const ball of chain) {
+          ball.s += speed * dt;
+          ball.pulse = Math.max(0, ball.pulse - dt * 4.5);
+        }
+
+        // 消除后的前段球链缓慢回吸，合拢后可能触发新的三连
+        for (let i = 1; i < chain.length; i++) {
+          const gap = chain[i].s - chain[i - 1].s;
+          if (gap > spacing) {
+            const movement = Math.min(gap - spacing, 92 * dt);
+            for (let j = i; j < chain.length; j++) chain[j].s -= movement;
+          }
+        }
+
+        if (chain.length && chain[chain.length - 1].s >= pathLength - ballRadius * .55) {
+          endGame('over');
+        }
+      }
+
+      function updateProjectiles(dt) {
+        for (const projectile of projectiles) {
+          projectile.previousX = projectile.x;
+          projectile.previousY = projectile.y;
+          const travel = Math.hypot(projectile.vx, projectile.vy) * dt;
+          const steps = Math.max(1, Math.ceil(travel / (ballRadius * .65)));
+          const stepTime = dt / steps;
+
+          // 小步进碰撞检测，避免高速彩球穿过球链
+          for (let step = 0; step < steps && !projectile.dead; step++) {
+            projectile.x += projectile.vx * stepTime;
+            projectile.y += projectile.vy * stepTime;
+            if (projectile.x < -30 || projectile.x > width + 30 || projectile.y < -30 || projectile.y > height + 30) {
+              projectile.dead = true;
+              break;
+            }
+            for (let i = chain.length - 1; i >= 0; i--) {
+              const point = getPoint(chain[i].s);
+              const radius = ballRadius * 1.78;
+              if ((projectile.x - point.x) ** 2 + (projectile.y - point.y) ** 2 < radius * radius) {
+                projectile.dead = true;
+                insertProjectile(i, projectile);
+                break;
+              }
+            }
+          }
+        }
+        projectiles = projectiles.filter(projectile => !projectile.dead);
+      }
+
+      function burst(x, y, color, count, force) {
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * TAU;
+          const speed = force * (.25 + Math.random() * .75);
+          const life = .35 + Math.random() * .45;
+          particles.push({
+            x, y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            size: 1 + Math.random() * 2.2,
+            color,
+            life,
+            maxLife: life
+          });
+        }
+        if (particles.length > 280) particles.splice(0, particles.length - 280);
+      }
+
+      function updateEffects(dt) {
+        for (const particle of particles) {
+          particle.x += particle.vx * dt;
+          particle.y += particle.vy * dt;
+          particle.vx *= Math.pow(.06, dt);
+          particle.vy *= Math.pow(.06, dt);
+          particle.life -= dt;
+        }
+        particles = particles.filter(particle => particle.life > 0);
+        for (const floater of floaters) {
+          floater.y -= 28 * dt;
+          floater.life -= dt;
+        }
+        floaters = floaters.filter(floater => floater.life > 0);
+        shake = Math.max(0, shake - 24 * dt);
+      }
+
+      function update(dt) {
+        elapsed += dt;
+        rotation += .052 * dt;
+        cooldown = Math.max(0, cooldown - dt);
+        comboTimer = Math.max(0, comboTimer - dt);
+        if (comboTimer === 0) combo = 0;
+        updateChain(dt);
+        if (state !== 'playing') return;
+        updateProjectiles(dt);
+        if (state !== 'playing') return;
+        checkAllMatches();
+        updateEffects(dt);
+      }
+
+      function drawBackground() {
+        const gradient = ctx.createRadialGradient(center.x, center.y, 10, center.x, center.y, Math.max(width, height) * .72);
+        gradient.addColorStop(0, '#101831');
+        gradient.addColorStop(.5, '#090f22');
+        gradient.addColorStop(1, '#050814');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+
+        for (const star of stars) {
+          const alpha = star.alpha * (.72 + Math.sin(elapsed * .8 + star.phase) * .28);
+          ctx.fillStyle = `rgba(164,190,255,${alpha})`;
+          ctx.beginPath();
+          ctx.arc(star.x * width, star.y * height, star.size, 0, TAU);
+          ctx.fill();
+        }
+
+        ctx.save();
+        ctx.translate(center.x, center.y);
+        ctx.strokeStyle = 'rgba(104,131,211,.045)';
+        ctx.lineWidth = 1;
+        for (let r = outerRadius * .35; r < outerRadius * 1.25; r += outerRadius * .24) {
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, TAU);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function tracePath() {
+        const cos = Math.cos(rotation);
+        const sin = Math.sin(rotation);
+        ctx.beginPath();
+        path.forEach((point, index) => {
+          const x = center.x + point.x * cos - point.y * sin;
+          const y = center.y + point.x * sin + point.y * cos;
+          if (index === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+      }
+
+      function drawTrack() {
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        tracePath();
+        ctx.strokeStyle = 'rgba(0,0,0,.5)';
+        ctx.lineWidth = ballRadius * 2 + 11;
+        ctx.shadowColor = 'rgba(66,91,190,.28)';
+        ctx.shadowBlur = 20;
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#111a32';
+        ctx.lineWidth = ballRadius * 2 + 7;
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(80,107,177,.24)';
+        ctx.lineWidth = ballRadius * 2 + 2;
+        ctx.stroke();
+
+        ctx.setLineDash([2, 10]);
+        ctx.lineDashOffset = -elapsed * 15;
+        ctx.strokeStyle = 'rgba(116,157,255,.34)';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+
+        drawEntrance();
+        drawCore();
+      }
+
+      function drawEntrance() {
+        const point = getPoint(0);
+        ctx.save();
+        ctx.translate(point.x, point.y);
+        ctx.rotate(rotation);
+        ctx.strokeStyle = 'rgba(100,140,255,.38)';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#667dff';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(0, 0, ballRadius + 4, .2, Math.PI * 1.55);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawCore() {
+        const point = getPoint(pathLength);
+        const danger = chain.length ? clamp(chain[chain.length - 1].s / pathLength, 0, 1) : 0;
+        const pulse = 1 + Math.sin(elapsed * (2 + danger * 5)) * .08;
+        ctx.save();
+        ctx.translate(point.x, point.y);
+        ctx.scale(pulse, pulse);
+        ctx.shadowColor = danger > .78 ? '#ff396f' : '#895fff';
+        ctx.shadowBlur = 12 + danger * 14;
+        ctx.strokeStyle = danger > .78 ? `rgba(255,70,115,${.5 + danger * .4})` : 'rgba(144,105,255,.65)';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.arc(0, 0, ballRadius + 5, elapsed * .4, elapsed * .4 + Math.PI * 1.5);
+        ctx.stroke();
+        ctx.rotate(-elapsed * .35);
+        ctx.setLineDash([3, 4]);
+        ctx.beginPath();
+        ctx.arc(0, 0, ballRadius + 10, 0, TAU);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        const gradient = ctx.createRadialGradient(-2, -2, 1, 0, 0, ballRadius);
+        gradient.addColorStop(0, '#233059');
+        gradient.addColorStop(.45, '#090d1d');
+        gradient.addColorStop(1, '#01030a');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, ballRadius, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawAimGuide() {
+        if (state !== 'playing') return;
+        const dx = Math.cos(aimAngle);
+        const dy = Math.sin(aimAngle);
+        ctx.save();
+        for (let distance = 53; distance < Math.max(width, height); distance += 19) {
+          const x = center.x + dx * distance;
+          const y = center.y + dy * distance;
+          if (x < 4 || x > width - 4 || y < 4 || y > height - 4) break;
+          const alpha = clamp(.48 - distance / Math.max(width, height) * .38, .06, .4);
+          ctx.fillStyle = `rgba(135,231,255,${alpha})`;
+          ctx.beginPath();
+          ctx.arc(x, y, distance % 38 < 10 ? 1.5 : 1, 0, TAU);
+          ctx.fill();
+        }
+        if (pointer.inside || pointer.down) {
+          ctx.strokeStyle = 'rgba(152,238,255,.42)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(pointer.x, pointer.y, 8, 0, TAU);
+          ctx.moveTo(pointer.x - 12, pointer.y);
+          ctx.lineTo(pointer.x - 5, pointer.y);
+          ctx.moveTo(pointer.x + 5, pointer.y);
+          ctx.lineTo(pointer.x + 12, pointer.y);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawBall(x, y, radius, color, alpha = 1) {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.shadowColor = color.hex;
+        ctx.shadowBlur = radius * .8;
+        const gradient = ctx.createRadialGradient(x - radius * .32, y - radius * .38, radius * .08, x, y, radius);
+        gradient.addColorStop(0, '#ffffff');
+        gradient.addColorStop(.17, color.light);
+        gradient.addColorStop(.52, color.hex);
+        gradient.addColorStop(1, color.dark);
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, TAU);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = 'rgba(255,255,255,.35)';
+        ctx.lineWidth = .8;
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,.52)';
+        ctx.beginPath();
+        ctx.ellipse(x - radius * .28, y - radius * .36, radius * .2, radius * .12, -.6, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawChain() {
+        for (const ball of chain) {
+          const point = getPoint(ball.s);
+          drawBall(point.x, point.y, ballRadius * (1 + ball.pulse * .2), ball.color);
+        }
+      }
+
+      function drawProjectiles() {
+        for (const projectile of projectiles) {
+          ctx.save();
+          ctx.strokeStyle = projectile.color.hex;
+          ctx.globalAlpha = .3;
+          ctx.lineWidth = ballRadius * 1.15;
+          ctx.lineCap = 'round';
+          ctx.shadowColor = projectile.color.hex;
+          ctx.shadowBlur = 12;
+          ctx.beginPath();
+          ctx.moveTo(projectile.previousX, projectile.previousY);
+          ctx.lineTo(projectile.x, projectile.y);
+          ctx.stroke();
+          ctx.restore();
+          drawBall(projectile.x, projectile.y, ballRadius * .88, projectile.color);
+        }
+      }
+
+      function roundedRectPath(x, y, w, h, radius) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + w - radius, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+        ctx.lineTo(x + w, y + h - radius);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+        ctx.lineTo(x + radius, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+      }
+
+      function drawShooter() {
+        ctx.save();
+        ctx.translate(center.x, center.y);
+
+        // 中央发射器的双层能量底座
+        ctx.strokeStyle = 'rgba(91,225,255,.18)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 5]);
+        ctx.lineDashOffset = elapsed * 8;
+        ctx.beginPath();
+        ctx.arc(0, 0, 33, 0, TAU);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.save();
+        ctx.rotate(aimAngle);
+        ctx.shadowColor = '#55efff';
+        ctx.shadowBlur = 12;
+        const barrel = ctx.createLinearGradient(8, 0, 42, 0);
+        barrel.addColorStop(0, '#172b47');
+        barrel.addColorStop(.7, '#28677e');
+        barrel.addColorStop(1, '#72f3ff');
+        ctx.fillStyle = barrel;
+        roundedRectPath(8, -7, 34, 14, 6);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = 'rgba(183,250,255,.65)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(40, 0, 3.5, 6, 0, 0, TAU);
+        ctx.stroke();
+        ctx.restore();
+
+        const base = ctx.createRadialGradient(-6, -8, 2, 0, 0, 25);
+        base.addColorStop(0, '#30486b');
+        base.addColorStop(.55, '#15233d');
+        base.addColorStop(1, '#080e20');
+        ctx.fillStyle = base;
+        ctx.shadowColor = '#607cff';
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(0, 0, 23, 0, TAU);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = 'rgba(132,197,255,.55)';
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+        ctx.restore();
+
+        drawBall(center.x, center.y, ballRadius * 1.06, currentColor);
+      }
+
+      function drawEffects() {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (const particle of particles) {
+          const alpha = clamp(particle.life / particle.maxLife, 0, 1);
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = particle.color;
+          ctx.shadowColor = particle.color;
+          ctx.shadowBlur = 6;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size * alpha, 0, TAU);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = '700 13px "PingFang SC", "Microsoft YaHei", sans-serif';
+        for (const floater of floaters) {
+          const alpha = clamp(floater.life / floater.maxLife, 0, 1);
+          ctx.globalAlpha = Math.min(1, alpha * 2);
+          ctx.fillStyle = floater.color;
+          ctx.shadowColor = floater.color;
+          ctx.shadowBlur = 10;
+          ctx.fillText(floater.text, floater.x, floater.y);
+        }
+        ctx.restore();
+      }
+
+      function drawDangerIndicator() {
+        if (!chain.length) return;
+        const progress = clamp(chain[chain.length - 1].s / pathLength, 0, 1);
+        const barWidth = Math.min(116, width * .3);
+        const x = (width - barWidth) / 2;
+        const y = height - 12;
+        ctx.save();
+        ctx.fillStyle = 'rgba(113,134,192,.12)';
+        roundedRectPath(x, y, barWidth, 3, 2);
+        ctx.fill();
+        const color = progress > .78 ? '#ff4e82' : progress > .58 ? '#ffd45e' : '#657cff';
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 7;
+        roundedRectPath(x, y, Math.max(3, barWidth * progress), 3, 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function draw() {
+        if (!width || !height) return;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, width, height);
+        ctx.save();
+        if (shake > 0) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
+        drawBackground();
+        drawTrack();
+        drawAimGuide();
+        drawChain();
+        drawProjectiles();
+        drawShooter();
+        drawEffects();
+        drawDangerIndicator();
+        ctx.restore();
+      }
+
+      function frame(now) {
+        const dt = Math.min(.034, Math.max(0, (now - lastTime) / 1000));
+        lastTime = now;
+        if (state === 'playing') update(dt);
+        else if (state === 'win' || state === 'over') updateEffects(dt);
+        draw();
+        requestAnimationFrame(frame);
+      }
+
+      function updateAim(event) {
+        const rect = canvas.getBoundingClientRect();
+        pointer.x = event.clientX - rect.left;
+        pointer.y = event.clientY - rect.top;
+        const dx = pointer.x - center.x;
+        const dy = pointer.y - center.y;
+        if (Math.hypot(dx, dy) > 10) aimAngle = Math.atan2(dy, dx);
+      }
+
+      // Pointer Events 同时覆盖触屏、鼠标与触控笔
+      canvas.addEventListener('pointerdown', event => {
+        if (state !== 'playing' || event.button > 0) return;
+        event.preventDefault();
+        pointer.down = true;
+        pointer.inside = true;
+        pointer.id = event.pointerId;
+        canvas.setPointerCapture(event.pointerId);
+        updateAim(event);
+      });
+
+      canvas.addEventListener('pointermove', event => {
+        if (event.pointerType === 'mouse') pointer.inside = true;
+        if (event.pointerType === 'mouse' || (pointer.down && event.pointerId === pointer.id)) updateAim(event);
+      });
+
+      canvas.addEventListener('pointerup', event => {
+        if (!pointer.down || event.pointerId !== pointer.id) return;
+        event.preventDefault();
+        updateAim(event);
+        pointer.down = false;
+        pointer.id = null;
+        if (event.pointerType !== 'mouse') pointer.inside = false;
+        fireBall();
+      });
+
+      canvas.addEventListener('pointercancel', () => {
+        pointer.down = false;
+        pointer.inside = false;
+        pointer.id = null;
+      });
+      canvas.addEventListener('pointerleave', event => {
+        if (event.pointerType === 'mouse' && !pointer.down) pointer.inside = false;
+      });
+      canvas.addEventListener('contextmenu', event => event.preventDefault());
+
+      // 键盘兼容：左右方向键瞄准，空格发射，P / Esc 暂停
+      window.addEventListener('keydown', event => {
+        if (event.code === 'KeyP' || event.code === 'Escape') {
+          event.preventDefault();
+          if (state === 'playing') pauseGame();
+          else if (state === 'paused') resumeGame();
+          return;
+        }
+        if (state !== 'playing') return;
+        if (event.code === 'ArrowLeft' || event.code === 'ArrowRight') {
+          event.preventDefault();
+          aimAngle += event.code === 'ArrowLeft' ? -.09 : .09;
+        } else if (event.code === 'Space' && event.target.tagName !== 'BUTTON') {
+          event.preventDefault();
+          if (!event.repeat) fireBall();
+        }
+      });
+
+      pauseButton.addEventListener('click', () => {
+        if (state === 'playing') pauseGame();
+        else if (state === 'paused') resumeGame();
+      });
+      modalPrimary.addEventListener('click', () => {
+        if (state === 'paused') resumeGame();
+        else startGame();
+      });
+      modalSecondary.addEventListener('click', startGame);
+
+      // 禁止移动浏览器滚动、捏合与双击缩放
+      document.addEventListener('touchmove', event => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', event => event.preventDefault(), { passive: false });
+      document.addEventListener('dblclick', event => event.preventDefault(), { passive: false });
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state === 'playing') pauseGame();
+      });
+
+      if ('ResizeObserver' in window) new ResizeObserver(resizeCanvas).observe(gameWrap);
+      window.addEventListener('resize', resizeCanvas);
+      bestValue.textContent = formatNumber(best);
+      resizeCanvas();
+      startGame();
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>

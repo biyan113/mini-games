@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#060914">
+  <title>霓虹三线 · 躲避小游戏</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #060914;
+      --panel: rgba(12, 18, 36, .88);
+      --cyan: #42f5e9;
+      --pink: #ff4fa3;
+      --violet: #9b7bff;
+      --text: #f3f7ff;
+      --muted: #8b96b3;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      background: var(--bg);
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    button { font: inherit; }
+
+    #app {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 540px;
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 12% 4%, rgba(66, 245, 233, .09), transparent 28%),
+        radial-gradient(circle at 90% 28%, rgba(155, 123, 255, .08), transparent 30%),
+        #070b17;
+      isolation: isolate;
+    }
+
+    .hud {
+      position: relative;
+      z-index: 5;
+      flex: none;
+      padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+      border-bottom: 1px solid rgba(130, 158, 210, .12);
+      background: linear-gradient(180deg, rgba(8, 13, 27, .98), rgba(8, 13, 27, .88));
+    }
+
+    .topline, .brand, .stats, .stat, .actions {
+      display: flex;
+      align-items: center;
+    }
+
+    .topline { justify-content: space-between; margin-bottom: 12px; }
+    .brand { gap: 9px; }
+
+    .brand-mark {
+      position: relative;
+      width: 28px;
+      height: 28px;
+      border: 1px solid rgba(66, 245, 233, .55);
+      border-radius: 9px;
+      background: rgba(66, 245, 233, .08);
+      box-shadow: inset 0 0 12px rgba(66, 245, 233, .08), 0 0 16px rgba(66, 245, 233, .08);
+      transform: rotate(45deg);
+    }
+
+    .brand-mark::before, .brand-mark::after {
+      content: "";
+      position: absolute;
+      left: 7px;
+      width: 12px;
+      height: 2px;
+      border-radius: 2px;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+    }
+
+    .brand-mark::before { top: 9px; }
+    .brand-mark::after { top: 16px; width: 8px; }
+
+    .brand-copy { line-height: 1; }
+    .brand-title { font-size: 15px; font-weight: 800; letter-spacing: .16em; }
+    .brand-sub { margin-top: 5px; color: var(--muted); font-size: 8px; letter-spacing: .24em; }
+
+    .icon-button {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      color: var(--text);
+      border: 1px solid rgba(145, 165, 205, .2);
+      border-radius: 13px;
+      background: rgba(255, 255, 255, .045);
+      cursor: pointer;
+      transition: border-color .2s, background .2s, transform .15s;
+    }
+
+    .icon-button:active { transform: scale(.94); }
+    .icon-button:disabled { opacity: .35; cursor: default; }
+    .icon-button svg { width: 18px; height: 18px; fill: currentColor; }
+
+    .stats { gap: 8px; }
+    .stat {
+      flex: 1;
+      justify-content: space-between;
+      min-width: 0;
+      padding: 9px 12px;
+      border: 1px solid rgba(145, 165, 205, .12);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .025);
+    }
+
+    .stat-label { color: var(--muted); font-size: 11px; }
+    .stat-value { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .06em; }
+    .stat:first-child .stat-value { color: var(--cyan); text-shadow: 0 0 14px rgba(66, 245, 233, .3); }
+    .stat-unit { margin-left: 3px; color: var(--muted); font-size: 9px; font-weight: 500; }
+
+    #game {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    #canvas { display: block; width: 100%; height: 100%; }
+
+    .race-info {
+      position: absolute;
+      z-index: 2;
+      top: 13px;
+      left: 16px;
+      right: 16px;
+      pointer-events: none;
+    }
+
+    .race-meta {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 7px;
+      color: #b5c0d9;
+      font-size: 10px;
+      font-weight: 650;
+      letter-spacing: .08em;
+      text-shadow: 0 1px 5px #000;
+    }
+
+    .progress-track {
+      height: 3px;
+      overflow: hidden;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, .1);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, .4);
+    }
+
+    #progress {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--violet), var(--cyan));
+      box-shadow: 0 0 9px var(--cyan);
+      transition: width .15s linear;
+    }
+
+    .gesture-hint {
+      position: absolute;
+      z-index: 2;
+      bottom: calc(12px + env(safe-area-inset-bottom));
+      left: 50%;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 12px;
+      color: rgba(216, 226, 246, .72);
+      border: 1px solid rgba(150, 176, 218, .12);
+      border-radius: 999px;
+      background: rgba(5, 9, 20, .62);
+      backdrop-filter: blur(8px);
+      font-size: 10px;
+      letter-spacing: .08em;
+      white-space: nowrap;
+      pointer-events: none;
+      transform: translateX(-50%);
+    }
+
+    .gesture-hint b { color: var(--cyan); font-size: 14px; font-weight: 500; }
+
+    .overlay {
+      position: absolute;
+      z-index: 10;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(4, 7, 16, .7);
+      backdrop-filter: blur(9px);
+      -webkit-backdrop-filter: blur(9px);
+      opacity: 1;
+      visibility: visible;
+      transition: opacity .22s, visibility .22s;
+    }
+
+    .overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+    .card {
+      width: min(100%, 350px);
+      padding: 28px 24px 22px;
+      text-align: center;
+      border: 1px solid rgba(122, 156, 213, .2);
+      border-radius: 26px;
+      background:
+        linear-gradient(145deg, rgba(22, 31, 57, .96), rgba(9, 14, 29, .98));
+      box-shadow: 0 24px 80px rgba(0, 0, 0, .48), inset 0 1px rgba(255, 255, 255, .045);
+    }
+
+    .eyebrow {
+      margin-bottom: 10px;
+      color: var(--cyan);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .32em;
+    }
+
+    h1, h2 { margin: 0; }
+    h1 { font-size: clamp(32px, 9vw, 44px); letter-spacing: .08em; }
+    h2 { font-size: 30px; letter-spacing: .06em; }
+
+    .neon-text {
+      color: #f5ffff;
+      text-shadow: 0 0 10px rgba(66, 245, 233, .45), 0 0 32px rgba(66, 245, 233, .2);
+    }
+
+    .description {
+      margin: 12px 0 20px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .how-to {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 22px;
+      padding: 14px;
+      border: 1px solid rgba(66, 245, 233, .12);
+      border-radius: 16px;
+      background: rgba(66, 245, 233, .035);
+    }
+
+    .swipe-icon { color: var(--cyan); font-size: 25px; letter-spacing: 4px; text-shadow: 0 0 12px rgba(66, 245, 233, .4); }
+    .how-to-copy { text-align: left; }
+    .how-to-copy strong { display: block; margin-bottom: 4px; font-size: 13px; }
+    .how-to-copy span { color: var(--muted); font-size: 10px; }
+
+    .primary-button, .secondary-button {
+      width: 100%;
+      min-height: 50px;
+      border-radius: 15px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      cursor: pointer;
+      transition: transform .15s, filter .2s;
+    }
+
+    .primary-button {
+      color: #041413;
+      border: 0;
+      background: linear-gradient(105deg, #61fff0, #48dce9);
+      box-shadow: 0 8px 28px rgba(66, 245, 233, .2), inset 0 1px rgba(255, 255, 255, .5);
+    }
+
+    .secondary-button {
+      min-height: 42px;
+      margin-top: 8px;
+      color: var(--muted);
+      border: 0;
+      background: transparent;
+      font-size: 12px;
+    }
+
+    .primary-button:active, .secondary-button:active { transform: scale(.97); }
+    .primary-button:hover { filter: brightness(1.08); }
+    button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+
+    .start-best { margin-top: 14px; color: var(--muted); font-size: 11px; }
+    .start-best strong { margin-left: 5px; color: #dce6fa; font-variant-numeric: tabular-nums; }
+
+    .result-icon {
+      display: grid;
+      place-items: center;
+      width: 58px;
+      height: 58px;
+      margin: 0 auto 16px;
+      color: var(--cyan);
+      border: 1px solid rgba(66, 245, 233, .3);
+      border-radius: 19px;
+      background: rgba(66, 245, 233, .07);
+      box-shadow: 0 0 30px rgba(66, 245, 233, .08);
+      font-size: 27px;
+    }
+
+    .result-stats { display: flex; gap: 10px; margin: 20px 0; }
+    .result-stat {
+      flex: 1;
+      padding: 12px 8px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .035);
+    }
+    .result-stat span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 10px; }
+    .result-stat strong { font-size: 22px; font-variant-numeric: tabular-nums; }
+
+    #newBest {
+      display: none;
+      margin: -8px 0 14px;
+      color: #ffe37a;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .08em;
+    }
+    #newBest.show { display: block; }
+
+    @media (min-width: 600px) {
+      body { background: radial-gradient(circle, #111a30, #04060d 70%); }
+      #app { border-left: 1px solid rgba(125, 157, 210, .14); border-right: 1px solid rgba(125, 157, 210, .14); box-shadow: 0 0 80px #000; }
+    }
+
+    @media (max-height: 680px) {
+      .hud { padding-bottom: 9px; }
+      .topline { margin-bottom: 8px; }
+      .stat { padding-top: 6px; padding-bottom: 6px; }
+      .card { padding: 20px; }
+      .description { margin: 8px 0 12px; }
+      .how-to { margin-bottom: 14px; padding: 10px; }
+      .result-icon { margin-bottom: 10px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header class="hud">
+      <div class="topline">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true"></div>
+          <div class="brand-copy">
+            <div class="brand-title">霓虹三线</div>
+            <div class="brand-sub">NEON LANE DODGE</div>
+          </div>
+        </div>
+        <button id="pauseButton" class="icon-button" type="button" aria-label="暂停游戏" disabled>
+          <svg id="pauseIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zm6 0h4v14h-4z"/></svg>
+        </button>
+      </div>
+      <div class="stats" aria-label="游戏数据">
+        <div class="stat"><span class="stat-label">分数</span><span id="score" class="stat-value">0000</span></div>
+        <div class="stat"><span class="stat-label">最高分</span><span id="best" class="stat-value">0000</span></div>
+        <div class="stat"><span class="stat-label">速度</span><span class="stat-value"><span id="speed">80</span><span class="stat-unit">km/h</span></span></div>
+      </div>
+    </header>
+
+    <main id="game" aria-label="三线躲避游戏区域">
+      <canvas id="canvas" aria-label="左右滑动切换车道，躲避来车"></canvas>
+
+      <div class="race-info">
+        <div class="race-meta"><span id="levelLabel">第 1 阶段</span><span>终点 1000</span></div>
+        <div class="progress-track"><div id="progress"></div></div>
+      </div>
+
+      <div class="gesture-hint" aria-hidden="true"><b>‹</b><span>左右滑动切换车道</span><b>›</b></div>
+
+      <section id="startOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="gameTitle">
+        <div class="card">
+          <div class="eyebrow">NEON HIGHWAY</div>
+          <h1 id="gameTitle" class="neon-text">三线躲避</h1>
+          <p class="description">穿梭霓虹车流，向 1000 分终点进发。<br>速度会越来越快，保持专注！</p>
+          <div class="how-to">
+            <div class="swipe-icon" aria-hidden="true">← →</div>
+            <div class="how-to-copy"><strong>左右滑动切换车道</strong><span>也可轻点左右区域 / 使用方向键</span></div>
+          </div>
+          <button id="startButton" class="primary-button" type="button">开始疾驰</button>
+          <div class="start-best">历史最高<strong id="startBest">0000</strong></div>
+        </div>
+      </section>
+
+      <section id="modalOverlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="card">
+          <div id="resultIcon" class="result-icon" aria-hidden="true">Ⅱ</div>
+          <div id="modalEyebrow" class="eyebrow">TAKE A BREATH</div>
+          <h2 id="modalTitle">已暂停</h2>
+          <p id="modalText" class="description">稍作休息，随时准备继续。</p>
+          <div id="resultStats" class="result-stats">
+            <div class="result-stat"><span>本局分数</span><strong id="finalScore">0</strong></div>
+            <div class="result-stat"><span>历史最高</span><strong id="finalBest">0</strong></div>
+          </div>
+          <div id="newBest">✦ 新纪录诞生 ✦</div>
+          <button id="modalPrimary" class="primary-button" type="button">继续游戏</button>
+          <button id="modalSecondary" class="secondary-button" type="button">重新开始</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // 基础配置：分数终点固定，速度随进度逐渐提升。
+      const TARGET_SCORE = 1000;
+      const BEST_KEY = 'neon-lane-dodge-best-v1';
+      const COLORS = ['#ff4fa3', '#9b7bff', '#ff9c55', '#59a7ff'];
+      const canvas = document.querySelector('#canvas');
+      const ctx = canvas.getContext('2d');
+      const game = document.querySelector('#game');
+      const ui = Object.fromEntries([
+        'score', 'best', 'speed', 'progress', 'levelLabel', 'pauseButton', 'pauseIcon',
+        'startOverlay', 'startButton', 'startBest', 'modalOverlay', 'modalEyebrow',
+        'modalTitle', 'modalText', 'modalPrimary', 'modalSecondary', 'resultIcon',
+        'resultStats', 'finalScore', 'finalBest', 'newBest'
+      ].map(id => [id, document.getElementById(id)]));
+
+      let width = 0;
+      let height = 0;
+      let state = 'ready';
+      let score = 0;
+      let best = loadBest();
+      let newRecord = false;
+      let elapsed = 0;
+      let roadOffset = 0;
+      let spawnClock = 0;
+      let lastSafeLane = 1;
+      let lastTime = performance.now();
+      let obstacles = [];
+      let particles = [];
+      let gesture = null;
+      const player = { lane: 1, x: 0, y: 0, tilt: 0 };
+
+      // 本地存储在隐私模式下可能不可用，读取失败时退化为当前会话纪录。
+      function loadBest() {
+        try { return Math.max(0, Number(localStorage.getItem(BEST_KEY)) || 0); }
+        catch (_) { return 0; }
+      }
+
+      function saveBest() {
+        try { localStorage.setItem(BEST_KEY, String(best)); }
+        catch (_) { /* 不影响游戏继续运行 */ }
+      }
+
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const randomItem = list => list[Math.floor(Math.random() * list.length)];
+      const laneX = lane => width * (lane + .5) / 3;
+      const carWidth = () => clamp(width / 3 * .54, 42, 72);
+      const carHeight = () => carWidth() * 1.72;
+      const formatScore = value => String(Math.floor(value)).padStart(4, '0');
+
+      // 按设备像素比调整画布，保证手机高分屏下仍然清晰。
+      function resize() {
+        const oldHeight = height;
+        const rect = game.getBoundingClientRect();
+        width = Math.max(1, rect.width);
+        height = Math.max(1, rect.height);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (oldHeight) obstacles.forEach(car => { car.y *= height / oldHeight; });
+        player.x = laneX(player.lane);
+        player.y = height - carHeight() * .5 - clamp(height * .065, 34, 54);
+      }
+
+      function updateHud() {
+        const displayScore = Math.min(TARGET_SCORE, Math.floor(score));
+        const progress = clamp(score / TARGET_SCORE, 0, 1);
+        ui.score.textContent = formatScore(displayScore);
+        ui.best.textContent = formatScore(best);
+        ui.startBest.textContent = formatScore(best);
+        ui.speed.textContent = Math.round(80 + progress * 140);
+        ui.progress.style.width = `${progress * 100}%`;
+        ui.levelLabel.textContent = `第 ${Math.min(5, Math.floor(progress * 5) + 1)} 阶段`;
+      }
+
+      function setState(next) {
+        state = next;
+        const active = next === 'running' || next === 'paused';
+        ui.pauseButton.disabled = !active;
+        ui.pauseButton.setAttribute('aria-label', next === 'paused' ? '继续游戏' : '暂停游戏');
+        ui.pauseIcon.innerHTML = next === 'paused'
+          ? '<path d="M8 5v14l11-7z"/>'
+          : '<path d="M7 5h4v14H7zm6 0h4v14h-4z"/>';
+      }
+
+      function startGame() {
+        score = 0;
+        elapsed = 0;
+        spawnClock = .55;
+        roadOffset = 0;
+        lastSafeLane = 1;
+        obstacles = [];
+        particles = [];
+        newRecord = false;
+        player.lane = 1;
+        player.x = laneX(1);
+        player.tilt = 0;
+        ui.startOverlay.classList.add('hidden');
+        ui.modalOverlay.classList.add('hidden');
+        setState('running');
+        updateHud();
+        lastTime = performance.now();
+      }
+
+      function showStart() {
+        obstacles = [];
+        particles = [];
+        score = 0;
+        player.lane = 1;
+        player.x = laneX(1);
+        ui.modalOverlay.classList.add('hidden');
+        ui.startOverlay.classList.remove('hidden');
+        setState('ready');
+        updateHud();
+      }
+
+      function pauseGame() {
+        if (state !== 'running') return;
+        setState('paused');
+        showModal('paused');
+      }
+
+      function resumeGame() {
+        if (state !== 'paused') return;
+        ui.modalOverlay.classList.add('hidden');
+        setState('running');
+        lastTime = performance.now();
+      }
+
+      function finishGame(result) {
+        if (state !== 'running') return;
+        if (result === 'won') score = TARGET_SCORE;
+        newRecord = Math.floor(score) > best;
+        if (newRecord) {
+          best = Math.floor(score);
+          saveBest();
+        }
+        setState(result);
+        updateHud();
+        showModal(result);
+        if (result === 'over') {
+          burst(player.x, player.y, '#42f5e9', 30);
+          if (navigator.vibrate) navigator.vibrate([70, 40, 100]);
+        }
+      }
+
+      // 开始、暂停、失败和胜利共用同一个弹窗，避免重复界面代码。
+      function showModal(type) {
+        const content = {
+          paused: ['Ⅱ', 'TAKE A BREATH', '已暂停', '稍作休息，随时准备继续。', '继续游戏', '重新开始'],
+          over: ['×', 'RUN ENDED', '车辆相撞', '霓虹之路充满挑战，再试一次吧！', '再来一局', '返回首页'],
+          won: ['✓', 'FINISH REACHED', '抵达终点', '漂亮！你征服了这条霓虹赛道。', '再跑一局', '返回首页']
+        }[type];
+        ui.resultIcon.textContent = content[0];
+        ui.resultIcon.style.color = type === 'over' ? '#ff6caa' : '#42f5e9';
+        ui.modalEyebrow.textContent = content[1];
+        ui.modalTitle.textContent = content[2];
+        ui.modalText.textContent = content[3];
+        ui.modalPrimary.textContent = content[4];
+        ui.modalSecondary.textContent = content[5];
+        ui.resultStats.style.display = type === 'paused' ? 'none' : 'flex';
+        ui.newBest.classList.toggle('show', type !== 'paused' && newRecord);
+        ui.finalScore.textContent = Math.floor(score);
+        ui.finalBest.textContent = Math.floor(best);
+        ui.modalOverlay.classList.remove('hidden');
+        requestAnimationFrame(() => ui.modalPrimary.focus({ preventScroll: true }));
+      }
+
+      function changeLane(direction) {
+        if (state !== 'running') return;
+        const nextLane = clamp(player.lane + direction, 0, 2);
+        if (nextLane === player.lane) return;
+        player.lane = nextLane;
+        // 换道时留下少量青色光点，强化触屏操作反馈。
+        for (let i = 0; i < 5; i++) {
+          particles.push({
+            x: player.x + (Math.random() - .5) * carWidth() * .5,
+            y: player.y + carHeight() * .35,
+            vx: -direction * (25 + Math.random() * 40),
+            vy: 35 + Math.random() * 55,
+            life: .35 + Math.random() * .2,
+            maxLife: .55,
+            size: 1 + Math.random() * 2,
+            color: '#42f5e9'
+          });
+        }
+      }
+
+      // 每一波都保留一条与上一波相邻的安全车道，避免生成无解车阵。
+      function spawnWave() {
+        const progress = clamp(score / TARGET_SCORE, 0, 1);
+        const safeLane = clamp(lastSafeLane + randomItem([-1, 0, 1]), 0, 2);
+        const doubleChance = progress < .12 ? 0 : Math.min(.43, .1 + progress * .36);
+        const isDouble = Math.random() < doubleChance;
+        const otherLanes = [0, 1, 2].filter(lane => lane !== safeLane);
+        const lanes = isDouble ? otherLanes : [randomItem(otherLanes)];
+        const waveSpeed = .96 + Math.random() * .08;
+        lanes.forEach(lane => obstacles.push({
+          lane,
+          y: -carHeight() * .65,
+          speedFactor: waveSpeed,
+          color: randomItem(COLORS),
+          passed: false
+        }));
+        lastSafeLane = safeLane;
+      }
+
+      function burst(x, y, color, count) {
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const force = 50 + Math.random() * 190;
+          particles.push({
+            x, y,
+            vx: Math.cos(angle) * force,
+            vy: Math.sin(angle) * force,
+            life: .45 + Math.random() * .55,
+            maxLife: 1,
+            size: 1.5 + Math.random() * 3.5,
+            color: Math.random() > .35 ? color : '#ff4fa3'
+          });
+        }
+      }
+
+      function update(dt) {
+        elapsed += dt;
+        const progress = clamp(score / TARGET_SCORE, 0, 1);
+        const roadSpeed = height * (.43 + progress * .3);
+        roadOffset = (roadOffset + roadSpeed * dt) % 80;
+        score = Math.min(TARGET_SCORE, score + dt * (16 + progress * 6));
+
+        const targetX = laneX(player.lane);
+        const deltaX = targetX - player.x;
+        player.x += deltaX * Math.min(1, dt * 13);
+        player.tilt = clamp(deltaX * .004, -.14, .14);
+
+        spawnClock -= dt;
+        if (spawnClock <= 0) {
+          spawnWave();
+          spawnClock += Math.max(.5, .94 - progress * .37);
+        }
+
+        const w = carWidth();
+        const h = carHeight();
+        for (const car of obstacles) {
+          car.y += roadSpeed * car.speedFactor * dt;
+          const collisionX = Math.abs(laneX(car.lane) - player.x) < w * .72;
+          const collisionY = Math.abs(car.y - player.y) < h * .79;
+          if (collisionX && collisionY) {
+            finishGame('over');
+            return;
+          }
+          if (!car.passed && car.y - h * .5 > player.y + h * .42) {
+            car.passed = true;
+            score = Math.min(TARGET_SCORE, score + 10);
+          }
+        }
+        obstacles = obstacles.filter(car => car.y < height + h);
+        updateParticles(dt);
+        updateHud();
+        if (score >= TARGET_SCORE) finishGame('won');
+      }
+
+      function updateParticles(dt) {
+        for (const p of particles) {
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.vx *= Math.pow(.15, dt);
+          p.vy *= Math.pow(.25, dt);
+          p.life -= dt;
+        }
+        particles = particles.filter(p => p.life > 0);
+      }
+
+      // 圆角路径兼容不支持 ctx.roundRect 的旧版手机浏览器。
+      function roundedRect(x, y, w, h, radius) {
+        const r = Math.min(radius, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+      }
+
+      function drawRoad() {
+        const gradient = ctx.createLinearGradient(0, 0, width, 0);
+        gradient.addColorStop(0, '#080c18');
+        gradient.addColorStop(.14, '#101629');
+        gradient.addColorStop(.5, '#0c1222');
+        gradient.addColorStop(.86, '#101629');
+        gradient.addColorStop(1, '#080c18');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+
+        // 道路两侧的霓虹护栏与流动刻度。
+        ctx.save();
+        ctx.shadowBlur = 12;
+        for (const side of [0, 1]) {
+          const x = side ? width - 7 : 7;
+          const color = side ? '#ff4fa3' : '#42f5e9';
+          ctx.strokeStyle = color;
+          ctx.globalAlpha = .35;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, height);
+          ctx.stroke();
+          ctx.fillStyle = color;
+          for (let y = (roadOffset * 1.3) % 70 - 70; y < height + 70; y += 70) {
+            ctx.globalAlpha = .28;
+            ctx.fillRect(x - 3, y, 6, 20);
+            ctx.globalAlpha = .08;
+            ctx.fillRect(x - 8, y - 6, 16, 32);
+          }
+        }
+        ctx.restore();
+
+        // 两条车道分隔线，随车辆速度向下流动。
+        ctx.save();
+        ctx.lineWidth = 2;
+        ctx.setLineDash([24, 30]);
+        ctx.lineDashOffset = roadOffset;
+        for (let lane = 1; lane < 3; lane++) {
+          const x = width * lane / 3;
+          const laneGradient = ctx.createLinearGradient(0, 0, 0, height);
+          laneGradient.addColorStop(0, 'rgba(123,150,201,.12)');
+          laneGradient.addColorStop(.5, 'rgba(153,181,226,.42)');
+          laneGradient.addColorStop(1, 'rgba(123,150,201,.18)');
+          ctx.strokeStyle = laneGradient;
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, height);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        const vignette = ctx.createRadialGradient(width / 2, height * .48, height * .08, width / 2, height * .48, height * .72);
+        vignette.addColorStop(0, 'rgba(0,0,0,0)');
+        vignette.addColorStop(1, 'rgba(0,0,0,.36)');
+        ctx.fillStyle = vignette;
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      function drawCar(x, y, color, isPlayer = false, tilt = 0) {
+        const w = carWidth();
+        const h = carHeight();
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(tilt);
+
+        // 车底光晕。
+        ctx.globalAlpha = isPlayer ? .24 : .13;
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = isPlayer ? 26 : 16;
+        roundedRect(-w * .48, -h * .46, w * .96, h * .94, w * .2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+
+        // 轮胎。
+        ctx.fillStyle = '#03050b';
+        for (const side of [-1, 1]) {
+          roundedRect(side * w * .46 - w * .055, -h * .31, w * .11, h * .2, 3);
+          ctx.fill();
+          roundedRect(side * w * .46 - w * .055, h * .13, w * .11, h * .2, 3);
+          ctx.fill();
+        }
+
+        // 车身渐变与描边。
+        const body = ctx.createLinearGradient(-w / 2, 0, w / 2, 0);
+        body.addColorStop(0, '#101527');
+        body.addColorStop(.18, color);
+        body.addColorStop(.5, isPlayer ? '#b8fffa' : color);
+        body.addColorStop(.82, color);
+        body.addColorStop(1, '#101527');
+        ctx.fillStyle = body;
+        roundedRect(-w * .43, -h * .5, w * .86, h, w * .18);
+        ctx.fill();
+        ctx.strokeStyle = isPlayer ? 'rgba(220,255,252,.75)' : 'rgba(255,255,255,.24)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // 座舱玻璃。
+        const glass = ctx.createLinearGradient(0, -h * .28, 0, h * .25);
+        glass.addColorStop(0, '#172b43');
+        glass.addColorStop(1, '#060b16');
+        ctx.fillStyle = glass;
+        roundedRect(-w * .32, -h * .25, w * .64, h * .45, w * .1);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(185,225,255,.2)';
+        ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.globalAlpha = .55;
+        ctx.fillRect(-w * .31, -h * .015, w * .62, 2);
+        ctx.globalAlpha = 1;
+
+        // 引擎盖高光和灯组。
+        ctx.strokeStyle = 'rgba(255,255,255,.28)';
+        ctx.beginPath();
+        ctx.moveTo(0, -h * .43);
+        ctx.lineTo(0, -h * .3);
+        ctx.stroke();
+        ctx.shadowBlur = 9;
+        ctx.shadowColor = isPlayer ? '#d9ffff' : '#ffdfad';
+        ctx.fillStyle = isPlayer ? '#e5ffff' : '#ffe2b8';
+        for (const side of [-1, 1]) {
+          roundedRect(side * w * .26 - w * .075, -h * .44, w * .15, 4, 2);
+          ctx.fill();
+        }
+        ctx.shadowColor = '#ff326f';
+        ctx.fillStyle = '#ff477e';
+        for (const side of [-1, 1]) {
+          roundedRect(side * w * .26 - w * .065, h * .4, w * .13, 3, 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function drawParticles() {
+        ctx.save();
+        for (const p of particles) {
+          ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
+          ctx.fillStyle = p.color;
+          ctx.shadowColor = p.color;
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, width, height);
+        drawRoad();
+        for (const car of obstacles) drawCar(laneX(car.lane), car.y, car.color);
+        drawParticles();
+        drawCar(player.x, player.y, '#42f5e9', true, player.tilt);
+      }
+
+      function frame(now) {
+        // 限制超大时间步，避免切回页面时车辆瞬移穿过玩家。
+        const dt = Math.min((now - lastTime) / 1000, .035);
+        lastTime = now;
+        if (state === 'running') update(dt);
+        else {
+          if (state === 'ready') roadOffset = (roadOffset + dt * 32) % 80;
+          if (state === 'over' || state === 'won') updateParticles(dt);
+        }
+        draw();
+        requestAnimationFrame(frame);
+      }
+
+      // Pointer Events 同时覆盖触屏与鼠标；滑动和轻点左右区域均可换道。
+      game.addEventListener('pointerdown', event => {
+        if (state !== 'running' || event.button > 0) return;
+        gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
+        game.setPointerCapture?.(event.pointerId);
+      });
+
+      game.addEventListener('pointermove', event => {
+        if (!gesture || gesture.id !== event.pointerId || state !== 'running') return;
+        const dx = event.clientX - gesture.x;
+        const dy = event.clientY - gesture.y;
+        if (Math.abs(dx) > 28 && Math.abs(dx) > Math.abs(dy) * 1.05) {
+          changeLane(dx > 0 ? 1 : -1);
+          gesture.moved = true;
+          gesture = null;
+        }
+      });
+
+      game.addEventListener('pointerup', event => {
+        if (!gesture || gesture.id !== event.pointerId) return;
+        const dx = event.clientX - gesture.x;
+        const dy = event.clientY - gesture.y;
+        if (!gesture.moved && Math.hypot(dx, dy) < 16) {
+          const rect = game.getBoundingClientRect();
+          changeLane(event.clientX < rect.left + rect.width / 2 ? -1 : 1);
+        }
+        gesture = null;
+      });
+      game.addEventListener('pointercancel', () => { gesture = null; });
+
+      window.addEventListener('keydown', event => {
+        const key = event.key.toLowerCase();
+        if (['arrowleft', 'arrowright', ' ', 'a', 'd', 'p'].includes(key)) event.preventDefault();
+        if (state === 'running' && !event.repeat) {
+          if (key === 'arrowleft' || key === 'a') changeLane(-1);
+          if (key === 'arrowright' || key === 'd') changeLane(1);
+        }
+        if ((key === 'p' || key === 'escape' || key === ' ') && !event.repeat) {
+          if (state === 'running') pauseGame();
+          else if (state === 'paused') resumeGame();
+        }
+        if (key === 'enter' && !event.repeat) {
+          if (state === 'ready' || state === 'over' || state === 'won') startGame();
+          else if (state === 'paused') resumeGame();
+        }
+      }, { passive: false });
+
+      ui.startButton.addEventListener('click', startGame);
+      ui.pauseButton.addEventListener('click', () => state === 'paused' ? resumeGame() : pauseGame());
+      ui.modalPrimary.addEventListener('click', () => state === 'paused' ? resumeGame() : startGame());
+      ui.modalSecondary.addEventListener('click', () => state === 'paused' ? startGame() : showStart());
+
+      // 页面切到后台时自动暂停，返回后由玩家主动继续。
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state === 'running') pauseGame();
+        lastTime = performance.now();
+      });
+      window.addEventListener('resize', resize);
+      window.addEventListener('orientationchange', () => setTimeout(resize, 100));
+
+      // 禁止双击缩放、双指缩放及橡皮筋滚动。
+      document.addEventListener('dblclick', event => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', event => event.preventDefault(), { passive: false });
+      document.addEventListener('touchmove', event => event.preventDefault(), { passive: false });
+      document.addEventListener('contextmenu', event => event.preventDefault());
+
+      resize();
+      updateHud();
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>

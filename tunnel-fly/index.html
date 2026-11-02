@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#050714">
+  <meta name="color-scheme" content="dark">
+  <title>隧道飞行 · Neon Flight</title>
+  <style>
+    :root {
+      --bg: #050714;
+      --cyan: #57f4ff;
+      --violet: #9b7bff;
+      --pink: #ff5fca;
+      --text: #f4f7ff;
+      --muted: #8994b3;
+      --panel: rgba(12, 17, 38, 0.88);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      background: var(--bg);
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button { font: inherit; }
+    [hidden] { display: none !important; }
+
+    #gameCanvas {
+      position: fixed;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    .vignette {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 50% 45%, transparent 40%, rgba(0, 0, 0, 0.38) 110%),
+        linear-gradient(180deg, rgba(2, 4, 14, 0.25), transparent 25%, transparent 75%, rgba(2, 4, 14, 0.35));
+    }
+
+    /* 顶部 HUD 不拦截飞行触控，只有暂停按钮响应点击。 */
+    .hud {
+      position: fixed;
+      z-index: 10;
+      top: max(14px, env(safe-area-inset-top));
+      left: 14px;
+      right: 14px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px 12px;
+      pointer-events: none;
+    }
+
+    .stats { display: flex; gap: 22px; align-items: center; }
+
+    .stat { display: grid; gap: 2px; }
+    .stat-label {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+    }
+    .stat-value {
+      font-size: clamp(20px, 6vw, 28px);
+      line-height: 1;
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.035em;
+      text-shadow: 0 0 18px rgba(87, 244, 255, 0.25);
+    }
+    .stat.best .stat-value { color: #b8afff; font-size: clamp(16px, 4.5vw, 21px); }
+
+    .icon-btn {
+      width: 44px;
+      height: 44px;
+      border: 1px solid rgba(139, 164, 220, 0.25);
+      border-radius: 14px;
+      color: var(--text);
+      background: rgba(13, 19, 42, 0.72);
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.06), 0 8px 24px rgba(0, 0, 0, 0.18);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      pointer-events: auto;
+      touch-action: manipulation;
+      cursor: pointer;
+      transition: transform 120ms ease, border-color 120ms ease, opacity 120ms ease;
+    }
+    .icon-btn:active { transform: scale(0.92); }
+    .icon-btn:disabled { opacity: 0.35; pointer-events: none; }
+
+    .progress-area { grid-column: 1 / -1; display: grid; gap: 6px; }
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      color: #9ba6c5;
+      font-size: 10px;
+      font-weight: 650;
+      letter-spacing: 0.08em;
+      font-variant-numeric: tabular-nums;
+    }
+    .progress-track {
+      height: 3px;
+      overflow: hidden;
+      border-radius: 99px;
+      background: rgba(139, 164, 220, 0.14);
+    }
+    .progress-fill {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cyan), var(--violet), var(--pink));
+      box-shadow: 0 0 12px var(--cyan);
+      transition: width 100ms linear;
+    }
+
+    .play-hint {
+      position: fixed;
+      z-index: 8;
+      left: 50%;
+      bottom: max(64px, calc(env(safe-area-inset-bottom) + 48px));
+      transform: translate(-50%, 8px);
+      width: max-content;
+      max-width: calc(100% - 40px);
+      padding: 10px 16px;
+      border: 1px solid rgba(87, 244, 255, 0.16);
+      border-radius: 99px;
+      color: #d9faff;
+      background: rgba(7, 13, 31, 0.72);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 250ms ease, transform 250ms ease;
+    }
+    .play-hint.visible { opacity: 1; transform: translate(-50%, 0); }
+
+    .flight-status {
+      position: fixed;
+      z-index: 8;
+      left: max(16px, env(safe-area-inset-left));
+      right: max(16px, env(safe-area-inset-right));
+      bottom: max(15px, env(safe-area-inset-bottom));
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: #73809f;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      pointer-events: none;
+    }
+    .status-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 9px var(--cyan);
+    }
+    .status-code { margin-left: auto; color: #53607e; }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: grid;
+      place-items: center;
+      padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+      background: rgba(3, 5, 16, 0.54);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      animation: fade-in 220ms ease both;
+    }
+
+    #readyOverlay {
+      background:
+        radial-gradient(circle at 50% 28%, rgba(76, 60, 190, 0.12), transparent 40%),
+        rgba(3, 5, 16, 0.38);
+    }
+
+    .panel {
+      position: relative;
+      width: min(100%, 390px);
+      max-height: 100%;
+      overflow: auto;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      padding: 28px;
+      border: 1px solid rgba(137, 164, 227, 0.2);
+      border-radius: 26px;
+      text-align: center;
+      background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.045), transparent 38%),
+        var(--panel);
+      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.48), inset 0 1px rgba(255, 255, 255, 0.07);
+      animation: panel-in 360ms cubic-bezier(.2, .8, .2, 1) both;
+      scrollbar-width: none;
+    }
+    .panel::-webkit-scrollbar { display: none; }
+    .panel::before {
+      content: "";
+      position: absolute;
+      top: -1px;
+      left: 22%;
+      right: 22%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      box-shadow: 0 0 16px var(--cyan);
+    }
+
+    .eyebrow {
+      margin: 0 0 16px;
+      color: var(--cyan);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+    }
+
+    .ship-mark {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: 74px;
+      height: 74px;
+      margin: 0 auto 16px;
+      border: 1px solid rgba(87, 244, 255, 0.2);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(87, 244, 255, 0.12), transparent 68%);
+      box-shadow: 0 0 40px rgba(87, 244, 255, 0.08);
+    }
+    .ship-mark::after {
+      content: "";
+      position: absolute;
+      inset: -6px;
+      border: 1px dashed rgba(155, 123, 255, 0.18);
+      border-radius: 50%;
+      animation: spin 16s linear infinite;
+    }
+    .ship-mark svg { width: 48px; filter: drop-shadow(0 0 8px rgba(87, 244, 255, 0.65)); }
+
+    h1, h2, p { margin-top: 0; }
+    h1 {
+      margin-bottom: 6px;
+      font-size: clamp(32px, 9vw, 42px);
+      line-height: 1.1;
+      letter-spacing: 0.08em;
+      background: linear-gradient(110deg, #fff 25%, #a9f9ff 58%, #c1b2ff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .title-en {
+      margin-bottom: 16px;
+      color: #697794;
+      font-size: 9px;
+      font-weight: 750;
+      letter-spacing: 0.42em;
+    }
+    .lead {
+      margin-bottom: 20px;
+      color: #aab5d0;
+      font-size: 13px;
+      line-height: 1.75;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .control-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid rgba(139, 164, 220, 0.12);
+      border-radius: 15px;
+      text-align: left;
+      background: rgba(255, 255, 255, 0.025);
+    }
+    .control-icon {
+      display: grid;
+      flex: 0 0 auto;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 10px;
+      color: var(--cyan);
+      background: rgba(87, 244, 255, 0.08);
+      font-size: 18px;
+      font-weight: 500;
+    }
+    .control-item:nth-child(2) .control-icon { color: #b9a8ff; background: rgba(155, 123, 255, 0.09); }
+    .control-item b { display: block; margin-bottom: 2px; font-size: 12px; font-weight: 650; }
+    .control-item small { display: block; color: #7f8ba9; font-size: 10px; }
+
+    .mission {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 6px 14px;
+      margin: 0 0 20px;
+      color: #8491b0;
+      font-size: 10px;
+    }
+    .mission span::before { content: "◆"; margin-right: 5px; color: #7669c8; font-size: 7px; }
+
+    .primary-btn {
+      position: relative;
+      width: 100%;
+      min-height: 52px;
+      border: 0;
+      border-radius: 16px;
+      color: #05121c;
+      background: linear-gradient(105deg, #72f6ff, #9bdfff 52%, #b7a5ff);
+      box-shadow: 0 10px 32px rgba(87, 244, 255, 0.17), inset 0 1px rgba(255, 255, 255, 0.65);
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: transform 120ms ease, filter 120ms ease;
+    }
+    .primary-btn::after { content: "›"; position: absolute; right: 20px; font-size: 24px; line-height: 20px; }
+    .primary-btn:active { transform: scale(0.975); filter: brightness(0.9); }
+
+    .secondary-btn {
+      width: 100%;
+      min-height: 44px;
+      margin-top: 10px;
+      border: 1px solid rgba(139, 164, 220, 0.18);
+      border-radius: 14px;
+      color: #aab5d0;
+      background: rgba(255, 255, 255, 0.025);
+      font-size: 12px;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .keyboard-tip { margin: 13px 0 0; color: #596681; font-size: 9px; line-height: 1.6; }
+    .ready-best { margin: 12px 0 0; color: #7e8aa8; font-size: 11px; }
+    .ready-best strong { margin-left: 5px; color: #c2b8ff; font-variant-numeric: tabular-nums; }
+
+    .compact-panel { max-width: 340px; padding: 30px; }
+    .compact-panel h2, .end-panel h2 { margin-bottom: 9px; font-size: 28px; letter-spacing: 0.06em; }
+    .panel-copy { margin-bottom: 22px; color: #8f9bb8; font-size: 12px; line-height: 1.7; }
+
+    .pause-symbol, .end-symbol {
+      display: grid;
+      place-items: center;
+      width: 62px;
+      height: 62px;
+      margin: 0 auto 18px;
+      border: 1px solid rgba(87, 244, 255, 0.2);
+      border-radius: 20px;
+      color: var(--cyan);
+      background: rgba(87, 244, 255, 0.06);
+      box-shadow: 0 0 30px rgba(87, 244, 255, 0.08);
+      font-size: 25px;
+    }
+
+    .new-record {
+      width: max-content;
+      margin: -4px auto 15px;
+      padding: 5px 10px;
+      border: 1px solid rgba(255, 220, 112, 0.25);
+      border-radius: 99px;
+      color: #ffe391;
+      background: rgba(255, 220, 112, 0.07);
+      font-size: 9px;
+      font-weight: 750;
+      letter-spacing: 0.12em;
+    }
+    .end-panel.victory .end-symbol { color: #7dffda; border-color: rgba(125, 255, 218, 0.25); }
+    .end-panel.failure .end-symbol { color: #ff7ac8; border-color: rgba(255, 95, 202, 0.25); }
+
+    .results {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      overflow: hidden;
+      margin: 0 0 20px;
+      border: 1px solid rgba(139, 164, 220, 0.12);
+      border-radius: 16px;
+      background: rgba(139, 164, 220, 0.1);
+    }
+    .result { padding: 14px 8px; background: rgba(8, 13, 30, 0.92); }
+    .result.wide { grid-column: 1 / -1; padding: 11px; }
+    .result > span { display: block; margin-bottom: 5px; color: #73809e; font-size: 9px; letter-spacing: 0.12em; }
+    .result strong { font-size: 23px; font-variant-numeric: tabular-nums; }
+    .result.wide strong { color: #a7f8ff; font-size: 15px; }
+
+    button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+
+    @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes panel-in { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: none; } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (min-width: 700px) {
+      .hud { left: 50%; right: auto; width: min(760px, calc(100% - 48px)); transform: translateX(-50%); }
+      .panel { padding: 32px; }
+      .flight-status { left: 28px; right: 28px; }
+    }
+
+    @media (max-height: 690px) {
+      .panel { padding: 20px 22px; border-radius: 22px; }
+      .ship-mark { width: 56px; height: 56px; margin-bottom: 11px; }
+      .ship-mark svg { width: 38px; }
+      .eyebrow { margin-bottom: 10px; }
+      h1 { font-size: 30px; }
+      .title-en { margin-bottom: 10px; }
+      .lead { margin-bottom: 13px; line-height: 1.55; }
+      .controls { margin-bottom: 10px; }
+      .control-item { padding: 9px; }
+      .mission { margin-bottom: 13px; }
+      .primary-btn { min-height: 46px; }
+      .keyboard-tip { margin-top: 8px; }
+      .ready-best { margin-top: 7px; }
+      .compact-panel h2, .end-panel h2 { font-size: 24px; }
+      .pause-symbol, .end-symbol { width: 50px; height: 50px; margin-bottom: 12px; }
+      .results { margin-bottom: 14px; }
+      .result { padding: 10px 8px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" role="img" aria-label="隧道飞行游戏画面：按住上浮，松手下沉，避免碰撞隧道墙壁"></canvas>
+  <div class="vignette"></div>
+
+  <header class="hud" aria-label="飞行数据">
+    <div class="stats">
+      <div class="stat">
+        <span class="stat-label">得分</span>
+        <strong class="stat-value" id="scoreValue">000000</strong>
+      </div>
+      <div class="stat best">
+        <span class="stat-label">最高分</span>
+        <strong class="stat-value" id="bestValue">000000</strong>
+      </div>
+    </div>
+    <button class="icon-btn" id="pauseBtn" type="button" aria-label="暂停游戏" title="暂停（P）" disabled>Ⅱ</button>
+    <div class="progress-area">
+      <div class="progress-meta"><span id="distanceText">0 / 1000 米</span><span>终点 ◆</span></div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+  </header>
+
+  <div class="play-hint" id="playHint">按住上浮&nbsp;&nbsp;·&nbsp;&nbsp;松手下沉</div>
+  <div class="flight-status">
+    <span class="status-dot"></span><span id="statusText">等待起飞</span>
+    <span class="status-code">NEON CORRIDOR // 01</span>
+  </div>
+
+  <div class="overlay" id="readyOverlay">
+    <main class="panel" aria-labelledby="gameTitle">
+      <p class="eyebrow">NEON FLIGHT / 霓虹航道</p>
+      <div class="ship-mark" aria-hidden="true">
+        <svg viewBox="0 0 64 64" fill="none">
+          <path d="M54 32 14 15l9 15-9 19 40-17Z" fill="url(#shipGradient)"/>
+          <path d="m23 30 31 2-31 2 4-2-4-2Z" fill="#E9FEFF"/>
+          <defs><linearGradient id="shipGradient" x1="14" y1="32" x2="54" y2="32"><stop stop-color="#8B72FF"/><stop offset="1" stop-color="#65F4FF"/></linearGradient></defs>
+        </svg>
+      </div>
+      <h1 id="gameTitle">隧道飞行</h1>
+      <p class="title-en">TUNNEL FLY</p>
+      <p class="lead">穿越不断收窄的霓虹隧道<br>抵达 1000 米外的终点</p>
+      <div class="controls" aria-label="操作说明">
+        <div class="control-item"><span class="control-icon">↑</span><div><b>按住屏幕</b><small>持续上浮</small></div></div>
+        <div class="control-item"><span class="control-icon">↓</span><div><b>松开手指</b><small>自然下沉</small></div></div>
+      </div>
+      <div class="mission"><span>穿过光门 +100</span><span>别碰隧道墙壁</span></div>
+      <button class="primary-btn" id="startBtn" type="button">开始飞行</button>
+      <p class="keyboard-tip">电脑操作：空格 / ↑ / W 上浮 · P 暂停</p>
+      <p class="ready-best">历史最高<strong id="readyBest">0</strong></p>
+    </main>
+  </div>
+
+  <div class="overlay" id="pauseOverlay" hidden>
+    <section class="panel compact-panel" aria-labelledby="pauseTitle">
+      <div class="pause-symbol" aria-hidden="true">Ⅱ</div>
+      <p class="eyebrow">FLIGHT SUSPENDED</p>
+      <h2 id="pauseTitle">航行暂停</h2>
+      <p class="panel-copy">引擎已悬停，准备好后继续。</p>
+      <button class="primary-btn" id="resumeBtn" type="button">继续飞行</button>
+      <button class="secondary-btn" id="pauseRestartBtn" type="button">重新开始</button>
+    </section>
+  </div>
+
+  <div class="overlay" id="endOverlay" hidden>
+    <section class="panel compact-panel end-panel failure" id="endPanel" aria-labelledby="endTitle">
+      <div class="end-symbol" id="endSymbol" aria-hidden="true">×</div>
+      <p class="eyebrow" id="endEyebrow">SIGNAL LOST</p>
+      <h2 id="endTitle">飞行终止</h2>
+      <p class="panel-copy" id="endMessage">飞船触碰到了隧道墙壁</p>
+      <div class="new-record" id="newRecord" hidden>◆ 新纪录 ◆</div>
+      <div class="results">
+        <div class="result"><span>本次得分</span><strong id="finalScore">0</strong></div>
+        <div class="result"><span>历史最高</span><strong id="finalBest">0</strong></div>
+        <div class="result wide"><span>飞行距离 / 穿过光门</span><strong><span id="finalDistance">0 米</span> · <span id="finalGates">0 道</span></strong></div>
+      </div>
+      <button class="primary-btn" id="restartBtn" type="button">再次挑战</button>
+      <p class="keyboard-tip">按空格或 Enter 快速重开</p>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // ---------- 基础配置与 DOM ----------
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      const $ = id => document.getElementById(id);
+      const ui = {
+        score: $('scoreValue'), best: $('bestValue'), readyBest: $('readyBest'),
+        distance: $('distanceText'), progress: $('progressFill'), status: $('statusText'),
+        hint: $('playHint'), pause: $('pauseBtn'), ready: $('readyOverlay'),
+        paused: $('pauseOverlay'), end: $('endOverlay'), endPanel: $('endPanel'),
+        endSymbol: $('endSymbol'), endEyebrow: $('endEyebrow'), endTitle: $('endTitle'),
+        endMessage: $('endMessage'), newRecord: $('newRecord'), finalScore: $('finalScore'),
+        finalBest: $('finalBest'), finalDistance: $('finalDistance'), finalGates: $('finalGates')
+      };
+
+      const GOAL_METERS = 1000;
+      const PIXELS_PER_METER = 12;
+      const GOAL_DISTANCE = GOAL_METERS * PIXELS_PER_METER;
+      const SEGMENT = 160;
+      const STORAGE_KEY = 'tunnel-fly-best-v1';
+      const TAU = Math.PI * 2;
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const random = (min, max) => min + Math.random() * (max - min);
+      const formatScore = value => String(Math.max(0, Math.floor(value))).padStart(6, '0');
+
+      let width = 1;
+      let height = 1;
+      let dpr = 1;
+      let state = 'ready';
+      let distance = 0;
+      let score = 0;
+      let best = loadBest();
+      let runStartBest = best;
+      let speed = 230;
+      let elapsed = 0;
+      let passedGates = 0;
+      let tunnel = [];
+      let gates = [];
+      let stars = [];
+      let particles = [];
+      let endTimer = null;
+      let shake = 0;
+      let flash = 0;
+      let lastTime = performance.now();
+      const activePointers = new Set();
+      const activeKeys = new Set();
+      const player = { x: 100, y: 200, vy: 0, radius: 15 };
+
+      // localStorage 在隐私模式下可能不可用，读写都需安全降级。
+      function loadBest() {
+        try {
+          const saved = Number.parseInt(localStorage.getItem(STORAGE_KEY), 10);
+          return Number.isFinite(saved) && saved > 0 ? saved : 0;
+        } catch (_) {
+          return 0;
+        }
+      }
+
+      function saveBest() {
+        try { localStorage.setItem(STORAGE_KEY, String(best)); } catch (_) { /* 无存储权限时仍可正常游戏 */ }
+      }
+
+      // ---------- 尺寸与世界生成 ----------
+      function resizeCanvas() {
+        const oldHeight = height;
+        width = Math.max(1, window.innerWidth);
+        height = Math.max(1, window.innerHeight);
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        player.x = width * (width < 600 ? 0.26 : 0.30);
+        player.radius = clamp(Math.min(width, height) * 0.027, 11, 17);
+
+        // 旋转屏幕时按比例缩放现有航道，避免重置正在进行的游戏。
+        if (tunnel.length && oldHeight > 1) {
+          const ratio = height / oldHeight;
+          tunnel.forEach(node => { node.y *= ratio; node.half *= ratio; });
+          player.y *= ratio;
+        }
+        createStars();
+      }
+
+      function createStars() {
+        const count = Math.floor(width * height / 10000) + 38;
+        stars = Array.from({ length: count }, () => ({
+          x: Math.random() * (width + 40),
+          y: Math.random() * height,
+          depth: random(0.35, 1),
+          size: random(0.4, 1.5),
+          phase: random(0, TAU)
+        }));
+      }
+
+      function createWorld() {
+        tunnel = [];
+        const firstX = -SEGMENT * 2;
+        const openingHalf = Math.min(height * 0.40, Math.max(110, height * 0.34));
+        for (let i = 0; i < 5; i++) {
+          tunnel.push({ x: firstX + i * SEGMENT, y: height / 2, half: openingHalf });
+        }
+        while (tunnel[tunnel.length - 1].x < GOAL_DISTANCE + width + SEGMENT * 4) {
+          addTunnelNode();
+        }
+
+        // 每 100 米设置一道奖励光门，最后 100 米用于冲刺终点。
+        gates = [];
+        for (let x = 1200; x < GOAL_DISTANCE; x += 1200) {
+          gates.push({ x, passed: false });
+        }
+      }
+
+      function addTunnelNode() {
+        const previous = tunnel[tunnel.length - 1];
+        const x = previous.x + SEGMENT;
+        const difficulty = clamp(x / GOAL_DISTANCE, 0, 1);
+        const minHalf = Math.max(player.radius * 4.2, height * 0.15);
+        const maxHalf = Math.max(minHalf + 8, height * 0.40);
+        const baseHalf = height * (0.31 - difficulty * 0.075);
+        const half = clamp(baseHalf + random(-height * 0.025, height * 0.025), minHalf, maxHalf);
+        const drift = random(-height * 0.09, height * 0.09) + Math.sin(x * 0.003) * height * 0.022;
+        const y = clamp(previous.y + drift, half + 24, height - half - 24);
+        tunnel.push({ x, y, half });
+      }
+
+      function tunnelAt(worldX) {
+        const firstX = tunnel[0].x;
+        const rawIndex = Math.floor((worldX - firstX) / SEGMENT);
+        const index = clamp(rawIndex, 0, tunnel.length - 2);
+        const a = tunnel[index];
+        const b = tunnel[index + 1];
+        const t = clamp((worldX - a.x) / (b.x - a.x), 0, 1);
+        return {
+          center: a.y + (b.y - a.y) * t,
+          half: a.half + (b.half - a.half) * t
+        };
+      }
+
+      // ---------- 游戏状态 ----------
+      function resetGame(nextState = 'running') {
+        if (endTimer) clearTimeout(endTimer);
+        endTimer = null;
+        distance = 0;
+        score = 0;
+        speed = 230;
+        elapsed = 0;
+        passedGates = 0;
+        particles = [];
+        shake = 0;
+        flash = 0;
+        runStartBest = best;
+        clearInput();
+        createWorld();
+        player.y = height / 2;
+        player.vy = 0;
+        state = nextState;
+        ui.ready.hidden = state !== 'ready';
+        ui.paused.hidden = true;
+        ui.end.hidden = true;
+        ui.pause.disabled = state === 'ready';
+        ui.pause.textContent = 'Ⅱ';
+        ui.pause.setAttribute('aria-label', '暂停游戏');
+        updateHUD();
+      }
+
+      function startGame() {
+        resetGame('running');
+        ui.status.textContent = '飞行中';
+      }
+
+      function pauseGame() {
+        if (state !== 'running') return;
+        state = 'paused';
+        clearInput();
+        commitBest();
+        ui.paused.hidden = false;
+        ui.pause.textContent = '▶';
+        ui.pause.setAttribute('aria-label', '继续游戏');
+        ui.status.textContent = '已暂停';
+        ui.hint.classList.remove('visible');
+      }
+
+      function resumeGame() {
+        if (state !== 'paused') return;
+        state = 'running';
+        ui.paused.hidden = true;
+        ui.pause.textContent = 'Ⅱ';
+        ui.pause.setAttribute('aria-label', '暂停游戏');
+        ui.status.textContent = '飞行中';
+      }
+
+      function togglePause() {
+        if (state === 'running') pauseGame();
+        else if (state === 'paused') resumeGame();
+      }
+
+      function finishGame(victory) {
+        if (state !== 'running') return;
+        state = victory ? 'won' : 'over';
+        clearInput();
+        commitBest();
+        updateHUD();
+        ui.pause.disabled = true;
+        ui.hint.classList.remove('visible');
+        ui.status.textContent = victory ? '穿越成功' : '信号中断';
+        flash = 1;
+        shake = victory ? 0.25 : 1;
+        if (victory) spawnVictoryParticles();
+        else spawnExplosion();
+
+        // 留出短暂时间展示爆炸或胜利粒子，再弹出结算面板。
+        endTimer = setTimeout(() => showEndPanel(victory), 420);
+      }
+
+      function commitBest() {
+        if (score > best) {
+          best = score;
+          saveBest();
+        }
+        ui.best.textContent = formatScore(best);
+        ui.readyBest.textContent = best.toLocaleString('zh-CN');
+      }
+
+      function showEndPanel(victory) {
+        if (state !== (victory ? 'won' : 'over')) return;
+        ui.endPanel.classList.toggle('victory', victory);
+        ui.endPanel.classList.toggle('failure', !victory);
+        ui.endSymbol.textContent = victory ? '◆' : '×';
+        ui.endEyebrow.textContent = victory ? 'MISSION COMPLETE' : 'SIGNAL LOST';
+        ui.endTitle.textContent = victory ? '穿越成功' : '飞行终止';
+        ui.endMessage.textContent = victory ? '你已抵达终点，霓虹航道畅通！' : '飞船触碰到了隧道墙壁';
+        ui.newRecord.hidden = !(score > runStartBest && score > 0);
+        ui.finalScore.textContent = score.toLocaleString('zh-CN');
+        ui.finalBest.textContent = best.toLocaleString('zh-CN');
+        ui.finalDistance.textContent = Math.floor(distance / PIXELS_PER_METER) + ' 米';
+        ui.finalGates.textContent = passedGates + ' 道';
+        ui.end.hidden = false;
+      }
+
+      function updateHUD() {
+        const meters = Math.min(GOAL_METERS, Math.floor(distance / PIXELS_PER_METER));
+        ui.score.textContent = formatScore(score);
+        ui.best.textContent = formatScore(Math.max(best, score));
+        ui.readyBest.textContent = Math.max(best, score).toLocaleString('zh-CN');
+        ui.distance.textContent = meters + ' / ' + GOAL_METERS + ' 米';
+        ui.progress.style.width = (meters / GOAL_METERS * 100).toFixed(1) + '%';
+        ui.hint.classList.toggle('visible', state === 'running' && elapsed < 4.2);
+      }
+
+      // ---------- 核心物理、碰撞与计分 ----------
+      function isHolding() {
+        return activePointers.size > 0 || activeKeys.size > 0;
+      }
+
+      function update(dt) {
+        elapsed += dt;
+        speed = 230 + 120 * clamp(distance / GOAL_DISTANCE, 0, 1);
+        distance = Math.min(GOAL_DISTANCE, distance + speed * dt);
+
+        const physicsScale = clamp(height / 720, 0.72, 1.25);
+        const acceleration = isHolding() ? -1350 : 880;
+        player.vy += acceleration * physicsScale * dt;
+        player.vy = clamp(player.vy, -390 * physicsScale, 440 * physicsScale);
+        player.y += player.vy * dt;
+
+        // 用机头、机身和机尾三个采样点检测圆形机体与上下墙壁。
+        const samples = [-player.radius * 0.75, 0, player.radius * 0.9];
+        for (const offset of samples) {
+          const corridor = tunnelAt(distance + player.x + offset);
+          const top = corridor.center - corridor.half;
+          const bottom = corridor.center + corridor.half;
+          if (player.y - player.radius <= top + 2 || player.y + player.radius >= bottom - 2) {
+            score = Math.floor(distance / PIXELS_PER_METER) + passedGates * 100;
+            finishGame(false);
+            return;
+          }
+        }
+
+        for (const gate of gates) {
+          if (!gate.passed && distance + player.x >= gate.x) {
+            gate.passed = true;
+            passedGates++;
+            spawnGateParticles(gate);
+            flash = Math.max(flash, 0.2);
+          }
+        }
+
+        score = Math.floor(distance / PIXELS_PER_METER) + passedGates * 100;
+        if (distance >= GOAL_DISTANCE) {
+          finishGame(true);
+          return;
+        }
+
+        // 尾部粒子同时受自身速度与隧道滚动速度影响。
+        if (Math.random() < dt * 55) spawnTrailParticle();
+        updateParticles(dt, speed);
+        shake = Math.max(0, shake - dt * 2.8);
+        flash = Math.max(0, flash - dt * 2.5);
+        updateHUD();
+      }
+
+      // ---------- 粒子效果 ----------
+      function addParticle(particle) {
+        particles.push(particle);
+        if (particles.length > 280) particles.splice(0, particles.length - 280);
+      }
+
+      function spawnTrailParticle() {
+        const life = random(0.25, 0.55);
+        addParticle({
+          x: player.x - player.radius - 7, y: player.y + random(-3, 3),
+          vx: random(-150, -65), vy: random(-18, 18), gravity: 0,
+          life, maxLife: life, size: random(1, 2.6), kind: 'trail',
+          color: isHolding() ? '#63f5ff' : '#9a7dff'
+        });
+      }
+
+      function spawnExplosion() {
+        const colors = ['#ffffff', '#62efff', '#a680ff', '#ff63bd'];
+        for (let i = 0; i < 52; i++) {
+          const angle = random(0, TAU);
+          const velocity = random(55, 300);
+          const life = random(0.45, 1.15);
+          addParticle({
+            x: player.x, y: player.y,
+            vx: Math.cos(angle) * velocity, vy: Math.sin(angle) * velocity,
+            gravity: 90, life, maxLife: life, size: random(1.5, 4), kind: 'spark',
+            color: colors[Math.floor(Math.random() * colors.length)]
+          });
+        }
+      }
+
+      function spawnGateParticles(gate) {
+        const corridor = tunnelAt(gate.x);
+        for (let i = 0; i < 22; i++) {
+          const angle = random(0, TAU);
+          const velocity = random(35, 140);
+          const life = random(0.3, 0.7);
+          addParticle({
+            x: player.x, y: corridor.center + random(-35, 35),
+            vx: Math.cos(angle) * velocity, vy: Math.sin(angle) * velocity,
+            gravity: 0, life, maxLife: life, size: random(1, 3), kind: 'spark', color: '#78ffe1'
+          });
+        }
+      }
+
+      function spawnVictoryParticles() {
+        const colors = ['#62f5ff', '#7dffda', '#b296ff', '#ffffff'];
+        for (let i = 0; i < 90; i++) {
+          const angle = random(0, TAU);
+          const velocity = random(50, 280);
+          const life = random(0.6, 1.5);
+          addParticle({
+            x: player.x + random(-15, 15), y: player.y + random(-15, 15),
+            vx: Math.cos(angle) * velocity, vy: Math.sin(angle) * velocity,
+            gravity: 45, life, maxLife: life, size: random(1.5, 4), kind: 'spark',
+            color: colors[Math.floor(Math.random() * colors.length)]
+          });
+        }
+      }
+
+      function updateParticles(dt, scrollSpeed) {
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.life -= dt;
+          if (p.life <= 0) { particles.splice(i, 1); continue; }
+          p.x += (p.vx - scrollSpeed) * dt;
+          p.y += p.vy * dt;
+          p.vy += p.gravity * dt;
+        }
+      }
+
+      // ---------- Canvas 绘制 ----------
+      function drawBackground(time) {
+        const gradient = ctx.createLinearGradient(0, 0, 0, height);
+        gradient.addColorStop(0, '#050817');
+        gradient.addColorStop(0.52, '#090c21');
+        gradient.addColorStop(1, '#040611');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+
+        const glow = ctx.createRadialGradient(width * 0.45, height * 0.5, 0, width * 0.45, height * 0.5, Math.max(width, height) * 0.7);
+        glow.addColorStop(0, 'rgba(63, 57, 140, 0.10)');
+        glow.addColorStop(1, 'rgba(4, 6, 17, 0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.save();
+        for (const star of stars) {
+          let x = (star.x - distance * star.depth * 0.075) % (width + 40);
+          if (x < 0) x += width + 40;
+          const alpha = 0.18 + star.depth * 0.34 + Math.sin(time * 1.8 + star.phase) * 0.08;
+          ctx.globalAlpha = alpha;
+          ctx.strokeStyle = star.depth > 0.7 ? '#9cdfff' : '#727cae';
+          ctx.lineWidth = star.size;
+          ctx.beginPath();
+          ctx.moveTo(x, star.y);
+          ctx.lineTo(x + star.depth * (state === 'running' ? 7 : 3), star.y);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // 远景竖线以较低速度移动，增强纵深与速度感。
+        ctx.save();
+        ctx.strokeStyle = 'rgba(116, 130, 190, 0.035)';
+        ctx.lineWidth = 1;
+        const spacing = 280;
+        const offset = -((distance * 0.22) % spacing);
+        for (let x = offset; x < width + spacing; x += spacing) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x - 90, height);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function visibleTunnelPoints() {
+        const firstX = tunnel[0].x;
+        const start = clamp(Math.floor((distance - firstX) / SEGMENT) - 1, 0, tunnel.length - 2);
+        const end = clamp(start + Math.ceil(width / SEGMENT) + 4, 1, tunnel.length - 1);
+        const points = [];
+        for (let i = start; i <= end; i++) {
+          const node = tunnel[i];
+          points.push({ x: node.x - distance, top: node.y - node.half, bottom: node.y + node.half });
+        }
+        return points;
+      }
+
+      function drawTunnel() {
+        const points = visibleTunnelPoints();
+        if (points.length < 2) return;
+
+        const topFill = ctx.createLinearGradient(0, 0, 0, height * 0.5);
+        topFill.addColorStop(0, '#080b19');
+        topFill.addColorStop(1, '#121b35');
+        ctx.fillStyle = topFill;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, 0);
+        ctx.lineTo(points[0].x, points[0].top);
+        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].top);
+        ctx.lineTo(points[points.length - 1].x, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        const bottomFill = ctx.createLinearGradient(0, height * 0.5, 0, height);
+        bottomFill.addColorStop(0, '#17112f');
+        bottomFill.addColorStop(1, '#080a18');
+        ctx.fillStyle = bottomFill;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, height);
+        ctx.lineTo(points[0].x, points[0].bottom);
+        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].bottom);
+        ctx.lineTo(points[points.length - 1].x, height);
+        ctx.closePath();
+        ctx.fill();
+
+        drawWallLine(points, 'top', '#54efff');
+        drawWallLine(points, 'bottom', '#a178ff');
+
+        // 墙面刻线让隧道呈现科技结构，而非简单两条曲线。
+        ctx.save();
+        ctx.lineWidth = 1;
+        for (let i = 0; i < points.length; i++) {
+          const p = points[i];
+          ctx.strokeStyle = 'rgba(84, 239, 255, 0.16)';
+          ctx.beginPath(); ctx.moveTo(p.x, p.top - 3); ctx.lineTo(p.x - 10, p.top - 17); ctx.stroke();
+          ctx.strokeStyle = 'rgba(161, 120, 255, 0.14)';
+          ctx.beginPath(); ctx.moveTo(p.x, p.bottom + 3); ctx.lineTo(p.x - 10, p.bottom + 17); ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawWallLine(points, side, color) {
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 16;
+        ctx.globalAlpha = 0.18;
+        ctx.lineWidth = 10;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0][side]);
+        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i][side]);
+        ctx.stroke();
+        ctx.globalAlpha = 0.92;
+        ctx.lineWidth = 1.8;
+        ctx.shadowBlur = 9;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawGates(time) {
+        for (const gate of gates) {
+          const x = gate.x - distance;
+          if (x < -40 || x > width + 40) continue;
+          const corridor = tunnelAt(gate.x);
+          const top = corridor.center - corridor.half;
+          const bottom = corridor.center + corridor.half;
+          const color = gate.passed ? '#70ffe0' : '#a487ff';
+          ctx.save();
+          ctx.globalAlpha = gate.passed ? 0.22 : 0.65 + Math.sin(time * 5 + gate.x) * 0.12;
+          ctx.strokeStyle = color;
+          ctx.fillStyle = color;
+          ctx.shadowColor = color;
+          ctx.shadowBlur = 10;
+          ctx.lineWidth = 1;
+          ctx.setLineDash([3, 10]);
+          ctx.beginPath(); ctx.moveTo(x, top + 22); ctx.lineTo(x, bottom - 22); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x - 10, top + 4); ctx.lineTo(x, top + 15); ctx.lineTo(x + 10, top + 4);
+          ctx.moveTo(x - 10, bottom - 4); ctx.lineTo(x, bottom - 15); ctx.lineTo(x + 10, bottom - 4);
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+          ctx.font = '700 9px -apple-system, sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(gate.passed ? '✓ +100' : '+100', x + 8, top + 32);
+          ctx.restore();
+        }
+      }
+
+      function drawFinish(time) {
+        const x = GOAL_DISTANCE - distance;
+        if (x < -80 || x > width + 100) return;
+        const corridor = tunnelAt(GOAL_DISTANCE);
+        const top = corridor.center - corridor.half;
+        const bottom = corridor.center + corridor.half;
+        ctx.save();
+        ctx.strokeStyle = '#78ffe1';
+        ctx.fillStyle = '#b8ffec';
+        ctx.shadowColor = '#62ffdb';
+        ctx.shadowBlur = 18;
+        ctx.globalAlpha = 0.65 + Math.sin(time * 6) * 0.2;
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.font = '800 11px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('终点 / FINISH', x, corridor.center);
+        ctx.restore();
+      }
+
+      function drawShip(time) {
+        if (state === 'over') return;
+        const bob = state === 'ready' ? Math.sin(time * 2.2) * 4 : 0;
+        const tilt = state === 'running' ? clamp(player.vy / 900, -0.34, 0.40) : 0;
+        const flame = (isHolding() && state === 'running' ? 25 : 14) + Math.sin(time * 28) * 3;
+        const r = player.radius;
+        ctx.save();
+        ctx.translate(player.x, player.y + bob);
+        ctx.rotate(tilt);
+
+        // 引擎尾焰使用叠加混合，形成柔和霓虹光。
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        const engineGlow = ctx.createRadialGradient(-r - flame * 0.35, 0, 0, -r - flame * 0.35, 0, flame);
+        engineGlow.addColorStop(0, 'rgba(92, 241, 255, 0.45)');
+        engineGlow.addColorStop(1, 'rgba(92, 241, 255, 0)');
+        ctx.fillStyle = engineGlow;
+        ctx.beginPath(); ctx.arc(-r - flame * 0.35, 0, flame, 0, TAU); ctx.fill();
+        ctx.fillStyle = 'rgba(115, 112, 255, 0.72)';
+        ctx.beginPath(); ctx.moveTo(-r + 2, -5); ctx.lineTo(-r - flame, 0); ctx.lineTo(-r + 2, 5); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#baffff';
+        ctx.beginPath(); ctx.moveTo(-r + 2, -2); ctx.lineTo(-r - flame * 0.65, 0); ctx.lineTo(-r + 2, 2); ctx.closePath(); ctx.fill();
+        ctx.restore();
+
+        ctx.shadowColor = '#61eaff';
+        ctx.shadowBlur = 15;
+        const body = ctx.createLinearGradient(-r, -r, r * 1.5, r);
+        body.addColorStop(0, '#8874ff');
+        body.addColorStop(0.55, '#62dffb');
+        body.addColorStop(1, '#d6fdff');
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.moveTo(r * 1.55, 0);
+        ctx.lineTo(-r * 0.40, -r * 0.66);
+        ctx.lineTo(-r, -r * 0.35);
+        ctx.lineTo(-r * 0.72, 0);
+        ctx.lineTo(-r, r * 0.35);
+        ctx.lineTo(-r * 0.40, r * 0.66);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#6f54d9';
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.25, -r * 0.55); ctx.lineTo(-r * 0.85, -r * 1.02);
+        ctx.lineTo(r * 0.28, -r * 0.42); ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.25, r * 0.55); ctx.lineTo(-r * 0.85, r * 1.02);
+        ctx.lineTo(r * 0.28, r * 0.42); ctx.closePath(); ctx.fill();
+
+        ctx.fillStyle = '#efffff';
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = 8;
+        ctx.beginPath(); ctx.ellipse(r * 0.40, -1, r * 0.36, r * 0.22, 0, 0, TAU); ctx.fill();
+        ctx.restore();
+      }
+
+      function drawParticles() {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (const p of particles) {
+          const alpha = clamp(p.life / p.maxLife, 0, 1);
+          ctx.globalAlpha = alpha;
+          ctx.strokeStyle = p.color;
+          ctx.fillStyle = p.color;
+          ctx.shadowColor = p.color;
+          ctx.shadowBlur = 6;
+          if (p.kind === 'trail') {
+            ctx.lineWidth = p.size;
+            ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 0.035, p.y); ctx.stroke();
+          } else {
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.size * alpha, 0, TAU); ctx.fill();
+          }
+        }
+        ctx.restore();
+      }
+
+      function render(time) {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, width, height);
+        drawBackground(time);
+        ctx.save();
+        if (shake > 0) ctx.translate(random(-1, 1) * shake * 9, random(-1, 1) * shake * 9);
+        drawTunnel();
+        drawGates(time);
+        drawFinish(time);
+        drawParticles();
+        drawShip(time);
+        ctx.restore();
+
+        if (flash > 0) {
+          ctx.fillStyle = state === 'over' ? `rgba(255, 65, 157, ${flash * 0.14})` : `rgba(112, 255, 231, ${flash * 0.12})`;
+          ctx.fillRect(0, 0, width, height);
+        }
+      }
+
+      function frame(now) {
+        const dt = Math.min((now - lastTime) / 1000, 0.033);
+        lastTime = now;
+        if (state === 'running') {
+          update(dt);
+        } else if (state === 'over' || state === 'won') {
+          updateParticles(dt, 0);
+          shake = Math.max(0, shake - dt * 2.8);
+          flash = Math.max(0, flash - dt * 2.5);
+        }
+        render(now / 1000);
+        requestAnimationFrame(frame);
+      }
+
+      // ---------- 触屏、鼠标与键盘输入 ----------
+      function clearInput() {
+        activePointers.clear();
+        activeKeys.clear();
+      }
+
+      window.addEventListener('pointerdown', event => {
+        if (event.target.closest('button') || state !== 'running') return;
+        event.preventDefault();
+        activePointers.add(event.pointerId);
+      }, { passive: false });
+
+      const releasePointer = event => activePointers.delete(event.pointerId);
+      window.addEventListener('pointerup', releasePointer);
+      window.addEventListener('pointercancel', releasePointer);
+
+      const liftKeys = new Set(['Space', 'ArrowUp', 'KeyW']);
+      window.addEventListener('keydown', event => {
+        if (liftKeys.has(event.code) || ['KeyP', 'Escape', 'Enter'].includes(event.code)) event.preventDefault();
+
+        if (event.code === 'KeyP' && !event.repeat) {
+          togglePause();
+          return;
+        }
+        if (event.code === 'Escape' && !event.repeat) {
+          togglePause();
+          return;
+        }
+        if (event.code === 'Enter' && !event.repeat) {
+          if (state === 'ready' || state === 'over' || state === 'won') startGame();
+          else if (state === 'paused') resumeGame();
+          return;
+        }
+        if (liftKeys.has(event.code)) {
+          if (!event.repeat && (state === 'ready' || state === 'over' || state === 'won')) startGame();
+          else if (!event.repeat && state === 'paused') resumeGame();
+          if (state === 'running') activeKeys.add(event.code);
+        }
+      });
+
+      window.addEventListener('keyup', event => activeKeys.delete(event.code));
+
+      // 禁止移动浏览器滚动、双击缩放与手势缩放。
+      document.addEventListener('touchmove', event => {
+        // 页面本身禁止滚动；矮屏设备上的弹窗内部仍允许纵向滚动。
+        if (!event.target.closest('.panel')) event.preventDefault();
+      }, { passive: false });
+      document.addEventListener('dblclick', event => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', event => event.preventDefault(), { passive: false });
+      document.addEventListener('contextmenu', event => event.preventDefault());
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state === 'running') pauseGame();
+      });
+      window.addEventListener('blur', () => {
+        if (state === 'running') pauseGame();
+        else clearInput();
+      });
+      window.addEventListener('resize', resizeCanvas);
+
+      $('startBtn').addEventListener('click', startGame);
+      $('restartBtn').addEventListener('click', startGame);
+      $('pauseRestartBtn').addEventListener('click', startGame);
+      $('resumeBtn').addEventListener('click', resumeGame);
+      ui.pause.addEventListener('click', togglePause);
+
+      // 初始化后直接展示可动画的待飞画面。
+      resizeCanvas();
+      resetGame('ready');
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>

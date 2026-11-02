@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080b18">
+  <title>字母重组 · Neon Words</title>
+  <style>
+    /* 基础与移动端防滚动设置 */
+    :root {
+      color-scheme: dark;
+      --bg: #070914;
+      --panel: rgba(16, 21, 42, .88);
+      --line: rgba(148, 163, 255, .16);
+      --text: #f5f7ff;
+      --muted: #8992b2;
+      --cyan: #62efff;
+      --violet: #a879ff;
+      --pink: #ff6fcf;
+      --green: #6fffc1;
+      --danger: #ff6f91;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(105, 72, 220, .2), transparent 34%),
+        radial-gradient(circle at 90% 88%, rgba(0, 210, 255, .12), transparent 32%),
+        var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button {
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    button:disabled { cursor: default; }
+    [hidden] { display: none !important; }
+
+    /* 背景光斑与网格仅作装饰 */
+    .ambient {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .ambient::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: .18;
+      background-image:
+        linear-gradient(rgba(115, 136, 255, .09) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(115, 136, 255, .09) 1px, transparent 1px);
+      background-size: 38px 38px;
+      mask-image: linear-gradient(to bottom, black, transparent 85%);
+    }
+
+    .orb {
+      position: absolute;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      filter: blur(70px);
+      opacity: .2;
+      animation: float 9s ease-in-out infinite alternate;
+    }
+
+    .orb.one { top: -70px; right: -50px; background: var(--violet); }
+    .orb.two { bottom: -80px; left: -60px; background: var(--cyan); animation-delay: -4s; }
+
+    .game-shell {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: min(100%, 540px);
+      height: 100vh;
+      height: 100dvh;
+      padding: max(12px, env(safe-area-inset-top)) 12px max(10px, env(safe-area-inset-bottom));
+      touch-action: none;
+    }
+
+    /* 顶部品牌与暂停入口 */
+    .topbar {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 42px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 10px; }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      border: 1px solid rgba(98, 239, 255, .42);
+      border-radius: 13px;
+      background: linear-gradient(145deg, rgba(98, 239, 255, .16), rgba(168, 121, 255, .13));
+      box-shadow: inset 0 0 16px rgba(98, 239, 255, .08), 0 0 24px rgba(98, 239, 255, .1);
+      color: var(--cyan);
+      font-size: 20px;
+      font-weight: 900;
+      transform: rotate(-5deg);
+    }
+
+    .brand-copy p {
+      margin: 0 0 1px;
+      color: var(--cyan);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: .24em;
+    }
+
+    .brand-copy h1 { margin: 0; font-size: 19px; letter-spacing: .08em; }
+
+    .icon-button {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(18, 24, 46, .8);
+      color: #cbd3f4;
+      font-size: 16px;
+      font-weight: 800;
+      transition: border-color .2s, background .2s, transform .2s;
+    }
+
+    .icon-button:not(:disabled):active { transform: scale(.93); }
+    .icon-button:disabled { opacity: .4; }
+
+    /* 三项实时状态 */
+    .stats {
+      display: grid;
+      flex: 0 0 auto;
+      grid-template-columns: 1fr 1fr 1.12fr;
+      gap: 8px;
+    }
+
+    .stat {
+      position: relative;
+      min-width: 0;
+      padding: 8px 11px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(15, 20, 39, .78);
+      box-shadow: inset 0 1px rgba(255, 255, 255, .025);
+    }
+
+    .stat-label {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 650;
+      letter-spacing: .12em;
+    }
+
+    .stat-value {
+      display: block;
+      overflow: hidden;
+      font-size: clamp(18px, 5vw, 23px);
+      font-variant-numeric: tabular-nums;
+      font-weight: 800;
+      line-height: 1.1;
+      text-overflow: ellipsis;
+    }
+
+    .stat.best .stat-value { color: #c8b4ff; }
+    .stat.timer .stat-value { color: var(--cyan); }
+    .stat.timer.danger { border-color: rgba(255, 111, 145, .45); }
+    .stat.timer.danger .stat-value { color: var(--danger); animation: pulse 1s infinite; }
+
+    .time-track {
+      position: absolute;
+      right: 9px;
+      bottom: 5px;
+      left: 9px;
+      height: 2px;
+      overflow: hidden;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, .06);
+    }
+
+    .time-fill {
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--violet), var(--cyan));
+      box-shadow: 0 0 8px var(--cyan);
+      transform-origin: left;
+      transition: transform .12s linear;
+    }
+
+    .danger .time-fill { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+
+    /* 中央游戏卡片 */
+    .game-card {
+      position: relative;
+      display: flex;
+      flex: 1 1 auto;
+      flex-direction: column;
+      gap: clamp(7px, 1.4vh, 12px);
+      min-height: 0;
+      padding: clamp(12px, 3vw, 18px);
+      border: 1px solid rgba(146, 157, 255, .2);
+      border-radius: 24px;
+      background: linear-gradient(155deg, rgba(20, 26, 51, .94), rgba(10, 14, 30, .95));
+      box-shadow: 0 20px 60px rgba(0, 0, 0, .3), inset 0 1px rgba(255, 255, 255, .04);
+    }
+
+    .game-card::before {
+      content: "";
+      position: absolute;
+      top: -1px;
+      left: 15%;
+      width: 70%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      opacity: .65;
+    }
+
+    .game-card.correct { animation: correctGlow .75s ease; }
+
+    .round-row, .section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .round-meta { display: flex; align-items: center; gap: 8px; min-width: 0; }
+
+    .round-label { font-size: 12px; font-weight: 750; white-space: nowrap; }
+
+    .category {
+      padding: 3px 7px;
+      border: 1px solid rgba(168, 121, 255, .22);
+      border-radius: 20px;
+      background: rgba(168, 121, 255, .08);
+      color: #c5adff;
+      font-size: 9px;
+      letter-spacing: .1em;
+    }
+
+    .streak { color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .streak.hot { color: var(--pink); text-shadow: 0 0 12px rgba(255, 111, 207, .45); }
+
+    .progress { display: flex; flex: 0 0 auto; gap: 5px; }
+
+    .progress i {
+      flex: 1;
+      height: 3px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, .07);
+      transition: background .25s, box-shadow .25s;
+    }
+
+    .progress i.done { background: var(--green); }
+    .progress i.current { background: var(--cyan); box-shadow: 0 0 8px rgba(98, 239, 255, .6); }
+
+    .hint-box {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 11px;
+      min-height: 62px;
+      padding: 10px 12px;
+      border: 1px solid rgba(98, 239, 255, .12);
+      border-radius: 15px;
+      background: linear-gradient(100deg, rgba(98, 239, 255, .065), rgba(168, 121, 255, .045));
+    }
+
+    .hint-symbol {
+      display: grid;
+      flex: 0 0 auto;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 11px;
+      background: rgba(98, 239, 255, .09);
+      color: var(--cyan);
+      font-size: 19px;
+      text-shadow: 0 0 14px var(--cyan);
+    }
+
+    .eyebrow {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--cyan);
+      font-size: 9px;
+      font-weight: 750;
+      letter-spacing: .16em;
+    }
+
+    .hint-text { margin: 0; font-size: 13px; font-weight: 550; line-height: 1.45; }
+    .word-meta { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+
+    .answer-section, .pool-section { flex: 0 0 auto; }
+
+    .section-heading {
+      min-height: 17px;
+      margin-bottom: 6px;
+      color: #b6bfdc;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .section-heading small { color: var(--muted); font-size: 9px; font-weight: 500; }
+    .answer-count { color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+
+    .answer-slots {
+      display: grid;
+      grid-template-columns: repeat(var(--letters, 6), minmax(0, 1fr));
+      gap: clamp(4px, 1.4vw, 7px);
+      width: 100%;
+    }
+
+    .answer-slot {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      aspect-ratio: .92;
+      max-height: 62px;
+      padding: 0;
+      border: 1px dashed rgba(141, 154, 205, .28);
+      border-radius: clamp(8px, 2.4vw, 12px);
+      background: rgba(4, 8, 20, .38);
+      color: rgba(142, 154, 196, .28);
+      font-size: clamp(16px, 5.6vw, 27px);
+      font-weight: 850;
+      transition: border-color .15s, background .15s, box-shadow .15s, transform .15s;
+    }
+
+    .answer-slot.filled {
+      border-style: solid;
+      border-color: rgba(98, 239, 255, .4);
+      background: linear-gradient(145deg, rgba(98, 239, 255, .12), rgba(88, 77, 174, .14));
+      color: var(--text);
+      box-shadow: inset 0 0 14px rgba(98, 239, 255, .04), 0 4px 16px rgba(0, 0, 0, .12);
+    }
+
+    .answer-slot.locked { border-color: rgba(168, 121, 255, .55); color: #d4c3ff; }
+
+    .answer-slot.locked::after {
+      content: "✦";
+      position: absolute;
+      top: 2px;
+      right: 4px;
+      color: var(--violet);
+      font-size: 8px;
+    }
+
+    .answer-slot.drop-target {
+      z-index: 1;
+      border-color: var(--cyan);
+      background: rgba(98, 239, 255, .16);
+      box-shadow: 0 0 20px rgba(98, 239, 255, .22);
+      transform: translateY(-2px) scale(1.04);
+    }
+
+    .answer-slots.shake { animation: shake .38s ease; }
+
+    .letter-pool {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: clamp(6px, 1.8vw, 9px);
+      min-height: 48px;
+      padding: 5px 2px;
+      border-radius: 14px;
+      transition: background .15s, box-shadow .15s;
+    }
+
+    .letter-pool.drop-target { background: rgba(168, 121, 255, .07); box-shadow: inset 0 0 0 1px rgba(168, 121, 255, .25); }
+
+    .letter-tile {
+      position: relative;
+      display: grid;
+      flex: 0 0 auto;
+      place-items: center;
+      width: clamp(38px, 11vw, 53px);
+      height: clamp(42px, 12vw, 57px);
+      padding: 0;
+      border: 1px solid rgba(164, 174, 255, .32);
+      border-radius: 12px;
+      background: linear-gradient(145deg, #242c50, #141a35);
+      box-shadow: inset 0 1px rgba(255, 255, 255, .09), 0 5px 0 #090d20, 0 8px 16px rgba(0, 0, 0, .2);
+      color: #edf1ff;
+      font-size: clamp(19px, 6vw, 27px);
+      font-weight: 850;
+      line-height: 1;
+      text-shadow: 0 0 16px rgba(168, 190, 255, .3);
+      transition: transform .15s, border-color .15s, opacity .15s;
+    }
+
+    .letter-tile:not(:disabled):active { transform: translateY(3px); }
+    .answer-slot.letter-tile { width: auto; height: auto; flex: initial; box-shadow: none; }
+    .letter-tile.drag-source { opacity: .18; }
+
+    .drag-ghost {
+      position: fixed !important;
+      z-index: 1000;
+      margin: 0;
+      pointer-events: none !important;
+      opacity: .96;
+      border-color: var(--cyan) !important;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, .45), 0 0 24px rgba(98, 239, 255, .25) !important;
+      transform: scale(1.08) rotate(3deg);
+    }
+
+    .feedback {
+      min-height: 17px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    .feedback.good { color: var(--green); }
+    .feedback.bad { color: var(--danger); }
+    .feedback.info { color: var(--cyan); }
+
+    .actions { display: grid; flex: 0 0 auto; grid-template-columns: 1.25fr .72fr 1.25fr; gap: 7px; }
+
+    .action-button {
+      min-width: 0;
+      min-height: 42px;
+      padding: 8px 7px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(29, 36, 66, .72);
+      color: #c5cdea;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+      transition: transform .15s, filter .15s, opacity .15s;
+    }
+
+    .action-button small { font-size: 8px; font-weight: 500; opacity: .65; }
+    .action-button:not(:disabled):active { transform: scale(.96); }
+    .action-button:disabled { opacity: .35; }
+
+    .action-button.primary {
+      border-color: rgba(98, 239, 255, .45);
+      background: linear-gradient(120deg, #5574e8, #7461d9);
+      box-shadow: 0 6px 20px rgba(85, 116, 232, .2), inset 0 1px rgba(255, 255, 255, .18);
+      color: white;
+    }
+
+    .action-button.primary:not(:disabled) { box-shadow: 0 6px 22px rgba(98, 239, 255, .16), inset 0 1px rgba(255, 255, 255, .18); }
+
+    .how-to {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 30px;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.45;
+      text-align: left;
+    }
+
+    .how-to > span { color: var(--cyan); font-size: 17px; }
+    .how-to p { margin: 0; }
+    .how-to strong { color: #c6cdea; font-weight: 650; }
+    .keyboard-help { opacity: .68; font-size: 9px; }
+
+    /* 暂停与结算共用遮罩 */
+    .overlay {
+      position: fixed;
+      z-index: 100;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(4, 6, 16, .76);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      animation: fadeIn .2s ease;
+      touch-action: none;
+    }
+
+    .dialog {
+      position: relative;
+      width: min(100%, 380px);
+      padding: 28px 24px 22px;
+      overflow: hidden;
+      border: 1px solid rgba(151, 163, 255, .28);
+      border-radius: 26px;
+      background: linear-gradient(150deg, #1a2140, #0d1228);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, .5), inset 0 1px rgba(255, 255, 255, .05);
+      text-align: center;
+      animation: dialogIn .28s cubic-bezier(.2, .8, .2, 1);
+    }
+
+    .dialog::before {
+      content: "";
+      position: absolute;
+      top: -70px;
+      left: calc(50% - 100px);
+      width: 200px;
+      height: 120px;
+      border-radius: 50%;
+      background: var(--violet);
+      filter: blur(60px);
+      opacity: .18;
+      pointer-events: none;
+    }
+
+    .dialog-icon {
+      display: grid;
+      place-items: center;
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 14px;
+      border: 1px solid rgba(98, 239, 255, .26);
+      border-radius: 21px;
+      background: rgba(98, 239, 255, .07);
+      box-shadow: 0 0 30px rgba(98, 239, 255, .08);
+      font-size: 30px;
+    }
+
+    .dialog-kicker { margin: 0 0 5px; color: var(--cyan); font-size: 10px; font-weight: 800; letter-spacing: .2em; }
+    .dialog h2 { margin: 0 0 8px; font-size: 26px; letter-spacing: .06em; }
+    .dialog-description { margin: 0 auto 20px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+
+    .dialog-actions { display: grid; gap: 9px; }
+
+    .dialog-button {
+      min-height: 48px;
+      padding: 12px 18px;
+      border: 1px solid rgba(98, 239, 255, .4);
+      border-radius: 14px;
+      background: linear-gradient(120deg, #557bea, #7960de);
+      box-shadow: 0 8px 25px rgba(85, 116, 232, .2);
+      font-size: 14px;
+      font-weight: 750;
+    }
+
+    .dialog-button:active { transform: scale(.98); }
+
+    .dialog-button.ghost { border-color: var(--line); background: transparent; box-shadow: none; color: var(--muted); font-size: 12px; }
+
+    .result-score { margin: 2px 0 16px; }
+    .result-score span { display: block; color: var(--muted); font-size: 10px; letter-spacing: .12em; }
+    .result-score strong { display: block; color: var(--cyan); font-size: 46px; font-variant-numeric: tabular-nums; line-height: 1.2; text-shadow: 0 0 24px rgba(98, 239, 255, .2); }
+
+    .result-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .result-details div { padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: rgba(5, 9, 22, .3); }
+    .result-details span { display: block; margin-bottom: 3px; color: var(--muted); font-size: 9px; }
+    .result-details strong { font-size: 17px; }
+
+    .new-record {
+      display: inline-block;
+      margin: -5px 0 13px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: rgba(111, 255, 193, .1);
+      color: var(--green);
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: .08em;
+    }
+
+    .confetti-layer { position: fixed; z-index: 110; inset: 0; overflow: hidden; pointer-events: none; }
+
+    .confetti {
+      position: absolute;
+      top: 45%;
+      left: 50%;
+      width: 7px;
+      height: 12px;
+      border-radius: 2px;
+      background: var(--color);
+      animation: confetti 1.15s cubic-bezier(.15, .65, .35, 1) forwards;
+    }
+
+    .stat-value.bump { animation: scoreBump .35s ease; }
+
+    /* 短屏进一步压缩留白，确保无需滚动页面 */
+    @media (max-height: 700px) {
+      .game-shell { gap: 7px; padding-top: max(8px, env(safe-area-inset-top)); }
+      .brand-mark { width: 35px; height: 35px; border-radius: 11px; }
+      .brand-copy h1 { font-size: 17px; }
+      .icon-button { width: 36px; height: 36px; }
+      .stat { padding: 6px 10px 8px; }
+      .stat-value { font-size: 18px; }
+      .game-card { gap: 6px; border-radius: 20px; }
+      .hint-box { min-height: 52px; padding: 7px 10px; }
+      .hint-symbol { width: 30px; height: 30px; }
+      .hint-text { font-size: 12px; }
+      .word-meta { margin-top: 1px; }
+      .section-heading { margin-bottom: 3px; }
+      .answer-slot { max-height: 48px; }
+      .letter-pool { min-height: 42px; padding: 3px 0; }
+      .letter-tile { width: clamp(36px, 10.5vw, 46px); height: clamp(38px, 11vw, 49px); }
+      .action-button { min-height: 38px; padding: 6px; }
+      .how-to { min-height: 20px; }
+      .keyboard-help { display: none; }
+    }
+
+    @media (max-height: 590px) {
+      .how-to { display: none; }
+      .game-card { padding-top: 9px; padding-bottom: 9px; }
+      .brand-copy p { display: none; }
+      .hint-symbol { display: none; }
+      .hint-box { min-height: 45px; }
+      .feedback { min-height: 14px; font-size: 10px; }
+    }
+
+    @media (min-width: 700px) {
+      .game-shell { height: min(900px, 100dvh); padding: 20px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+
+    @keyframes float { to { transform: translate(25px, 30px) scale(1.12); } }
+    @keyframes pulse { 50% { opacity: .55; } }
+    @keyframes fadeIn { from { opacity: 0; } }
+    @keyframes dialogIn { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+    @keyframes scoreBump { 50% { color: var(--green); transform: scale(1.12); } }
+    @keyframes correctGlow { 40% { border-color: rgba(111, 255, 193, .7); box-shadow: 0 0 35px rgba(111, 255, 193, .14); } }
+    @keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+    @keyframes confetti {
+      0% { opacity: 1; transform: translate(-50%, -50%) rotate(0); }
+      100% { opacity: 0; transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) rotate(var(--r)); }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"><i class="orb one"></i><i class="orb two"></i></div>
+
+  <main class="game-shell" id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">W</div>
+        <div class="brand-copy"><p>NEON WORDS</p><h1>字母重组</h1></div>
+      </div>
+      <button class="icon-button" id="pauseButton" type="button" aria-label="暂停游戏" title="暂停游戏">Ⅱ</button>
+    </header>
+
+    <section class="stats" aria-label="游戏状态">
+      <div class="stat"><span class="stat-label">当前得分</span><strong class="stat-value" id="scoreValue">0</strong></div>
+      <div class="stat best"><span class="stat-label">最高分</span><strong class="stat-value" id="bestValue">0</strong></div>
+      <div class="stat timer" id="timerStat">
+        <span class="stat-label">剩余时间</span><strong class="stat-value" id="timeValue">00:45</strong>
+        <div class="time-track" aria-hidden="true"><div class="time-fill" id="timeFill"></div></div>
+      </div>
+    </section>
+
+    <section class="game-card" id="gameCard" aria-label="拼词游戏区">
+      <div class="round-row">
+        <div class="round-meta"><span class="round-label" id="roundLabel">第 1 / 8 词</span><span class="category" id="categoryLabel">宇宙</span></div>
+        <span class="streak" id="streakLabel">连击 × 0</span>
+      </div>
+      <div class="progress" id="progressDots" aria-hidden="true"></div>
+
+      <div class="hint-box">
+        <span class="hint-symbol" aria-hidden="true">✦</span>
+        <div><span class="eyebrow">中文提示</span><p class="hint-text" id="hintText"></p><small class="word-meta" id="wordMeta"></small></div>
+      </div>
+
+      <section class="answer-section" aria-label="答案区">
+        <div class="section-heading"><span>你的答案</span><span class="answer-count" id="answerCount">0 / 0</span></div>
+        <div class="answer-slots" id="answerSlots"></div>
+      </section>
+
+      <section class="pool-section" aria-label="字母库">
+        <div class="section-heading"><span>字母库</span><small>拖动或轻点字母</small></div>
+        <div class="letter-pool" id="letterPool"></div>
+      </section>
+
+      <p class="feedback" id="feedback" role="status" aria-live="polite">把字母按正确顺序放入上方空槽</p>
+
+      <div class="actions">
+        <button class="action-button" id="hintButton" type="button">✦ 首字母提示 <small>-100</small></button>
+        <button class="action-button" id="clearButton" type="button">清空</button>
+        <button class="action-button primary" id="submitButton" type="button" disabled>确认答案 ↵</button>
+      </div>
+    </section>
+
+    <footer class="how-to">
+      <span aria-hidden="true">☝</span>
+      <p><strong>拖动字母</strong>到空槽，拖动可交换；轻点可快速放入 / 撤回<br><span class="keyboard-help">键盘：字母键输入 · Backspace 撤回 · Enter 确认 · Esc 暂停</span></p>
+    </footer>
+  </main>
+
+  <div class="overlay" id="pauseOverlay" hidden>
+    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+      <div class="dialog-icon" aria-hidden="true">Ⅱ</div>
+      <p class="dialog-kicker">TAKE A BREATH</p>
+      <h2 id="pauseTitle">游戏已暂停</h2>
+      <p class="dialog-description">倒计时已冻结，准备好后继续挑战。</p>
+      <div class="dialog-actions">
+        <button class="dialog-button" id="resumeButton" type="button">继续游戏</button>
+        <button class="dialog-button ghost" id="pauseRestartButton" type="button">重新开始</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="overlay" id="resultOverlay" hidden>
+    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+      <div class="dialog-icon" id="resultIcon" aria-hidden="true">✦</div>
+      <p class="dialog-kicker" id="resultKicker">本轮结束</p>
+      <h2 id="resultTitle">时间到</h2>
+      <p class="dialog-description" id="resultDescription"></p>
+      <div class="result-score"><span>本局得分</span><strong id="resultScore">0</strong></div>
+      <span class="new-record" id="newRecord" hidden>✦ 新纪录 ✦</span>
+      <div class="result-details">
+        <div><span>答对单词</span><strong id="resultSolved">0 / 8</strong></div>
+        <div><span>历史最高</span><strong id="resultBest">0</strong></div>
+      </div>
+      <button class="dialog-button" id="restartButton" type="button" style="width:100%">再玩一局</button>
+    </section>
+  </div>
+
+  <div class="confetti-layer" id="confettiLayer" aria-hidden="true"></div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // 词库只保存英文单词与中文线索，每局随机抽取八个。
+      const WORDS = [
+        { word: "GALAXY", category: "宇宙", hint: "由恒星、星云和暗物质组成的庞大星系" },
+        { word: "PLANET", category: "宇宙", hint: "围绕恒星运行的天体，地球就是其中之一" },
+        { word: "ROCKET", category: "科技", hint: "依靠喷气推进，能够飞向太空的运载工具" },
+        { word: "COFFEE", category: "生活", hint: "用烘焙咖啡豆制成、常用来提神的饮品" },
+        { word: "ORANGE", category: "生活", hint: "一种柑橘类水果，也代表温暖的橙黄色" },
+        { word: "PUZZLE", category: "游戏", hint: "需要动脑筋解开的谜题，也可以指拼图" },
+        { word: "STREAM", category: "自然", hint: "一条小河，也可以指连续传输的数据流" },
+        { word: "CASTLE", category: "建筑", hint: "中世纪常见的坚固堡垒，常有高塔与城墙" },
+        { word: "BRIDGE", category: "建筑", hint: "横跨河流或山谷、连接两端的建筑" },
+        { word: "FUTURE", category: "想象", hint: "尚未到来的时间，充满未知与可能性" },
+        { word: "ENERGY", category: "科学", hint: "让万物运动和变化的力量，缩写公式中常有它" },
+        { word: "RHYTHM", category: "音乐", hint: "音乐中有规律的强弱、快慢与长短变化" },
+        { word: "DIAMOND", category: "自然", hint: "一种极其坚硬、经过切磨后闪耀的宝石" },
+        { word: "THUNDER", category: "自然", hint: "雷雨时紧随闪电而来的巨大声响" }
+      ];
+
+      const TOTAL_ROUNDS = 8;
+      const ROUND_SECONDS = 45;
+      const STORAGE_KEY = "neon-anagram-best-v1";
+      const $ = (id) => document.getElementById(id);
+
+      const elements = {
+        app: $("app"), gameCard: $("gameCard"), score: $("scoreValue"), best: $("bestValue"),
+        timerStat: $("timerStat"), time: $("timeValue"), timeFill: $("timeFill"),
+        round: $("roundLabel"), category: $("categoryLabel"), streak: $("streakLabel"),
+        progress: $("progressDots"), hintText: $("hintText"), wordMeta: $("wordMeta"),
+        answerSlots: $("answerSlots"), answerCount: $("answerCount"), pool: $("letterPool"),
+        feedback: $("feedback"), hint: $("hintButton"), clear: $("clearButton"), submit: $("submitButton"),
+        pause: $("pauseButton"), pauseOverlay: $("pauseOverlay"), resume: $("resumeButton"),
+        pauseRestart: $("pauseRestartButton"), resultOverlay: $("resultOverlay"),
+        resultIcon: $("resultIcon"), resultKicker: $("resultKicker"), resultTitle: $("resultTitle"),
+        resultDescription: $("resultDescription"), resultScore: $("resultScore"),
+        resultSolved: $("resultSolved"), resultBest: $("resultBest"), newRecord: $("newRecord"),
+        restart: $("restartButton"), confetti: $("confettiLayer")
+      };
+
+      // 集中管理游戏状态，避免计时器与交互状态互相脱节。
+      let state = "playing";
+      let rounds = [];
+      let roundIndex = 0;
+      let current = null;
+      let letters = new Map();
+      let letterOrder = [];
+      let pool = [];
+      let slots = [];
+      let score = 0;
+      let bestScore = loadBestScore();
+      let startingBest = bestScore;
+      let solved = 0;
+      let streak = 0;
+      let hintUsed = false;
+      let mistakes = 0;
+      let timeLeft = ROUND_SECONDS;
+      let endAt = 0;
+      let transitionTimer = null;
+      let drag = null;
+      let suppressNextClick = false;
+      let feedbackTimer = null;
+
+      function loadBestScore() {
+        try {
+          const saved = Number.parseInt(localStorage.getItem(STORAGE_KEY), 10);
+          return Number.isFinite(saved) && saved > 0 ? saved : 0;
+        } catch (_) {
+          return 0; // 隐私模式禁用存储时仍可正常游戏。
+        }
+      }
+
+      function saveBestScore() {
+        try { localStorage.setItem(STORAGE_KEY, String(bestScore)); } catch (_) { /* 无存储权限时忽略。 */ }
+      }
+
+      function shuffle(items) {
+        const result = [...items];
+        for (let i = result.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [result[i], result[j]] = [result[j], result[i]];
+        }
+        return result;
+      }
+
+      function formatNumber(value) { return Math.max(0, value).toLocaleString("zh-CN"); }
+
+      function setFeedback(text, type = "") {
+        clearTimeout(feedbackTimer);
+        elements.feedback.textContent = text;
+        elements.feedback.className = `feedback ${type}`.trim();
+      }
+
+      function startGame() {
+        clearTimeout(transitionTimer);
+        cleanupDrag();
+        rounds = shuffle(WORDS).slice(0, TOTAL_ROUNDS);
+        roundIndex = 0;
+        score = 0;
+        solved = 0;
+        streak = 0;
+        startingBest = bestScore;
+        elements.pauseOverlay.hidden = true;
+        elements.resultOverlay.hidden = true;
+        elements.newRecord.hidden = true;
+        elements.confetti.replaceChildren();
+        elements.pause.textContent = "Ⅱ";
+        elements.pause.setAttribute("aria-label", "暂停游戏");
+        setupRound();
+      }
+
+      function setupRound() {
+        current = rounds[roundIndex];
+        state = "playing";
+        hintUsed = false;
+        mistakes = 0;
+        timeLeft = ROUND_SECONDS;
+        endAt = Date.now() + ROUND_SECONDS * 1000;
+        letters = new Map();
+        current.word.split("").forEach((char, index) => {
+          const id = `${roundIndex}-${index}`;
+          letters.set(id, { id, char });
+        });
+        letterOrder = shuffle([...letters.keys()]);
+        // 避免洗牌后仍恰好是原单词。
+        if (letterOrder.map((id) => letters.get(id).char).join("") === current.word && letterOrder.length > 1) {
+          letterOrder.push(letterOrder.shift());
+        }
+        pool = [...letterOrder];
+        slots = Array(current.word.length).fill(null);
+        setFeedback("把字母按正确顺序放入上方空槽");
+        render();
+      }
+
+      function render() {
+        elements.score.textContent = formatNumber(score);
+        elements.best.textContent = formatNumber(bestScore);
+        elements.round.textContent = `第 ${roundIndex + 1} / ${TOTAL_ROUNDS} 词`;
+        elements.category.textContent = current.category;
+        elements.hintText.textContent = current.hint;
+        elements.wordMeta.textContent = `${current.word.length} 个字母 · 首字母暂未揭晓`;
+        if (hintUsed) elements.wordMeta.textContent = `${current.word.length} 个字母 · 首字母 ${current.word[0]} 已固定`;
+        elements.streak.textContent = `连击 × ${streak}`;
+        elements.streak.classList.toggle("hot", streak >= 2);
+
+        elements.progress.innerHTML = Array.from({ length: TOTAL_ROUNDS }, (_, index) => {
+          const className = index < roundIndex ? "done" : index === roundIndex ? "current" : "";
+          return `<i class="${className}"></i>`;
+        }).join("");
+
+        elements.answerSlots.style.setProperty("--letters", current.word.length);
+        elements.answerSlots.innerHTML = slots.map((id, index) => {
+          const letter = id ? letters.get(id).char : "";
+          const locked = hintUsed && index === 0;
+          const classes = ["answer-slot", id ? "filled letter-tile" : "", locked ? "locked" : ""].filter(Boolean).join(" ");
+          const label = letter ? `第 ${index + 1} 位，字母 ${letter}${locked ? "，提示字母已固定" : "，轻点撤回"}` : `第 ${index + 1} 个空槽`;
+          return `<button type="button" class="${classes}" data-index="${index}" ${id ? `data-id="${id}" data-origin="slot"` : ""} data-locked="${locked}" aria-label="${label}">${letter || "·"}</button>`;
+        }).join("");
+
+        elements.pool.innerHTML = pool.map((id) => {
+          const char = letters.get(id).char;
+          return `<button type="button" class="letter-tile" data-id="${id}" data-origin="pool" aria-label="字母 ${char}，轻点放入答案">${char}</button>`;
+        }).join("");
+
+        const filled = slots.filter(Boolean).length;
+        elements.answerCount.textContent = `${filled} / ${slots.length}`;
+        elements.hint.disabled = state !== "playing" || hintUsed;
+        elements.hint.innerHTML = hintUsed ? `✦ 首字母 ${current.word[0]} 已固定` : "✦ 首字母提示 <small>-100</small>";
+        elements.clear.disabled = state !== "playing" || filled === (hintUsed ? 1 : 0);
+        elements.submit.disabled = state !== "playing" || filled !== slots.length;
+        elements.pause.disabled = state === "transition" || state === "over" || state === "won";
+        updateTimerDisplay();
+      }
+
+      function updateTimerDisplay() {
+        const seconds = Math.max(0, Math.ceil(timeLeft));
+        elements.time.textContent = `00:${String(seconds).padStart(2, "0")}`;
+        elements.timeFill.style.transform = `scaleX(${Math.max(0, timeLeft / ROUND_SECONDS)})`;
+        elements.timerStat.classList.toggle("danger", timeLeft <= 10 && state === "playing");
+      }
+
+      function getTimeLeft() {
+        return state === "playing" ? Math.max(0, (endAt - Date.now()) / 1000) : timeLeft;
+      }
+
+      function quickMove(id) {
+        if (state !== "playing" || !letters.has(id)) return;
+        const slotIndex = slots.indexOf(id);
+        if (slotIndex >= 0) {
+          if (hintUsed && slotIndex === 0) {
+            setFeedback("首字母提示已固定，不能撤回", "info");
+            return;
+          }
+          slots[slotIndex] = null;
+          pool.push(id);
+        } else {
+          const emptyIndex = slots.findIndex((slot) => slot === null);
+          if (emptyIndex < 0) {
+            setFeedback("答案已满，拖动字母可以交换位置", "info");
+            return;
+          }
+          slots[emptyIndex] = id;
+          pool.splice(pool.indexOf(id), 1);
+        }
+        setFeedback("继续排列，完成后点击确认");
+        render();
+      }
+
+      // 将字母放入指定槽位；来源与目标都有字母时自动交换。
+      function moveToSlot(id, targetIndex) {
+        if (state !== "playing") return;
+        const sourceSlot = slots.indexOf(id);
+        const poolIndex = pool.indexOf(id);
+        if (sourceSlot === 0 && hintUsed) return;
+        if (targetIndex === 0 && hintUsed && slots[0] !== id) {
+          setFeedback("首字母提示已固定，换个位置吧", "info");
+          return;
+        }
+        if (sourceSlot === targetIndex) return;
+        const displaced = slots[targetIndex];
+        if (sourceSlot >= 0) {
+          slots[targetIndex] = id;
+          slots[sourceSlot] = displaced || null;
+        } else if (poolIndex >= 0) {
+          slots[targetIndex] = id;
+          if (displaced) pool[poolIndex] = displaced;
+          else pool.splice(poolIndex, 1);
+        }
+        setFeedback("继续排列，完成后点击确认");
+        render();
+      }
+
+      function moveToPool(id) {
+        if (state !== "playing") return;
+        const sourceSlot = slots.indexOf(id);
+        if (sourceSlot < 0) return;
+        if (sourceSlot === 0 && hintUsed) {
+          setFeedback("首字母提示已固定，不能撤回", "info");
+          return;
+        }
+        slots[sourceSlot] = null;
+        if (!pool.includes(id)) pool.push(id);
+        setFeedback("字母已撤回字母库");
+        render();
+      }
+
+      function clearAnswer() {
+        if (state !== "playing") return;
+        const fixed = hintUsed ? slots[0] : null;
+        slots = Array(current.word.length).fill(null);
+        if (fixed) slots[0] = fixed;
+        pool = letterOrder.filter((id) => id !== fixed);
+        setFeedback(hintUsed ? "已清空，首字母提示保留" : "已清空，再试一次");
+        render();
+      }
+
+      function useHint() {
+        if (state !== "playing" || hintUsed) return;
+        const firstChar = current.word[0];
+        let id = pool.find((item) => letters.get(item).char === firstChar);
+        let sourceSlot = -1;
+        if (!id) {
+          sourceSlot = slots.findIndex((item) => item && letters.get(item).char === firstChar);
+          id = slots[sourceSlot];
+        }
+        if (!id) return;
+
+        const displaced = slots[0];
+        if (displaced !== id) {
+          if (sourceSlot >= 0) {
+            slots[0] = id;
+            slots[sourceSlot] = displaced || null;
+          } else {
+            const poolIndex = pool.indexOf(id);
+            slots[0] = id;
+            if (displaced) pool[poolIndex] = displaced;
+            else pool.splice(poolIndex, 1);
+          }
+        }
+        hintUsed = true;
+        setFeedback(`首字母 ${firstChar} 已放入并固定，本词得分 -100`, "info");
+        render();
+      }
+
+      function submitAnswer() {
+        if (state !== "playing") return;
+        if (slots.some((id) => !id)) {
+          setFeedback(`还差 ${slots.filter((id) => !id).length} 个字母，填满后再确认`, "info");
+          return;
+        }
+        const answer = slots.map((id) => letters.get(id).char).join("");
+        if (answer === current.word) handleCorrectAnswer();
+        else handleWrongAnswer();
+      }
+
+      function handleWrongAnswer() {
+        mistakes++;
+        streak = 0;
+        endAt -= 3000;
+        timeLeft = getTimeLeft();
+        setFeedback("顺序不对，再调整一下 · 时间 -3 秒", "bad");
+        elements.answerSlots.classList.remove("shake");
+        void elements.answerSlots.offsetWidth;
+        elements.answerSlots.classList.add("shake");
+        elements.streak.classList.remove("hot");
+        elements.streak.textContent = "连击 × 0";
+        updateTimerDisplay();
+        if (timeLeft <= 0) finishGame(false);
+      }
+
+      function handleCorrectAnswer() {
+        timeLeft = getTimeLeft();
+        state = "transition";
+        const gained = Math.max(100, 300 + Math.ceil(timeLeft) * 10 + streak * 50 - (hintUsed ? 100 : 0));
+        score += gained;
+        solved++;
+        streak++;
+        if (score > bestScore) {
+          bestScore = score;
+          saveBestScore();
+        }
+        setFeedback(`正确！${current.word} · +${gained} 分`, "good");
+        elements.gameCard.classList.remove("correct");
+        void elements.gameCard.offsetWidth;
+        elements.gameCard.classList.add("correct");
+        elements.score.classList.remove("bump");
+        void elements.score.offsetWidth;
+        elements.score.classList.add("bump");
+        burstConfetti(18);
+        render();
+
+        transitionTimer = setTimeout(() => {
+          roundIndex++;
+          if (roundIndex >= TOTAL_ROUNDS) finishGame(true);
+          else setupRound();
+        }, 900);
+      }
+
+      function togglePause() {
+        if (state === "playing") {
+          timeLeft = getTimeLeft();
+          state = "paused";
+          cleanupDrag();
+          elements.pauseOverlay.hidden = false;
+          elements.pause.textContent = "▶";
+          elements.pause.setAttribute("aria-label", "继续游戏");
+          updateTimerDisplay();
+          elements.resume.focus();
+        } else if (state === "paused") {
+          state = "playing";
+          endAt = Date.now() + timeLeft * 1000;
+          elements.pauseOverlay.hidden = true;
+          elements.pause.textContent = "Ⅱ";
+          elements.pause.setAttribute("aria-label", "暂停游戏");
+          elements.pause.focus();
+          updateTimerDisplay();
+        }
+      }
+
+      function finishGame(won) {
+        if (state === "over" || state === "won") return;
+        clearTimeout(transitionTimer);
+        cleanupDrag();
+        state = won ? "won" : "over";
+        if (!won) timeLeft = 0;
+        if (score > bestScore) bestScore = score;
+        saveBestScore();
+        elements.pauseOverlay.hidden = true;
+        elements.resultIcon.textContent = won ? "🏆" : "⌛";
+        elements.resultKicker.textContent = won ? "挑战完成" : "本轮结束";
+        elements.resultTitle.textContent = won ? "词汇大师！" : "时间到";
+        elements.resultDescription.textContent = won
+          ? "八个单词全部点亮，你的词汇能量已经满格！"
+          : `正确答案是 ${current.word}。记住这些字母，再挑战一次吧！`;
+        elements.resultScore.textContent = formatNumber(score);
+        elements.resultSolved.textContent = `${solved} / ${TOTAL_ROUNDS}`;
+        elements.resultBest.textContent = formatNumber(bestScore);
+        elements.newRecord.hidden = !(score > startingBest && score > 0);
+        elements.resultOverlay.hidden = false;
+        elements.pause.disabled = true;
+        updateTimerDisplay();
+        if (won) burstConfetti(55);
+        elements.restart.focus();
+      }
+
+      // 用纯 CSS 动画生成轻量彩带，不依赖图片或第三方库。
+      function burstConfetti(count) {
+        const colors = ["#62efff", "#a879ff", "#ff6fcf", "#6fffc1", "#ffe27a"];
+        for (let i = 0; i < count; i++) {
+          const piece = document.createElement("i");
+          piece.className = "confetti";
+          piece.style.setProperty("--color", colors[i % colors.length]);
+          piece.style.setProperty("--x", `${Math.round((Math.random() - .5) * 560)}px`);
+          piece.style.setProperty("--y", `${Math.round((Math.random() - .65) * 520)}px`);
+          piece.style.setProperty("--r", `${Math.round(Math.random() * 720 - 360)}deg`);
+          piece.style.animationDelay = `${Math.random() * .16}s`;
+          elements.confetti.appendChild(piece);
+          setTimeout(() => piece.remove(), 1500);
+        }
+      }
+
+      // Pointer Events 同时覆盖触屏、鼠标与触控笔。
+      function onPointerDown(event) {
+        const tile = event.target.closest(".letter-tile");
+        if (!tile || state !== "playing" || drag) return;
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        if (tile.dataset.locked === "true") {
+          setFeedback("首字母提示已固定，不能移动", "info");
+          return;
+        }
+        const rect = tile.getBoundingClientRect();
+        drag = {
+          id: tile.dataset.id, tile, pointerId: event.pointerId,
+          startX: event.clientX, startY: event.clientY, rect,
+          active: false, ghost: null, target: null
+        };
+        tile.setPointerCapture(event.pointerId);
+      }
+
+      function onPointerMove(event) {
+        if (!drag || event.pointerId !== drag.pointerId) return;
+        const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
+        if (!drag.active && distance < 6) return;
+        event.preventDefault();
+        if (!drag.active) {
+          drag.active = true;
+          drag.ghost = drag.tile.cloneNode(true);
+          drag.ghost.classList.add("drag-ghost");
+          drag.ghost.classList.remove("drag-source");
+          drag.ghost.style.width = `${drag.rect.width}px`;
+          drag.ghost.style.height = `${drag.rect.height}px`;
+          document.body.appendChild(drag.ghost);
+          drag.tile.classList.add("drag-source");
+        }
+        positionGhost(event.clientX, event.clientY);
+        updateDropTarget(event.clientX, event.clientY);
+      }
+
+      function positionGhost(x, y) {
+        if (!drag?.ghost) return;
+        drag.ghost.style.left = `${x - drag.rect.width / 2}px`;
+        drag.ghost.style.top = `${y - drag.rect.height * .75}px`;
+      }
+
+      function updateDropTarget(x, y) {
+        clearDropTarget();
+        if (!drag) return;
+        const hit = document.elementFromPoint(x, y);
+        const slot = hit?.closest(".answer-slot");
+        const poolArea = hit?.closest("#letterPool");
+        if (slot) {
+          slot.classList.add("drop-target");
+          drag.target = { type: "slot", index: Number(slot.dataset.index), element: slot };
+        } else if (poolArea) {
+          poolArea.classList.add("drop-target");
+          drag.target = { type: "pool", element: poolArea };
+        } else {
+          drag.target = null;
+        }
+      }
+
+      function clearDropTarget() {
+        document.querySelectorAll(".drop-target").forEach((node) => node.classList.remove("drop-target"));
+      }
+
+      function onPointerUp(event) {
+        if (!drag || event.pointerId !== drag.pointerId) return;
+        const finishedDrag = drag;
+        if (finishedDrag.active) {
+          updateDropTarget(event.clientX, event.clientY);
+          const target = drag.target;
+          const id = drag.id;
+          suppressNextClick = true;
+          cleanupDrag();
+          if (target?.type === "slot") moveToSlot(id, target.index);
+          else if (target?.type === "pool") moveToPool(id);
+          setTimeout(() => { suppressNextClick = false; }, 0);
+        } else {
+          cleanupDrag(); // 未超过拖动阈值时交给原生 click 完成轻点操作。
+        }
+      }
+
+      function cleanupDrag() {
+        if (!drag) return;
+        drag.tile?.classList.remove("drag-source");
+        drag.ghost?.remove();
+        if (drag.tile?.hasPointerCapture?.(drag.pointerId)) {
+          try { drag.tile.releasePointerCapture(drag.pointerId); } catch (_) { /* 指针已释放。 */ }
+        }
+        drag = null;
+        clearDropTarget();
+      }
+
+      // 轻点字母快速放入或撤回；拖动后的合成 click 会被忽略。
+      elements.gameCard.addEventListener("click", (event) => {
+        if (suppressNextClick) {
+          event.preventDefault();
+          suppressNextClick = false;
+          return;
+        }
+        const tile = event.target.closest(".letter-tile");
+        if (tile) quickMove(tile.dataset.id);
+      });
+      elements.gameCard.addEventListener("pointerdown", onPointerDown);
+      elements.gameCard.addEventListener("pointermove", onPointerMove);
+      elements.gameCard.addEventListener("pointerup", onPointerUp);
+      elements.gameCard.addEventListener("pointercancel", cleanupDrag);
+      elements.gameCard.addEventListener("lostpointercapture", () => { if (drag) cleanupDrag(); });
+
+      elements.hint.addEventListener("click", useHint);
+      elements.clear.addEventListener("click", clearAnswer);
+      elements.submit.addEventListener("click", submitAnswer);
+      elements.pause.addEventListener("click", togglePause);
+      elements.resume.addEventListener("click", togglePause);
+      elements.restart.addEventListener("click", startGame);
+      elements.pauseRestart.addEventListener("click", startGame);
+
+      // 实体键盘可直接输入字母，Backspace 撤回，Enter 检查答案。
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && (state === "playing" || state === "paused")) {
+          event.preventDefault();
+          togglePause();
+          return;
+        }
+        if (state !== "playing" || event.ctrlKey || event.metaKey || event.altKey) return;
+        if (/^[a-zA-Z]$/.test(event.key)) {
+          event.preventDefault();
+          const char = event.key.toUpperCase();
+          const emptyIndex = slots.findIndex((id) => !id);
+          if (emptyIndex < 0) {
+            setFeedback("答案已满，按 Enter 确认或 Backspace 撤回", "info");
+            return;
+          }
+          const id = pool.find((item) => letters.get(item).char === char);
+          if (id) {
+            slots[emptyIndex] = id;
+            pool.splice(pool.indexOf(id), 1);
+            setFeedback(`已输入 ${char}`);
+            render();
+          } else {
+            setFeedback(`字母库中没有可用的 ${char}`, "bad");
+          }
+        } else if (event.key === "Backspace") {
+          event.preventDefault();
+          for (let i = slots.length - 1; i >= 0; i--) {
+            if (slots[i] && !(hintUsed && i === 0)) {
+              moveToPool(slots[i]);
+              break;
+            }
+          }
+        } else if (event.key === "Delete") {
+          event.preventDefault();
+          clearAnswer();
+        } else if (event.key === "Enter") {
+          const focusedButton = event.target.closest?.("button");
+          if (focusedButton && !focusedButton.classList.contains("letter-tile") && !focusedButton.classList.contains("answer-slot")) return;
+          event.preventDefault();
+          submitAnswer();
+        }
+      });
+
+      // 禁止双击缩放、双指缩放和页面弹性滚动。
+      document.addEventListener("dblclick", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
+
+      // 切到后台时自动暂停，避免倒计时在玩家看不见时流逝。
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && state === "playing") togglePause();
+      });
+
+      // 以真实时间戳更新倒计时，低帧率下也能保持准确。
+      setInterval(() => {
+        if (state !== "playing") return;
+        timeLeft = getTimeLeft();
+        updateTimerDisplay();
+        if (timeLeft <= 0) finishGame(false);
+      }, 100);
+
+      startGame();
+    })();
+  </script>
+</body>
+</html>

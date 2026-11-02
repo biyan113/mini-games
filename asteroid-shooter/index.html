@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#050816">
+  <meta name="color-scheme" content="dark">
+  <title>小行星射击 · 星渊防线</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #040713;
+      --panel: rgba(10, 17, 39, 0.76);
+      --cyan: #69f6ff;
+      --cyan-soft: rgba(105, 246, 255, 0.16);
+      --violet: #a88bff;
+      --pink: #ff719d;
+      --text: #effcff;
+      --muted: #8c9ab8;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      background: var(--bg);
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      background:
+        radial-gradient(circle at 18% 12%, rgba(74, 54, 160, 0.2), transparent 35%),
+        radial-gradient(circle at 82% 88%, rgba(0, 210, 255, 0.1), transparent 36%),
+        #02040c;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    #game {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      max-width: 580px;
+      overflow: hidden;
+      isolation: isolate;
+      touch-action: none;
+      background: #050816;
+    }
+
+    #game::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      pointer-events: none;
+      box-shadow: inset 0 0 90px rgba(0, 0, 0, 0.38);
+    }
+
+    canvas {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      outline: none;
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    /* 顶部信息栏 */
+    .hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 5;
+      display: grid;
+      grid-template-columns: minmax(86px, 1fr) auto auto 42px;
+      align-items: center;
+      gap: 9px;
+      padding: max(13px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 12px max(14px, env(safe-area-inset-left));
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(3, 7, 20, 0.92), rgba(3, 7, 20, 0));
+    }
+
+    .brand {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-mark {
+      position: relative;
+      flex: 0 0 auto;
+      width: 25px;
+      height: 25px;
+      transform: rotate(45deg);
+      border: 1px solid rgba(105, 246, 255, 0.75);
+      border-radius: 7px;
+      background: rgba(105, 246, 255, 0.07);
+      box-shadow: 0 0 16px rgba(105, 246, 255, 0.2), inset 0 0 8px rgba(105, 246, 255, 0.12);
+    }
+
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      inset: 6px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 11px var(--cyan);
+    }
+
+    .brand-copy {
+      min-width: 0;
+      line-height: 1.05;
+    }
+
+    .brand-title {
+      overflow: hidden;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .brand-subtitle {
+      margin-top: 5px;
+      color: #687a9e;
+      font-size: 7px;
+      font-weight: 600;
+      letter-spacing: 0.17em;
+      white-space: nowrap;
+    }
+
+    .stat {
+      min-width: 51px;
+      text-align: right;
+    }
+
+    .stat-label {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 9px;
+      letter-spacing: 0.12em;
+    }
+
+    .stat-value {
+      display: block;
+      color: var(--text);
+      font-size: 18px;
+      font-variant-numeric: tabular-nums;
+      font-weight: 750;
+      line-height: 1;
+      text-shadow: 0 0 14px rgba(105, 246, 255, 0.24);
+    }
+
+    #bestScore {
+      color: #b7a6ff;
+      font-size: 15px;
+    }
+
+    .icon-button {
+      display: grid;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      place-items: center;
+      pointer-events: auto;
+      touch-action: none;
+      color: var(--cyan);
+      border: 1px solid rgba(105, 246, 255, 0.22);
+      border-radius: 13px;
+      outline: none;
+      background: rgba(11, 23, 47, 0.72);
+      box-shadow: inset 0 0 15px rgba(105, 246, 255, 0.04);
+      cursor: pointer;
+    }
+
+    .icon-button:active {
+      transform: scale(0.94);
+      background: rgba(105, 246, 255, 0.13);
+    }
+
+    .icon-button:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    .pause-icon {
+      display: flex;
+      gap: 4px;
+    }
+
+    .pause-icon::before,
+    .pause-icon::after {
+      content: "";
+      width: 3px;
+      height: 13px;
+      border-radius: 2px;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+    }
+
+    /* 船体耐久 */
+    .ship-status {
+      position: absolute;
+      top: max(73px, calc(env(safe-area-inset-top) + 60px));
+      left: max(16px, env(safe-area-inset-left));
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .status-label {
+      color: #7485a8;
+      font-size: 9px;
+      letter-spacing: 0.13em;
+    }
+
+    #lives {
+      display: flex;
+      gap: 5px;
+      color: var(--pink);
+      font-size: 13px;
+      filter: drop-shadow(0 0 5px rgba(255, 113, 157, 0.55));
+    }
+
+    .life {
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    .life.lost {
+      opacity: 0.16;
+      transform: scale(0.75);
+      filter: grayscale(1);
+    }
+
+    /* 底部任务进度 */
+    .bottom-panel {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 5;
+      padding: 24px max(18px, env(safe-area-inset-right)) max(13px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+      pointer-events: none;
+      background: linear-gradient(0deg, rgba(3, 7, 20, 0.94), rgba(3, 7, 20, 0));
+    }
+
+    .mission-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 7px;
+      color: #a6b5d2;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+    }
+
+    #progressText {
+      color: var(--cyan);
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+    }
+
+    .progress-track {
+      height: 3px;
+      overflow: hidden;
+      border-radius: 4px;
+      background: rgba(139, 164, 207, 0.14);
+    }
+
+    #progressFill {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #687cff, var(--cyan));
+      box-shadow: 0 0 10px rgba(105, 246, 255, 0.65);
+      transition: width 180ms ease;
+    }
+
+    .control-hint {
+      margin-top: 10px;
+      color: #5f7092;
+      font-size: 9px;
+      text-align: center;
+      letter-spacing: 0.12em;
+    }
+
+    /* 开始、暂停与结算弹窗 */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      padding: max(22px, env(safe-area-inset-top)) 20px max(22px, env(safe-area-inset-bottom));
+      touch-action: none;
+      background: rgba(2, 5, 16, 0.64);
+      -webkit-backdrop-filter: blur(9px);
+      backdrop-filter: blur(9px);
+    }
+
+    .modal {
+      position: relative;
+      width: min(100%, 390px);
+      max-height: 100%;
+      overflow: auto;
+      overscroll-behavior: contain;
+      padding: 30px 25px 24px;
+      text-align: center;
+      border: 1px solid rgba(128, 222, 255, 0.2);
+      border-radius: 26px;
+      background:
+        linear-gradient(145deg, rgba(18, 29, 59, 0.96), rgba(7, 12, 31, 0.97)) padding-box,
+        linear-gradient(135deg, rgba(105, 246, 255, 0.55), transparent 42%, rgba(168, 139, 255, 0.45)) border-box;
+      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.52), 0 0 42px rgba(70, 132, 255, 0.08), inset 0 1px rgba(255, 255, 255, 0.05);
+      animation: modal-in 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      scrollbar-width: none;
+    }
+
+    .modal::-webkit-scrollbar {
+      display: none;
+    }
+
+    .modal::before {
+      content: "";
+      position: absolute;
+      top: -70px;
+      left: 50%;
+      width: 190px;
+      height: 120px;
+      transform: translateX(-50%);
+      pointer-events: none;
+      border-radius: 50%;
+      background: rgba(82, 224, 255, 0.12);
+      filter: blur(35px);
+    }
+
+    @keyframes modal-in {
+      from { opacity: 0; transform: translateY(14px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .modal-emblem {
+      position: relative;
+      display: grid;
+      width: 58px;
+      height: 58px;
+      margin: 0 auto 19px;
+      place-items: center;
+      transform: rotate(45deg);
+      border: 1px solid rgba(105, 246, 255, 0.4);
+      border-radius: 17px;
+      background: linear-gradient(145deg, rgba(105, 246, 255, 0.12), rgba(168, 139, 255, 0.08));
+      box-shadow: 0 0 28px rgba(105, 246, 255, 0.12), inset 0 0 18px rgba(105, 246, 255, 0.06);
+    }
+
+    .modal-emblem span {
+      transform: rotate(-45deg);
+      color: var(--cyan);
+      font-size: 25px;
+      text-shadow: 0 0 15px var(--cyan);
+    }
+
+    .kicker {
+      margin: 0 0 9px;
+      color: var(--cyan);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 8vw, 38px);
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: 0.06em;
+      background: linear-gradient(115deg, #ffffff 18%, #bafaff 55%, #c4b4ff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      filter: drop-shadow(0 0 18px rgba(105, 246, 255, 0.12));
+    }
+
+    .modal-description {
+      max-width: 300px;
+      margin: 15px auto 20px;
+      color: #9baac7;
+      font-size: 13px;
+      line-height: 1.75;
+    }
+
+    .gestures {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 0 0 20px;
+    }
+
+    .gesture {
+      padding: 13px 8px 11px;
+      border: 1px solid rgba(141, 181, 232, 0.12);
+      border-radius: 15px;
+      background: rgba(110, 162, 228, 0.045);
+    }
+
+    .gesture-icon {
+      display: block;
+      height: 25px;
+      color: var(--cyan);
+      font-size: 22px;
+      line-height: 22px;
+      text-shadow: 0 0 10px rgba(105, 246, 255, 0.45);
+    }
+
+    .gesture strong {
+      display: block;
+      margin-top: 6px;
+      color: #dbeaff;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .gesture small {
+      display: block;
+      margin-top: 3px;
+      color: #6f81a4;
+      font-size: 9px;
+    }
+
+    .result-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      overflow: hidden;
+      margin: 20px 0;
+      border: 1px solid rgba(137, 176, 229, 0.12);
+      border-radius: 16px;
+      background: rgba(137, 176, 229, 0.12);
+    }
+
+    .result-stat {
+      padding: 14px 10px;
+      background: rgba(7, 14, 34, 0.94);
+    }
+
+    .result-stat span {
+      display: block;
+      color: #7e90b1;
+      font-size: 9px;
+      letter-spacing: 0.14em;
+    }
+
+    .result-stat strong {
+      display: block;
+      margin-top: 5px;
+      color: var(--cyan);
+      font-size: 24px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .result-stat:last-child strong {
+      color: #bdabff;
+    }
+
+    #recordBadge {
+      display: inline-block;
+      margin: -6px 0 14px;
+      padding: 5px 10px;
+      color: #07111d;
+      border-radius: 20px;
+      background: var(--cyan);
+      box-shadow: 0 0 18px rgba(105, 246, 255, 0.35);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+    }
+
+    .primary-button,
+    .secondary-button {
+      width: 100%;
+      min-height: 50px;
+      border-radius: 15px;
+      outline: none;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    .primary-button {
+      position: relative;
+      color: #04101d;
+      border: 0;
+      background: linear-gradient(105deg, #68e9ff, #83fbe1);
+      box-shadow: 0 8px 25px rgba(70, 224, 255, 0.2), inset 0 1px rgba(255, 255, 255, 0.65);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+    }
+
+    .primary-button:active {
+      transform: translateY(1px) scale(0.985);
+      box-shadow: 0 4px 15px rgba(70, 224, 255, 0.18);
+    }
+
+    .secondary-button {
+      margin-top: 10px;
+      color: #9fb0cf;
+      border: 1px solid rgba(151, 181, 226, 0.17);
+      background: rgba(111, 148, 203, 0.05);
+      font-size: 12px;
+    }
+
+    .keyboard-hint {
+      margin: 15px 0 0;
+      color: #586b8e;
+      font-size: 9px;
+      line-height: 1.6;
+    }
+
+    button:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: 3px;
+    }
+
+    @media (hover: hover) {
+      .primary-button:hover {
+        filter: brightness(1.08);
+        box-shadow: 0 10px 32px rgba(70, 224, 255, 0.3);
+      }
+
+      .secondary-button:hover,
+      .icon-button:not(:disabled):hover {
+        border-color: rgba(105, 246, 255, 0.5);
+        color: var(--cyan);
+      }
+    }
+
+    @media (min-width: 700px) {
+      #game {
+        height: min(920px, calc(100dvh - 32px));
+        border: 1px solid rgba(127, 184, 233, 0.16);
+        border-radius: 28px;
+        box-shadow: 0 28px 90px rgba(0, 0, 0, 0.5), 0 0 50px rgba(67, 118, 207, 0.08);
+      }
+    }
+
+    @media (max-width: 350px) {
+      .hud { gap: 6px; padding-right: 10px; padding-left: 10px; }
+      .brand-subtitle { display: none; }
+      .brand-title { font-size: 10px; }
+      .brand-mark { width: 21px; height: 21px; }
+      .stat { min-width: 43px; }
+      .stat-value { font-size: 16px; }
+      .modal { padding-right: 20px; padding-left: 20px; }
+    }
+
+    @media (max-height: 620px) {
+      .modal { padding-top: 20px; padding-bottom: 18px; }
+      .modal-emblem { width: 44px; height: 44px; margin-bottom: 13px; }
+      .modal-description { margin-top: 10px; margin-bottom: 13px; line-height: 1.55; }
+      .gestures { margin-bottom: 14px; }
+      .gesture { padding-top: 9px; padding-bottom: 8px; }
+      .keyboard-hint { margin-top: 10px; }
+      .ship-status { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main id="game" aria-label="小行星射击游戏区域">
+    <canvas id="gameCanvas" tabindex="0" aria-label="拖动移动飞船，点击发射子弹"></canvas>
+
+    <header class="hud" id="hud">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div class="brand-copy">
+          <div class="brand-title">星渊防线</div>
+          <div class="brand-subtitle">ASTEROID SHOOTER</div>
+        </div>
+      </div>
+      <div class="stat">
+        <span class="stat-label">得分</span>
+        <strong class="stat-value" id="score">0</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">最高分</span>
+        <strong class="stat-value" id="bestScore">0</strong>
+      </div>
+      <button class="icon-button" id="pauseButton" type="button" aria-label="暂停游戏" disabled>
+        <span class="pause-icon" aria-hidden="true"></span>
+      </button>
+    </header>
+
+    <div class="ship-status" aria-label="船体耐久">
+      <span class="status-label">船体</span>
+      <div id="lives" aria-label="剩余三点耐久">
+        <span class="life">♥</span><span class="life">♥</span><span class="life">♥</span>
+      </div>
+    </div>
+
+    <section class="bottom-panel" id="bottomPanel" aria-label="任务进度">
+      <div class="mission-row">
+        <span>航道净化进度</span>
+        <span id="progressText">0 / 30</span>
+      </div>
+      <div class="progress-track"><div id="progressFill"></div></div>
+      <div class="control-hint">拖动走位 · 点击射击 · 击碎 30 颗小行星</div>
+    </section>
+
+    <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <section class="modal">
+        <div class="modal-emblem" aria-hidden="true"><span id="modalIcon">✦</span></div>
+        <p class="kicker" id="modalKicker">NEON SPACE · 霓虹任务</p>
+        <h1 id="modalTitle">小行星射击</h1>
+        <p class="modal-description" id="modalDescription"></p>
+
+        <div class="gestures" id="gestureGuide">
+          <div class="gesture">
+            <span class="gesture-icon" aria-hidden="true">✥</span>
+            <strong>拖动走位</strong>
+            <small>按住并滑动飞船</small>
+          </div>
+          <div class="gesture">
+            <span class="gesture-icon" aria-hidden="true">⌁</span>
+            <strong>点击射击</strong>
+            <small>轻点屏幕发射脉冲</small>
+          </div>
+        </div>
+
+        <div class="result-stats" id="resultStats" hidden>
+          <div class="result-stat"><span>本局得分</span><strong id="finalScore">0</strong></div>
+          <div class="result-stat"><span>历史最高</span><strong id="finalBest">0</strong></div>
+        </div>
+        <div id="recordBadge" hidden>新纪录 · NEW RECORD</div>
+
+        <button class="primary-button" id="primaryButton" type="button">开始任务</button>
+        <button class="secondary-button" id="secondaryButton" type="button" hidden>重新开始</button>
+        <p class="keyboard-hint" id="keyboardHint">键盘：WASD / 方向键移动 · 空格射击 · P 暂停</p>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // ===== DOM 与常量 =====
+      const game = document.getElementById("game");
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const hud = document.getElementById("hud");
+      const bottomPanel = document.getElementById("bottomPanel");
+      const overlay = document.getElementById("overlay");
+      const pauseButton = document.getElementById("pauseButton");
+      const primaryButton = document.getElementById("primaryButton");
+      const secondaryButton = document.getElementById("secondaryButton");
+      const scoreElement = document.getElementById("score");
+      const bestElement = document.getElementById("bestScore");
+      const livesElement = document.getElementById("lives");
+      const progressText = document.getElementById("progressText");
+      const progressFill = document.getElementById("progressFill");
+      const modalIcon = document.getElementById("modalIcon");
+      const modalKicker = document.getElementById("modalKicker");
+      const modalTitle = document.getElementById("modalTitle");
+      const modalDescription = document.getElementById("modalDescription");
+      const gestureGuide = document.getElementById("gestureGuide");
+      const resultStats = document.getElementById("resultStats");
+      const finalScore = document.getElementById("finalScore");
+      const finalBest = document.getElementById("finalBest");
+      const recordBadge = document.getElementById("recordBadge");
+      const keyboardHint = document.getElementById("keyboardHint");
+
+      const GOAL = 30;
+      const STORAGE_KEY = "neon-asteroid-best-v1";
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const TAU = Math.PI * 2;
+
+      let width = 0;
+      let height = 0;
+      let playTop = 90;
+      let playBottom = 700;
+      let state = "ready";
+      let score = 0;
+      let best = loadBest();
+      let lives = 3;
+      let kills = 0;
+      let elapsed = 0;
+      let spawnTimer = 0;
+      let lastShot = 0;
+      let lastTime = 0;
+      let shake = 0;
+      let gridOffset = 0;
+      let newRecord = false;
+      let pointer = null;
+
+      let stars = [];
+      let asteroids = [];
+      let bullets = [];
+      let particles = [];
+      let floaters = [];
+
+      const keys = new Set();
+      const ship = {
+        x: 0,
+        y: 0,
+        radius: 17,
+        tilt: 0,
+        invulnerable: 0
+      };
+
+      // ===== 工具函数 =====
+      const random = (min, max) => min + Math.random() * (max - min);
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const distanceSquared = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+
+      function loadBest() {
+        try {
+          return Math.max(0, Number(localStorage.getItem(STORAGE_KEY)) || 0);
+        } catch (error) {
+          return 0;
+        }
+      }
+
+      function saveBest() {
+        try {
+          localStorage.setItem(STORAGE_KEY, String(best));
+        } catch (error) {
+          // 隐私模式下存储不可用时，游戏仍可正常进行。
+        }
+      }
+
+      // ===== 画布尺寸与安全活动区域 =====
+      function resizeCanvas() {
+        const rect = game.getBoundingClientRect();
+        const oldWidth = width || rect.width;
+        const oldHeight = height || rect.height;
+        width = rect.width;
+        height = rect.height;
+
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        playTop = Math.min(height * 0.28, hud.offsetHeight + 25);
+        playBottom = height - bottomPanel.offsetHeight - 7;
+
+        if (ship.x) {
+          ship.x = ship.x / oldWidth * width;
+          ship.y = ship.y / oldHeight * height;
+        } else {
+          ship.x = width / 2;
+          ship.y = playBottom - 60;
+        }
+        keepShipInBounds();
+        createStars();
+      }
+
+      function createStars() {
+        const count = clamp(Math.round(width * height / 8500), 45, 110);
+        stars = Array.from({ length: count }, () => ({
+          x: random(0, width),
+          y: random(0, height),
+          size: random(0.45, 1.65),
+          alpha: random(0.2, 0.85),
+          speed: random(3, 16),
+          phase: random(0, TAU)
+        }));
+      }
+
+      function keepShipInBounds() {
+        ship.x = clamp(ship.x, ship.radius + 5, width - ship.radius - 5);
+        ship.y = clamp(ship.y, playTop + 30, playBottom - 17);
+      }
+
+      // ===== 游戏实体 =====
+      function createAsteroid(size, x, y, inheritedVelocity = null) {
+        const radius = size === 2 ? random(31, 40) : size === 1 ? random(21, 27) : random(12, 17);
+        const baseSpeed = size === 2 ? 48 : size === 1 ? 70 : 96;
+        const pointCount = Math.floor(random(9, 14));
+        const points = Array.from({ length: pointCount }, (_, index) => ({
+          angle: index / pointCount * TAU,
+          scale: random(0.78, 1.13)
+        }));
+        const craters = Array.from({ length: size + 2 }, () => ({
+          x: random(-0.42, 0.42),
+          y: random(-0.42, 0.42),
+          r: random(0.09, 0.2)
+        }));
+
+        return {
+          x: x ?? random(radius + 5, width - radius - 5),
+          y: y ?? playTop - radius - random(5, 50),
+          vx: inheritedVelocity?.x ?? random(-27, 27),
+          vy: inheritedVelocity?.y ?? random(baseSpeed, baseSpeed + 35) + Math.min(elapsed * 0.65, 65),
+          radius,
+          size,
+          rotation: random(0, TAU),
+          rotationSpeed: random(-0.65, 0.65),
+          points,
+          craters,
+          hue: Math.random() > 0.35 ? "cyan" : "violet"
+        };
+      }
+
+      function spawnAsteroid() {
+        const roll = Math.random();
+        const size = roll < 0.43 ? 2 : roll < 0.78 ? 1 : 0;
+        asteroids.push(createAsteroid(size));
+      }
+
+      function fireBullet(targetX = ship.x, targetY = ship.y - 100) {
+        if (state !== "playing") return;
+        const now = performance.now();
+        if (now - lastShot < 145) return;
+        lastShot = now;
+
+        // 点击位置决定水平方向，但始终向上半区射击。
+        const aimY = Math.min(targetY, ship.y - 65);
+        let angle = Math.atan2(aimY - ship.y, targetX - ship.x);
+        angle = clamp(angle, -Math.PI + 0.2, -0.2);
+        const speed = 650;
+        bullets.push({
+          x: ship.x + Math.cos(angle) * 21,
+          y: ship.y + Math.sin(angle) * 21,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 1.25
+        });
+        spawnParticles(ship.x, ship.y - 20, "#69f6ff", 3, 45);
+      }
+
+      function spawnParticles(x, y, color, count, speed = 160) {
+        const amount = reducedMotion ? Math.ceil(count * 0.45) : count;
+        for (let i = 0; i < amount; i++) {
+          const angle = random(0, TAU);
+          const velocity = random(speed * 0.25, speed);
+          const life = random(0.28, 0.72);
+          particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * velocity,
+            vy: Math.sin(angle) * velocity,
+            life,
+            maxLife: life,
+            size: random(1, 3.2),
+            color
+          });
+        }
+        if (particles.length > 420) particles.splice(0, particles.length - 420);
+      }
+
+      function addFloater(x, y, text, color = "#69f6ff") {
+        floaters.push({ x, y, text, color, life: 0.75, maxLife: 0.75 });
+      }
+
+      // ===== 分数、界面与状态切换 =====
+      function updateHUD() {
+        scoreElement.textContent = score.toLocaleString("zh-CN");
+        bestElement.textContent = best.toLocaleString("zh-CN");
+        progressText.textContent = `${kills} / ${GOAL}`;
+        progressFill.style.width = `${Math.min(100, kills / GOAL * 100)}%`;
+        [...livesElement.children].forEach((heart, index) => {
+          heart.classList.toggle("lost", index >= lives);
+        });
+        livesElement.setAttribute("aria-label", `剩余${lives}点耐久`);
+      }
+
+      function addScore(points) {
+        score += points;
+        if (score > best) {
+          best = score;
+          newRecord = true;
+          saveBest();
+        }
+        updateHUD();
+      }
+
+      function resetGame() {
+        score = 0;
+        lives = 3;
+        kills = 0;
+        elapsed = 0;
+        spawnTimer = 0.85;
+        lastShot = 0;
+        shake = 0;
+        newRecord = false;
+        asteroids = [];
+        bullets = [];
+        particles = [];
+        floaters = [];
+        keys.clear();
+        pointer = null;
+        ship.x = width / 2;
+        ship.y = playBottom - 60;
+        ship.tilt = 0;
+        ship.invulnerable = 0;
+
+        // 开局提供三颗可见目标，其余小行星持续进入航道。
+        for (let i = 0; i < 3; i++) {
+          const size = i === 0 ? 2 : (Math.random() > 0.5 ? 1 : 2);
+          asteroids.push(createAsteroid(size, random(45, width - 45), playTop + 38 + i * 58));
+        }
+        updateHUD();
+      }
+
+      function startGame() {
+        resetGame();
+        state = "playing";
+        overlay.hidden = true;
+        pauseButton.disabled = false;
+        pauseButton.setAttribute("aria-label", "暂停游戏");
+        canvas.focus({ preventScroll: true });
+      }
+
+      function pauseGame() {
+        if (state !== "playing") return;
+        state = "paused";
+        keys.clear();
+        pointer = null;
+        showOverlay("paused");
+      }
+
+      function resumeGame() {
+        if (state !== "paused") return;
+        state = "playing";
+        overlay.hidden = true;
+        pauseButton.setAttribute("aria-label", "暂停游戏");
+        canvas.focus({ preventScroll: true });
+      }
+
+      function endGame(won) {
+        if (state !== "playing") return;
+        state = won ? "won" : "over";
+        pauseButton.disabled = true;
+        keys.clear();
+        pointer = null;
+        saveBest();
+        showOverlay(state);
+      }
+
+      function showOverlay(mode) {
+        const content = {
+          ready: {
+            icon: "✦",
+            kicker: "NEON SPACE · 霓虹任务",
+            title: "小行星射击",
+            description: "拖动飞船穿梭星海，轻点屏幕发射脉冲。击碎 30 颗小行星，守住最后航道。",
+            button: "开始任务"
+          },
+          paused: {
+            icon: "Ⅱ",
+            kicker: "SYSTEM STANDBY",
+            title: "任务暂停",
+            description: "星海已静止。调整呼吸，准备好后继续守护航道。",
+            button: "继续任务"
+          },
+          over: {
+            icon: "×",
+            kicker: "SIGNAL LOST · 信号中断",
+            title: "飞船失联",
+            description: "船体耐久耗尽。重新校准航线，再次向星海出击吧。",
+            button: "再次出击"
+          },
+          won: {
+            icon: "✓",
+            kicker: "MISSION COMPLETE · 任务完成",
+            title: "星域已净化",
+            description: "30 颗小行星已全部击碎，航道恢复安全。干得漂亮，指挥官！",
+            button: "再玩一次"
+          }
+        }[mode];
+
+        modalIcon.textContent = content.icon;
+        modalKicker.textContent = content.kicker;
+        modalTitle.textContent = content.title;
+        modalDescription.textContent = content.description;
+        primaryButton.textContent = content.button;
+        gestureGuide.hidden = mode !== "ready";
+        keyboardHint.hidden = mode === "over" || mode === "won";
+        secondaryButton.hidden = mode !== "paused";
+        resultStats.hidden = mode !== "over" && mode !== "won";
+        recordBadge.hidden = !newRecord || (mode !== "over" && mode !== "won");
+        finalScore.textContent = score.toLocaleString("zh-CN");
+        finalBest.textContent = best.toLocaleString("zh-CN");
+        pauseButton.disabled = mode !== "playing";
+        overlay.hidden = false;
+
+        // 让键盘用户可以直接按回车，也避免旧焦点触发隐藏按钮。
+        requestAnimationFrame(() => primaryButton.focus({ preventScroll: true }));
+      }
+
+      // ===== 碰撞与游戏循环 =====
+      function destroyAsteroid(index, byPlayer) {
+        const asteroid = asteroids[index];
+        if (!asteroid) return;
+        asteroids.splice(index, 1);
+
+        const color = asteroid.hue === "cyan" ? "#69f6ff" : "#a88bff";
+        spawnParticles(asteroid.x, asteroid.y, color, 10 + asteroid.size * 6, 150 + asteroid.size * 35);
+
+        if (byPlayer) {
+          const points = asteroid.size === 2 ? 100 : asteroid.size === 1 ? 160 : 220;
+          kills += 1;
+          addScore(points);
+          addFloater(asteroid.x, asteroid.y, `+${points}`, color);
+
+          // 大型小行星会裂成两块更小、更快的碎片。
+          if (asteroid.size > 0 && kills < GOAL) {
+            for (const direction of [-1, 1]) {
+              const child = createAsteroid(
+                asteroid.size - 1,
+                asteroid.x + direction * asteroid.radius * 0.3,
+                asteroid.y,
+                {
+                  x: asteroid.vx + direction * random(35, 75),
+                  y: asteroid.vy * random(0.9, 1.15)
+                }
+              );
+              asteroids.push(child);
+            }
+          }
+        }
+
+        if (!reducedMotion) shake = Math.min(13, shake + 2 + asteroid.size * 1.5);
+        if (kills >= GOAL) endGame(true);
+      }
+
+      function hitShip(index) {
+        const asteroid = asteroids[index];
+        if (!asteroid) return;
+        spawnParticles(ship.x, ship.y, "#ff719d", 24, 220);
+        destroyAsteroid(index, false);
+        lives -= 1;
+        ship.invulnerable = 1.65;
+        if (!reducedMotion) shake = 14;
+        if (navigator.vibrate) navigator.vibrate(45);
+        updateHUD();
+        if (lives <= 0) endGame(false);
+      }
+
+      function updateKeyboard(dt) {
+        let dx = 0;
+        let dy = 0;
+        if (keys.has("ArrowLeft") || keys.has("KeyA")) dx -= 1;
+        if (keys.has("ArrowRight") || keys.has("KeyD")) dx += 1;
+        if (keys.has("ArrowUp") || keys.has("KeyW")) dy -= 1;
+        if (keys.has("ArrowDown") || keys.has("KeyS")) dy += 1;
+
+        if (dx || dy) {
+          const length = Math.hypot(dx, dy);
+          ship.x += dx / length * 335 * dt;
+          ship.y += dy / length * 335 * dt;
+          ship.tilt += (dx * 0.36 - ship.tilt) * Math.min(1, dt * 12);
+          keepShipInBounds();
+        } else if (!pointer?.dragged) {
+          ship.tilt *= Math.max(0, 1 - dt * 8);
+        }
+
+        if (keys.has("Space")) fireBullet();
+      }
+
+      function updateGame(dt) {
+        elapsed += dt;
+        updateKeyboard(dt);
+        ship.invulnerable = Math.max(0, ship.invulnerable - dt);
+
+        for (let i = bullets.length - 1; i >= 0; i--) {
+          const bullet = bullets[i];
+          bullet.x += bullet.vx * dt;
+          bullet.y += bullet.vy * dt;
+          bullet.life -= dt;
+          if (bullet.life <= 0 || bullet.y < playTop - 70 || bullet.x < -30 || bullet.x > width + 30) {
+            bullets.splice(i, 1);
+          }
+        }
+
+        for (let i = asteroids.length - 1; i >= 0; i--) {
+          const asteroid = asteroids[i];
+          asteroid.x += asteroid.vx * dt;
+          asteroid.y += asteroid.vy * dt;
+          asteroid.rotation += asteroid.rotationSpeed * dt;
+
+          if (asteroid.x < asteroid.radius && asteroid.vx < 0) asteroid.vx *= -1;
+          if (asteroid.x > width - asteroid.radius && asteroid.vx > 0) asteroid.vx *= -1;
+          if (asteroid.y - asteroid.radius > playBottom + 35) asteroids.splice(i, 1);
+        }
+
+        // 子弹与小行星的圆形碰撞检测。
+        for (let i = bullets.length - 1; i >= 0; i--) {
+          const bullet = bullets[i];
+          let hit = false;
+          for (let j = asteroids.length - 1; j >= 0; j--) {
+            const asteroid = asteroids[j];
+            const radius = asteroid.radius + 4;
+            if (distanceSquared(bullet, asteroid) < radius * radius) {
+              bullets.splice(i, 1);
+              destroyAsteroid(j, true);
+              hit = true;
+              break;
+            }
+          }
+          if (hit && state !== "playing") return;
+        }
+
+        // 飞船受击后短暂无敌，避免一次碰撞连续扣除耐久。
+        if (ship.invulnerable <= 0) {
+          for (let i = asteroids.length - 1; i >= 0; i--) {
+            const asteroid = asteroids[i];
+            const radius = asteroid.radius + ship.radius * 0.78;
+            if (distanceSquared(ship, asteroid) < radius * radius) {
+              hitShip(i);
+              break;
+            }
+          }
+        }
+        if (state !== "playing") return;
+
+        spawnTimer -= dt;
+        if (spawnTimer <= 0) {
+          spawnAsteroid();
+          const interval = Math.max(0.48, 1.02 - elapsed * 0.007);
+          spawnTimer = interval * random(0.78, 1.2);
+        }
+      }
+
+      function updateAmbient(dt) {
+        gridOffset = (gridOffset + dt * 12) % 48;
+        for (const star of stars) {
+          star.y += star.speed * dt;
+          if (star.y > height + 2) {
+            star.y = -2;
+            star.x = random(0, width);
+          }
+        }
+      }
+
+      function updateEffects(dt) {
+        shake *= Math.max(0, 1 - dt * 9);
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const particle = particles[i];
+          particle.x += particle.vx * dt;
+          particle.y += particle.vy * dt;
+          particle.vx *= Math.max(0, 1 - dt * 2.2);
+          particle.vy *= Math.max(0, 1 - dt * 2.2);
+          particle.life -= dt;
+          if (particle.life <= 0) particles.splice(i, 1);
+        }
+        for (let i = floaters.length - 1; i >= 0; i--) {
+          const floater = floaters[i];
+          floater.y -= 38 * dt;
+          floater.life -= dt;
+          if (floater.life <= 0) floaters.splice(i, 1);
+        }
+      }
+
+      // ===== 霓虹画布绘制 =====
+      function drawBackground(time) {
+        ctx.fillStyle = "#050816";
+        ctx.fillRect(0, 0, width, height);
+
+        let glow = ctx.createRadialGradient(width * 0.12, height * 0.1, 0, width * 0.12, height * 0.1, width * 0.85);
+        glow.addColorStop(0, "rgba(77, 54, 159, 0.21)");
+        glow.addColorStop(0.55, "rgba(23, 25, 75, 0.07)");
+        glow.addColorStop(1, "rgba(5, 8, 22, 0)");
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, width, height);
+
+        glow = ctx.createRadialGradient(width * 0.95, height * 0.68, 0, width * 0.95, height * 0.68, width * 0.75);
+        glow.addColorStop(0, "rgba(0, 178, 210, 0.09)");
+        glow.addColorStop(1, "rgba(5, 8, 22, 0)");
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, width, height);
+
+        // 低速星点和微弱网格营造空间纵深。
+        for (const star of stars) {
+          const alpha = star.alpha * (0.72 + Math.sin(time * 1.8 + star.phase) * 0.28);
+          ctx.fillStyle = `rgba(186, 225, 255, ${alpha})`;
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, star.size, 0, TAU);
+          ctx.fill();
+        }
+
+        ctx.save();
+        ctx.strokeStyle = "rgba(94, 141, 206, 0.035)";
+        ctx.lineWidth = 1;
+        const gridSize = 48;
+        for (let x = 0; x < width; x += gridSize) {
+          ctx.beginPath();
+          ctx.moveTo(x + 0.5, playTop);
+          ctx.lineTo(x + 0.5, playBottom);
+          ctx.stroke();
+        }
+        for (let y = playTop + gridOffset; y < playBottom; y += gridSize) {
+          ctx.beginPath();
+          ctx.moveTo(0, y + 0.5);
+          ctx.lineTo(width, y + 0.5);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawShip(time) {
+        if (state === "over" && lives <= 0) return;
+        if (ship.invulnerable > 0 && Math.floor(ship.invulnerable * 12) % 2 === 0) {
+          ctx.globalAlpha = 0.34;
+        }
+
+        ctx.save();
+        ctx.translate(ship.x, ship.y);
+        ctx.rotate(ship.tilt);
+
+        // 发动机尾焰。
+        const flame = 15 + Math.sin(time * 28) * 4;
+        const flameGradient = ctx.createLinearGradient(0, 11, 0, 11 + flame);
+        flameGradient.addColorStop(0, "rgba(105, 246, 255, 0.95)");
+        flameGradient.addColorStop(0.5, "rgba(114, 115, 255, 0.65)");
+        flameGradient.addColorStop(1, "rgba(114, 115, 255, 0)");
+        ctx.fillStyle = flameGradient;
+        ctx.shadowColor = "#69f6ff";
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.moveTo(-5, 12);
+        ctx.quadraticCurveTo(0, 15 + flame, 5, 12);
+        ctx.closePath();
+        ctx.fill();
+
+        // 飞船主轮廓。
+        const bodyGradient = ctx.createLinearGradient(-15, -20, 15, 18);
+        bodyGradient.addColorStop(0, "#b9fcff");
+        bodyGradient.addColorStop(0.42, "#54dce9");
+        bodyGradient.addColorStop(1, "#5562bc");
+        ctx.fillStyle = bodyGradient;
+        ctx.strokeStyle = "rgba(211, 253, 255, 0.9)";
+        ctx.lineWidth = 1;
+        ctx.shadowBlur = 18;
+        ctx.beginPath();
+        ctx.moveTo(0, -23);
+        ctx.lineTo(7, -7);
+        ctx.lineTo(20, 12);
+        ctx.lineTo(8, 9);
+        ctx.lineTo(4, 16);
+        ctx.lineTo(-4, 16);
+        ctx.lineTo(-8, 9);
+        ctx.lineTo(-20, 12);
+        ctx.lineTo(-7, -7);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = "#101d42";
+        ctx.beginPath();
+        ctx.moveTo(0, -13);
+        ctx.lineTo(5, 3);
+        ctx.lineTo(0, 7);
+        ctx.lineTo(-5, 3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = "rgba(179, 147, 255, 0.8)";
+        ctx.stroke();
+        ctx.restore();
+        ctx.globalAlpha = 1;
+
+        if (ship.invulnerable > 0) {
+          ctx.save();
+          ctx.strokeStyle = `rgba(105, 246, 255, ${0.25 + Math.sin(time * 12) * 0.12})`;
+          ctx.lineWidth = 1.5;
+          ctx.shadowColor = "#69f6ff";
+          ctx.shadowBlur = 12;
+          ctx.beginPath();
+          ctx.arc(ship.x, ship.y - 2, 29, 0, TAU);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      function drawAsteroid(asteroid) {
+        ctx.save();
+        ctx.translate(asteroid.x, asteroid.y);
+        ctx.rotate(asteroid.rotation);
+        const color = asteroid.hue === "cyan" ? "#62d9e9" : "#9c82dc";
+
+        ctx.beginPath();
+        asteroid.points.forEach((point, index) => {
+          const radius = asteroid.radius * point.scale;
+          const x = Math.cos(point.angle) * radius;
+          const y = Math.sin(point.angle) * radius;
+          if (index === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.closePath();
+        const rockGradient = ctx.createRadialGradient(-asteroid.radius * 0.35, -asteroid.radius * 0.4, 1, 0, 0, asteroid.radius * 1.2);
+        rockGradient.addColorStop(0, "#26304c");
+        rockGradient.addColorStop(0.6, "#141b32");
+        rockGradient.addColorStop(1, "#0a1023");
+        ctx.fillStyle = rockGradient;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.15;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.globalAlpha = 0.72;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+
+        // 陨石表面 crater（环形山）细节。
+        for (const crater of asteroid.craters) {
+          ctx.beginPath();
+          ctx.arc(crater.x * asteroid.radius, crater.y * asteroid.radius, crater.r * asteroid.radius, 0, TAU);
+          ctx.fillStyle = "rgba(3, 7, 18, 0.45)";
+          ctx.fill();
+          ctx.strokeStyle = "rgba(150, 176, 214, 0.16)";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawBullets() {
+        ctx.save();
+        ctx.lineCap = "round";
+        for (const bullet of bullets) {
+          const speed = Math.hypot(bullet.vx, bullet.vy);
+          const tailX = bullet.x - bullet.vx / speed * 17;
+          const tailY = bullet.y - bullet.vy / speed * 17;
+          const gradient = ctx.createLinearGradient(tailX, tailY, bullet.x, bullet.y);
+          gradient.addColorStop(0, "rgba(105, 246, 255, 0)");
+          gradient.addColorStop(1, "#d7ffff");
+          ctx.strokeStyle = gradient;
+          ctx.lineWidth = 3;
+          ctx.shadowColor = "#69f6ff";
+          ctx.shadowBlur = 12;
+          ctx.beginPath();
+          ctx.moveTo(tailX, tailY);
+          ctx.lineTo(bullet.x, bullet.y);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawEffects() {
+        ctx.save();
+        for (const particle of particles) {
+          const alpha = particle.life / particle.maxLife;
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = particle.color;
+          ctx.shadowColor = particle.color;
+          ctx.shadowBlur = 6;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size * alpha, 0, TAU);
+          ctx.fill();
+        }
+        ctx.shadowBlur = 0;
+        ctx.textAlign = "center";
+        ctx.font = "700 12px -apple-system, BlinkMacSystemFont, sans-serif";
+        for (const floater of floaters) {
+          ctx.globalAlpha = floater.life / floater.maxLife;
+          ctx.fillStyle = floater.color;
+          ctx.fillText(floater.text, floater.x, floater.y);
+        }
+        ctx.restore();
+      }
+
+      function render(time) {
+        drawBackground(time);
+        ctx.save();
+        if (shake > 0.1) ctx.translate(random(-shake, shake), random(-shake, shake));
+        for (const asteroid of asteroids) drawAsteroid(asteroid);
+        drawBullets();
+        drawShip(time);
+        drawEffects();
+        ctx.restore();
+      }
+
+      function frame(now) {
+        const dt = Math.min(0.034, Math.max(0, (now - lastTime) / 1000 || 0));
+        lastTime = now;
+
+        if (state === "playing") updateGame(dt);
+        if (state !== "paused") updateAmbient(dt);
+        if (state === "playing" || state === "over" || state === "won") updateEffects(dt);
+        render(now / 1000);
+        requestAnimationFrame(frame);
+      }
+
+      // ===== 触屏、鼠标与键盘输入 =====
+      function eventPosition(event) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      }
+
+      canvas.addEventListener("pointerdown", (event) => {
+        if (state !== "playing" || pointer || (event.pointerType === "mouse" && event.button !== 0)) return;
+        event.preventDefault();
+        const point = eventPosition(event);
+        pointer = {
+          id: event.pointerId,
+          startX: point.x,
+          startY: point.y,
+          lastX: point.x,
+          lastY: point.y,
+          startedAt: performance.now(),
+          dragged: false
+        };
+        canvas.setPointerCapture(event.pointerId);
+      });
+
+      canvas.addEventListener("pointermove", (event) => {
+        if (!pointer || event.pointerId !== pointer.id || state !== "playing") return;
+        event.preventDefault();
+        const point = eventPosition(event);
+        const totalDistance = Math.hypot(point.x - pointer.startX, point.y - pointer.startY);
+        if (totalDistance > 7) pointer.dragged = true;
+
+        if (pointer.dragged) {
+          const dx = point.x - pointer.lastX;
+          const dy = point.y - pointer.lastY;
+          ship.x += dx;
+          ship.y += dy;
+          ship.tilt = clamp(dx * 0.065, -0.42, 0.42);
+          keepShipInBounds();
+        }
+        pointer.lastX = point.x;
+        pointer.lastY = point.y;
+      });
+
+      function finishPointer(event, allowShot) {
+        if (!pointer || event.pointerId !== pointer.id) return;
+        event.preventDefault();
+        const point = eventPosition(event);
+        const wasTap = !pointer.dragged && performance.now() - pointer.startedAt < 450;
+        pointer = null;
+        if (allowShot && wasTap && state === "playing") fireBullet(point.x, point.y);
+      }
+
+      canvas.addEventListener("pointerup", (event) => finishPointer(event, true));
+      canvas.addEventListener("pointercancel", (event) => finishPointer(event, false));
+      canvas.addEventListener("contextmenu", (event) => event.preventDefault());
+
+      window.addEventListener("keydown", (event) => {
+        const gameKeys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Space", "KeyW", "KeyA", "KeyS", "KeyD"];
+        if (gameKeys.includes(event.code)) event.preventDefault();
+
+        if (event.code === "KeyP" || event.code === "Escape") {
+          if (!event.repeat) state === "playing" ? pauseGame() : state === "paused" && resumeGame();
+          return;
+        }
+        if (event.code === "Enter" && !event.repeat && !overlay.hidden) {
+          event.preventDefault();
+          state === "paused" ? resumeGame() : startGame();
+          return;
+        }
+        if (state !== "playing") return;
+        keys.add(event.code);
+        if (event.code === "Space" && !event.repeat) fireBullet();
+      });
+
+      window.addEventListener("keyup", (event) => keys.delete(event.code));
+
+      pauseButton.addEventListener("click", pauseGame);
+      primaryButton.addEventListener("click", () => {
+        if (state === "paused") resumeGame();
+        else startGame();
+      });
+      secondaryButton.addEventListener("click", startGame);
+
+      // 页面失焦时自动暂停，避免返回页面后措手不及。
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) pauseGame();
+      });
+      window.addEventListener("blur", () => {
+        keys.clear();
+        pauseGame();
+      });
+
+      // 阻止双击缩放、双指缩放手势与页面滚动。
+      document.addEventListener("dblclick", (event) => event.preventDefault());
+      document.addEventListener("gesturestart", (event) => event.preventDefault());
+      document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
+      window.addEventListener("resize", resizeCanvas);
+      window.addEventListener("orientationchange", () => setTimeout(resizeCanvas, 100));
+
+      // ===== 启动 =====
+      resizeCanvas();
+      resetGame();
+      bestElement.textContent = best.toLocaleString("zh-CN");
+      showOverlay("ready");
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>

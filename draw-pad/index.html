@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080b18">
+  <title>霓虹涂鸦 · 60 秒灵感挑战</title>
+  <style>
+    /* ===== 基础与移动端防滚动 ===== */
+    :root {
+      color-scheme: dark;
+      --bg: #080b18;
+      --panel: rgba(18, 23, 44, 0.82);
+      --line: rgba(158, 176, 255, 0.14);
+      --text: #f4f6ff;
+      --muted: #8992b3;
+      --cyan: #5ef2ff;
+      --purple: #a978ff;
+      --pink: #ff5ca8;
+      --yellow: #ffd166;
+      --danger: #ff6685;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      background: var(--bg);
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      user-select: none;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(106, 74, 255, 0.18), transparent 35%),
+        radial-gradient(circle at 90% 88%, rgba(0, 224, 255, 0.11), transparent 34%),
+        #080b18;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.22;
+      background-image:
+        radial-gradient(circle at 20% 30%, #a978ff 0 1px, transparent 1.5px),
+        radial-gradient(circle at 80% 18%, #5ef2ff 0 1px, transparent 1.5px),
+        radial-gradient(circle at 70% 75%, #ff5ca8 0 1px, transparent 1.5px);
+      background-size: 170px 190px, 230px 210px, 260px 240px;
+    }
+
+    button { font: inherit; }
+    button, canvas { -webkit-tap-highlight-color: transparent; }
+    button { touch-action: manipulation; }
+    [hidden] { display: none !important; }
+
+    /* ===== 主布局 ===== */
+    .app {
+      position: relative;
+      width: min(100%, 580px);
+      height: 100vh;
+      height: 100dvh;
+      min-height: 0;
+      margin: 0 auto;
+      padding: max(12px, env(safe-area-inset-top)) 14px max(12px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .topbar {
+      flex: 0 0 auto;
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
+
+    .brand-mark {
+      position: relative;
+      flex: 0 0 42px;
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(94, 242, 255, 0.28);
+      border-radius: 14px;
+      color: var(--cyan);
+      font-size: 23px;
+      background: linear-gradient(145deg, rgba(94, 242, 255, 0.12), rgba(169, 120, 255, 0.1));
+      box-shadow: inset 0 0 16px rgba(94, 242, 255, 0.07), 0 0 24px rgba(94, 242, 255, 0.08);
+    }
+
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      right: -3px;
+      top: -3px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--pink);
+      box-shadow: 0 0 12px var(--pink);
+    }
+
+    h1 { margin: 0; font-size: 20px; line-height: 1.2; letter-spacing: 0.06em; }
+    .subtitle { margin: 4px 0 0; color: var(--muted); font-size: 11px; letter-spacing: 0.12em; }
+
+    .icon-button {
+      min-width: 82px;
+      min-height: 44px;
+      padding: 0 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      color: #dce2ff;
+      background: rgba(20, 26, 48, 0.78);
+      cursor: pointer;
+      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+    }
+
+    .icon-button svg { width: 17px; height: 17px; }
+    .icon-button:active:not(:disabled) { transform: scale(0.96); }
+    .icon-button.is-paused { color: var(--cyan); border-color: rgba(94, 242, 255, 0.4); }
+    button:disabled { opacity: 0.38; cursor: default; }
+
+    button:focus-visible, canvas:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    /* ===== 数据卡片 ===== */
+    .stats {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .stat {
+      min-width: 0;
+      padding: 9px 12px 10px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: linear-gradient(145deg, rgba(24, 30, 55, 0.9), rgba(14, 18, 36, 0.82));
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.025);
+    }
+
+    .stat-label { display: block; margin-bottom: 3px; color: var(--muted); font-size: 11px; }
+    .stat strong { display: block; font-size: 23px; line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+    .stat:first-child strong { color: var(--cyan); text-shadow: 0 0 18px rgba(94, 242, 255, 0.25); }
+    .stat:nth-child(2) strong { color: #c4adff; }
+    .stat small { margin-left: 2px; color: var(--muted); font-size: 11px; font-weight: 500; }
+    .stat.urgent { border-color: rgba(255, 102, 133, 0.42); animation: urgentPulse 1s ease-in-out infinite; }
+    .stat.urgent strong { color: var(--danger); }
+
+    /* ===== 目标进度 ===== */
+    .mission {
+      flex: 0 0 auto;
+      padding: 1px 2px;
+    }
+
+    .mission-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; font-size: 11px; }
+    .mission-title { color: #c6cdea; letter-spacing: 0.06em; }
+    .mission-title span { margin-right: 5px; color: var(--yellow); }
+    .mission-value { color: var(--muted); font-variant-numeric: tabular-nums; }
+    .mission-value b { color: #eef1ff; font-weight: 600; }
+
+    .progress-track {
+      height: 6px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(137, 146, 179, 0.12);
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25);
+    }
+
+    .progress-fill {
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      transform: scaleX(0);
+      transform-origin: left;
+      background: linear-gradient(90deg, var(--purple), var(--pink), var(--cyan));
+      box-shadow: 0 0 12px rgba(94, 242, 255, 0.45);
+      transition: transform 140ms ease-out;
+    }
+
+    /* ===== 涂鸦画布 ===== */
+    .board {
+      position: relative;
+      isolation: isolate;
+      flex: 1 1 auto;
+      min-height: 170px;
+      overflow: hidden;
+      border: 1px solid rgba(119, 145, 224, 0.22);
+      border-radius: 23px;
+      background-color: rgba(8, 12, 27, 0.88);
+      background-image:
+        linear-gradient(rgba(105, 134, 206, 0.055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(105, 134, 206, 0.055) 1px, transparent 1px),
+        radial-gradient(circle at 50% 45%, rgba(54, 49, 111, 0.15), transparent 60%);
+      background-size: 26px 26px, 26px 26px, 100% 100%;
+      box-shadow: 0 16px 50px rgba(0, 0, 0, 0.25), inset 0 0 50px rgba(34, 40, 82, 0.16);
+      transition: border-color 250ms ease, box-shadow 250ms ease;
+    }
+
+    .board::before {
+      content: "";
+      position: absolute;
+      z-index: 0;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(115deg, rgba(255, 255, 255, 0.025), transparent 25%, transparent 75%, rgba(94, 242, 255, 0.018));
+    }
+
+    .board::after {
+      content: "NEON CANVAS";
+      position: absolute;
+      z-index: 0;
+      right: 15px;
+      bottom: 12px;
+      color: rgba(143, 155, 197, 0.22);
+      font-size: 9px;
+      letter-spacing: 0.24em;
+      pointer-events: none;
+    }
+
+    .board.win-flash { animation: winFlash 650ms ease-out; }
+
+    #canvas {
+      position: absolute;
+      z-index: 1;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    .canvas-badge {
+      position: absolute;
+      z-index: 2;
+      top: 13px;
+      left: 14px;
+      padding: 6px 9px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid rgba(137, 155, 213, 0.12);
+      border-radius: 999px;
+      color: rgba(187, 197, 230, 0.62);
+      background: rgba(11, 15, 31, 0.54);
+      backdrop-filter: blur(8px);
+      font-size: 10px;
+      pointer-events: none;
+    }
+
+    .canvas-badge i { width: 5px; height: 5px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+
+    .combo {
+      position: absolute;
+      z-index: 2;
+      top: 13px;
+      right: 14px;
+      padding: 6px 10px;
+      border: 1px solid rgba(255, 92, 168, 0.26);
+      border-radius: 999px;
+      color: #ff9bc8;
+      background: rgba(46, 19, 48, 0.58);
+      font-size: 11px;
+      font-weight: 700;
+      opacity: 0;
+      transform: translateY(-4px);
+      transition: opacity 160ms ease, transform 160ms ease;
+      pointer-events: none;
+    }
+
+    .combo.visible { opacity: 1; transform: translateY(0); }
+
+    .start-hint {
+      position: absolute;
+      z-index: 2;
+      inset: 0;
+      padding: 50px 24px 34px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      pointer-events: none;
+      transition: opacity 220ms ease, visibility 220ms ease;
+    }
+
+    .start-hint.is-hidden { opacity: 0; visibility: hidden; }
+
+    .pen-orbit {
+      position: relative;
+      width: 68px;
+      height: 68px;
+      margin-bottom: 15px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(94, 242, 255, 0.2);
+      border-radius: 50%;
+      color: var(--cyan);
+      background: rgba(94, 242, 255, 0.045);
+      box-shadow: 0 0 34px rgba(94, 242, 255, 0.08);
+    }
+
+    .pen-orbit::before {
+      content: "";
+      position: absolute;
+      inset: -7px;
+      border: 1px dashed rgba(169, 120, 255, 0.2);
+      border-radius: 50%;
+      animation: orbit 16s linear infinite;
+    }
+
+    .pen-orbit svg { width: 30px; height: 30px; filter: drop-shadow(0 0 8px rgba(94, 242, 255, 0.45)); }
+    .start-hint h2 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.04em; }
+    .start-hint p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.8; }
+    .start-hint .hint-accent { margin-top: 13px; color: rgba(199, 176, 255, 0.8); font-size: 10px; letter-spacing: 0.08em; }
+
+    .toast {
+      position: absolute;
+      z-index: 7;
+      left: 50%;
+      bottom: 18px;
+      max-width: calc(100% - 32px);
+      padding: 9px 14px;
+      border: 1px solid rgba(94, 242, 255, 0.18);
+      border-radius: 999px;
+      color: #dceeff;
+      background: rgba(13, 20, 39, 0.9);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(12px);
+      font-size: 11px;
+      white-space: nowrap;
+      opacity: 0;
+      transform: translate(-50%, 8px);
+      transition: opacity 180ms ease, transform 180ms ease;
+      pointer-events: none;
+    }
+
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    /* ===== 暂停遮罩 ===== */
+    .pause-layer {
+      position: absolute;
+      z-index: 6;
+      inset: 0;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      background: rgba(7, 10, 23, 0.74);
+      backdrop-filter: blur(9px);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 180ms ease, visibility 180ms ease;
+    }
+
+    .pause-layer.visible { opacity: 1; visibility: visible; }
+    .pause-symbol { color: var(--purple); font-size: 32px; text-shadow: 0 0 24px rgba(169, 120, 255, 0.55); }
+    .pause-layer h2 { margin: 12px 0 7px; font-size: 21px; }
+    .pause-layer p { margin: 0 0 20px; color: var(--muted); font-size: 12px; }
+    .pause-actions { display: flex; gap: 10px; }
+
+    .primary-button, .secondary-button {
+      min-height: 46px;
+      padding: 0 20px;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: transform 150ms ease, filter 150ms ease;
+    }
+
+    .primary-button {
+      border: 0;
+      color: #07101c;
+      font-weight: 800;
+      background: linear-gradient(120deg, var(--cyan), #a6f7e5);
+      box-shadow: 0 8px 26px rgba(94, 242, 255, 0.2);
+    }
+
+    .secondary-button { border: 1px solid var(--line); color: #d9def5; background: rgba(26, 32, 57, 0.88); }
+    .primary-button:active, .secondary-button:active { transform: scale(0.96); }
+
+    /* ===== 底部工具栏 ===== */
+    .tools {
+      flex: 0 0 auto;
+      padding: 10px;
+      display: grid;
+      gap: 9px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--panel);
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2), inset 0 1px rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(18px);
+    }
+
+    .tool-row { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .tool-label { flex: 0 0 28px; color: var(--muted); font-size: 11px; }
+    .palette { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+
+    .swatch {
+      position: relative;
+      flex: 1 1 0;
+      max-width: 44px;
+      height: 40px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .swatch::before {
+      content: "";
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--swatch);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--swatch) 45%, transparent);
+      transition: transform 150ms ease;
+    }
+
+    .swatch[aria-pressed="true"] { border-color: var(--swatch); background: rgba(255, 255, 255, 0.045); }
+    .swatch[aria-pressed="true"]::before { transform: scale(0.78); box-shadow: 0 0 16px var(--swatch); }
+    .swatch[aria-pressed="true"]::after {
+      content: "";
+      position: absolute;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 7px #fff;
+    }
+
+    .brush-tools { flex: 1; display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .sizes { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 3px; border-radius: 13px; background: rgba(6, 10, 23, 0.55); }
+
+    .size-button {
+      min-width: 46px;
+      height: 38px;
+      padding: 0 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      color: var(--muted);
+      background: transparent;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .size-button i { display: block; width: 18px; height: var(--line-size); border-radius: 99px; background: currentColor; }
+    .size-button[aria-pressed="true"] { color: var(--cyan); border-color: rgba(94, 242, 255, 0.22); background: rgba(94, 242, 255, 0.08); }
+
+    .clear-button {
+      min-width: 72px;
+      height: 44px;
+      padding: 0 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: 1px solid rgba(255, 102, 133, 0.16);
+      border-radius: 13px;
+      color: #ff9aac;
+      background: rgba(255, 102, 133, 0.055);
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .clear-button svg { width: 16px; height: 16px; }
+    .desktop-hint { display: none; }
+
+    /* ===== 结算弹窗 ===== */
+    .result-modal {
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+      display: grid;
+      place-items: center;
+      background: rgba(4, 6, 16, 0.78);
+      backdrop-filter: blur(12px);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 220ms ease, visibility 220ms ease;
+    }
+
+    .result-modal.open { opacity: 1; visibility: visible; }
+
+    .result-card {
+      position: relative;
+      width: min(100%, 390px);
+      overflow: hidden;
+      padding: 30px 24px 24px;
+      border: 1px solid rgba(94, 242, 255, 0.22);
+      border-radius: 27px;
+      text-align: center;
+      background: linear-gradient(155deg, rgba(27, 34, 63, 0.98), rgba(12, 16, 34, 0.98));
+      box-shadow: 0 28px 90px rgba(0, 0, 0, 0.5), 0 0 45px rgba(94, 242, 255, 0.07);
+      transform: translateY(14px) scale(0.97);
+      transition: transform 260ms cubic-bezier(.2, .8, .2, 1);
+    }
+
+    .result-modal.open .result-card { transform: translateY(0) scale(1); }
+    .result-modal.loss .result-card { border-color: rgba(169, 120, 255, 0.24); }
+
+    .result-glow {
+      position: absolute;
+      top: -90px;
+      left: 50%;
+      width: 260px;
+      height: 190px;
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background: rgba(94, 242, 255, 0.12);
+      filter: blur(45px);
+      pointer-events: none;
+    }
+
+    .result-icon {
+      position: relative;
+      width: 74px;
+      height: 74px;
+      margin: 0 auto 17px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(94, 242, 255, 0.35);
+      border-radius: 24px;
+      color: var(--cyan);
+      background: rgba(94, 242, 255, 0.08);
+      box-shadow: 0 0 32px rgba(94, 242, 255, 0.12);
+      font-size: 36px;
+      transform: rotate(-5deg);
+    }
+
+    .result-modal.loss .result-icon { color: #bd9dff; border-color: rgba(169, 120, 255, 0.35); background: rgba(169, 120, 255, 0.08); }
+    .result-kicker { margin: 0 0 7px; color: var(--cyan); font-size: 10px; font-weight: 700; letter-spacing: 0.22em; }
+    .result-modal.loss .result-kicker { color: #bd9dff; }
+    .result-card h2 { margin: 0 0 9px; font-size: 26px; letter-spacing: 0.03em; }
+    .result-message { min-height: 38px; margin: 0 auto 19px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+
+    .result-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 14px; }
+    .result-stat { padding: 13px 8px; border: 1px solid var(--line); border-radius: 15px; background: rgba(6, 10, 24, 0.4); }
+    .result-stat span { display: block; margin-bottom: 4px; color: var(--muted); font-size: 10px; }
+    .result-stat strong { font-size: 24px; font-variant-numeric: tabular-nums; }
+    .result-stat:first-child strong { color: var(--cyan); }
+
+    .new-record {
+      display: inline-block;
+      margin-bottom: 16px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      color: #2a1600;
+      background: var(--yellow);
+      box-shadow: 0 0 18px rgba(255, 209, 102, 0.22);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+    }
+
+    .restart-button { width: 100%; min-height: 50px; font-size: 15px; }
+    .result-footnote { margin: 13px 0 0; color: rgba(137, 146, 179, 0.65); font-size: 10px; }
+
+    .confetti { position: absolute; inset: 0; pointer-events: none; }
+    .confetti i {
+      position: absolute;
+      top: 22px;
+      left: var(--x);
+      width: 5px;
+      height: 11px;
+      border-radius: 2px;
+      background: var(--color);
+      opacity: 0;
+      transform: rotate(var(--rotate));
+    }
+    .result-modal.win .confetti i { animation: confettiFall 1.8s var(--delay) ease-out both; }
+
+    /* ===== 动画 ===== */
+    @keyframes orbit { to { transform: rotate(360deg); } }
+    @keyframes urgentPulse { 50% { box-shadow: 0 0 20px rgba(255, 102, 133, 0.12); } }
+    @keyframes winFlash {
+      25% { border-color: rgba(94, 242, 255, 0.9); box-shadow: 0 0 45px rgba(94, 242, 255, 0.28), inset 0 0 50px rgba(94, 242, 255, 0.08); }
+    }
+    @keyframes confettiFall {
+      0% { opacity: 0; transform: translateY(0) rotate(var(--rotate)); }
+      15% { opacity: 1; }
+      100% { opacity: 0; transform: translateY(260px) rotate(420deg); }
+    }
+
+    /* ===== 小屏、横屏与桌面适配 ===== */
+    @media (max-height: 700px) {
+      .app { gap: 7px; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+      .topbar { min-height: 40px; }
+      .brand-mark { width: 38px; height: 38px; flex-basis: 38px; border-radius: 12px; }
+      h1 { font-size: 18px; }
+      .subtitle { margin-top: 2px; }
+      .stat { padding-top: 7px; padding-bottom: 8px; }
+      .stat strong { font-size: 20px; }
+      .mission-row { margin-bottom: 5px; }
+      .tools { padding: 8px; gap: 6px; }
+      .swatch { height: 36px; }
+      .size-button { height: 35px; }
+      .clear-button { height: 41px; }
+      .start-hint { padding-top: 42px; }
+      .pen-orbit { width: 56px; height: 56px; margin-bottom: 11px; }
+      .start-hint h2 { font-size: 16px; }
+    }
+
+    @media (max-width: 350px) {
+      .app { padding-left: 10px; padding-right: 10px; }
+      .stat { padding-left: 9px; padding-right: 9px; }
+      .tool-row { gap: 6px; }
+      .palette { gap: 3px; }
+      .brush-tools { gap: 6px; }
+      .size-button { min-width: 40px; padding: 0 7px; }
+      .clear-button { min-width: 64px; padding: 0 9px; }
+    }
+
+    @media (max-height: 500px) and (orientation: landscape) {
+      .app {
+        width: min(100%, 900px);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 230px;
+        grid-template-rows: 38px auto auto 1fr;
+        gap: 7px 11px;
+        padding: max(7px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(7px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+      }
+      .topbar { grid-column: 1 / -1; grid-row: 1; min-height: 38px; }
+      .brand-mark { width: 34px; height: 34px; flex-basis: 34px; font-size: 18px; }
+      .brand { gap: 8px; }
+      h1 { font-size: 16px; }
+      .subtitle { display: none; }
+      .icon-button { min-height: 36px; min-width: 76px; }
+      .board { grid-column: 1; grid-row: 2 / 5; min-height: 0; border-radius: 18px; }
+      .stats { grid-column: 2; grid-row: 2; gap: 5px; }
+      .stat { padding: 6px; border-radius: 11px; text-align: center; }
+      .stat-label { font-size: 9px; }
+      .stat strong { font-size: 17px; }
+      .mission { grid-column: 2; grid-row: 3; }
+      .tools { grid-column: 2; grid-row: 4; align-self: end; padding: 7px; gap: 5px; border-radius: 15px; }
+      .tool-label { display: none; }
+      .swatch { height: 32px; }
+      .swatch::before { width: 18px; height: 18px; }
+      .size-button { min-width: 36px; height: 32px; padding: 0 5px; }
+      .size-button i { display: none; }
+      .clear-button { min-width: 57px; height: 38px; padding: 0 7px; }
+      .pen-orbit { width: 48px; height: 48px; margin-bottom: 8px; }
+      .start-hint { padding: 38px 16px 20px; }
+      .start-hint h2 { font-size: 15px; margin-bottom: 3px; }
+      .start-hint p { font-size: 10px; }
+      .start-hint .hint-accent { margin-top: 5px; }
+    }
+
+    @media (min-width: 700px) and (min-height: 501px) {
+      .app { padding-top: 22px; padding-bottom: 22px; gap: 13px; }
+      .desktop-hint { display: block; flex: 0 0 auto; color: rgba(137, 146, 179, 0.65); text-align: center; font-size: 10px; letter-spacing: 0.04em; }
+      .board { min-height: 260px; }
+      .swatch:hover::before { transform: scale(1.12); }
+      .icon-button:hover:not(:disabled), .secondary-button:hover { border-color: rgba(94, 242, 255, 0.35); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">✦</div>
+        <div>
+          <h1>霓虹涂鸦</h1>
+          <p class="subtitle">60 秒 · 释放你的灵感</p>
+        </div>
+      </div>
+      <button class="icon-button" id="pauseButton" type="button" aria-label="暂停游戏" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path id="pauseIcon" d="M8 5v14M16 5v14"></path>
+        </svg>
+        <span id="pauseText">暂停</span>
+      </button>
+    </header>
+
+    <section class="stats" aria-label="游戏数据">
+      <div class="stat">
+        <span class="stat-label">当前分数</span>
+        <strong id="score">0</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">最高分</span>
+        <strong id="bestScore">0</strong>
+      </div>
+      <div class="stat" id="timeCard">
+        <span class="stat-label">剩余时间</span>
+        <strong><span id="timeLeft">60</span><small>s</small></strong>
+      </div>
+    </section>
+
+    <section class="mission" aria-label="挑战目标">
+      <div class="mission-row">
+        <div class="mission-title"><span aria-hidden="true">✦</span>灵感目标</div>
+        <div class="mission-value"><b id="progressScore">0</b> / 1,200</div>
+      </div>
+      <div class="progress-track" id="progressTrack" role="progressbar" aria-label="目标完成度" aria-valuemin="0" aria-valuemax="1200" aria-valuenow="0">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </section>
+
+    <section class="board" id="board" aria-label="涂鸦区域">
+      <canvas id="canvas" tabindex="0" aria-label="涂鸦画布，按住并拖动即可绘画"></canvas>
+      <div class="canvas-badge"><i></i>自由创作模式</div>
+      <div class="combo" id="combo">连笔 ×1.0</div>
+
+      <div class="start-hint" id="startHint">
+        <div class="pen-orbit" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m15 5 4 4M4 20l4.5-1 10-10a2.8 2.8 0 0 0-4-4l-10 10L4 20Z"></path>
+            <path d="m13 7 4 4M4.5 15.5l4 4"></path>
+          </svg>
+        </div>
+        <h2 id="hintTitle">画下第一笔，挑战开始</h2>
+        <p id="hintText">手指或鼠标按住拖动，自由涂鸦<br>在 60 秒内获得 1,200 分</p>
+        <div class="hint-accent">连续一笔越长，得分倍率越高</div>
+      </div>
+
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+      <div class="pause-layer" id="pauseLayer" role="dialog" aria-label="游戏已暂停" aria-hidden="true">
+        <div class="pause-symbol" aria-hidden="true">Ⅱ</div>
+        <h2>灵感稍作停留</h2>
+        <p id="pauseDescription">时间与画布已为你冻结</p>
+        <div class="pause-actions">
+          <button class="primary-button" id="resumeButton" type="button">继续创作</button>
+          <button class="secondary-button" id="pauseRestartButton" type="button">重新开始</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="tools" aria-label="绘画工具">
+      <div class="tool-row">
+        <span class="tool-label">颜色</span>
+        <div class="palette" role="group" aria-label="画笔颜色">
+          <button class="swatch tool-control" type="button" style="--swatch:#5ef2ff" data-color="#5ef2ff" aria-label="电光青" aria-pressed="true"></button>
+          <button class="swatch tool-control" type="button" style="--swatch:#a978ff" data-color="#a978ff" aria-label="霓虹紫" aria-pressed="false"></button>
+          <button class="swatch tool-control" type="button" style="--swatch:#ff5ca8" data-color="#ff5ca8" aria-label="樱花粉" aria-pressed="false"></button>
+          <button class="swatch tool-control" type="button" style="--swatch:#a8ff60" data-color="#a8ff60" aria-label="青柠绿" aria-pressed="false"></button>
+          <button class="swatch tool-control" type="button" style="--swatch:#ffd166" data-color="#ffd166" aria-label="日光黄" aria-pressed="false"></button>
+          <button class="swatch tool-control" type="button" style="--swatch:#f3f5ff" data-color="#f3f5ff" aria-label="云朵白" aria-pressed="false"></button>
+        </div>
+      </div>
+      <div class="tool-row brush-tools">
+        <span class="tool-label">笔刷</span>
+        <div class="sizes" role="group" aria-label="画笔粗细">
+          <button class="size-button tool-control" type="button" data-size="4" style="--line-size:2px" aria-pressed="false"><i></i>细</button>
+          <button class="size-button tool-control" type="button" data-size="8" style="--line-size:4px" aria-pressed="true"><i></i>中</button>
+          <button class="size-button tool-control" type="button" data-size="14" style="--line-size:7px" aria-pressed="false"><i></i>粗</button>
+        </div>
+        <button class="clear-button tool-control" id="clearButton" type="button" aria-label="清空画布，保留当前分数">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"></path>
+          </svg>
+          清屏
+        </button>
+      </div>
+    </section>
+    <div class="desktop-hint">数字键换色 · [ ] 调粗细 · C 清屏 · P / 空格暂停</div>
+  </main>
+
+  <div class="result-modal" id="resultModal" role="dialog" aria-modal="true" aria-labelledby="resultTitle" aria-hidden="true">
+    <div class="result-card">
+      <div class="result-glow"></div>
+      <div class="confetti" aria-hidden="true">
+        <i style="--x:12%;--color:#5ef2ff;--rotate:20deg;--delay:0s"></i>
+        <i style="--x:24%;--color:#ff5ca8;--rotate:70deg;--delay:.15s"></i>
+        <i style="--x:37%;--color:#ffd166;--rotate:35deg;--delay:.05s"></i>
+        <i style="--x:51%;--color:#a978ff;--rotate:90deg;--delay:.22s"></i>
+        <i style="--x:65%;--color:#a8ff60;--rotate:15deg;--delay:.1s"></i>
+        <i style="--x:78%;--color:#5ef2ff;--rotate:55deg;--delay:.28s"></i>
+        <i style="--x:88%;--color:#ff5ca8;--rotate:110deg;--delay:.08s"></i>
+      </div>
+      <div class="result-icon" id="resultIcon" aria-hidden="true">✦</div>
+      <p class="result-kicker" id="resultKicker">CHALLENGE COMPLETE</p>
+      <h2 id="resultTitle">灵感爆棚！</h2>
+      <p class="result-message" id="resultMessage"></p>
+      <div class="result-stats">
+        <div class="result-stat"><span>本局得分</span><strong id="finalScore">0</strong></div>
+        <div class="result-stat"><span>历史最高</span><strong id="finalBest">0</strong></div>
+      </div>
+      <span class="new-record" id="newRecord" hidden>✦ 新纪录 ✦</span>
+      <button class="primary-button restart-button" id="restartButton" type="button">再玩一次</button>
+      <p class="result-footnote">每一道线条，都是独一无二的灵感</p>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // ===== 常量与 DOM =====
+      const GAME_DURATION = 60;
+      const TARGET_SCORE = 1200;
+      const STORAGE_KEY = 'neon-doodle-best-v1';
+      const $ = (selector) => document.querySelector(selector);
+      const $$ = (selector) => [...document.querySelectorAll(selector)];
+
+      const app = $('#app');
+      const board = $('#board');
+      const canvas = $('#canvas');
+      const ctx = canvas.getContext('2d');
+      const scoreEl = $('#score');
+      const bestScoreEl = $('#bestScore');
+      const timeLeftEl = $('#timeLeft');
+      const timeCard = $('#timeCard');
+      const progressScore = $('#progressScore');
+      const progressTrack = $('#progressTrack');
+      const progressFill = $('#progressFill');
+      const comboEl = $('#combo');
+      const startHint = $('#startHint');
+      const hintTitle = $('#hintTitle');
+      const hintText = $('#hintText');
+      const pauseButton = $('#pauseButton');
+      const pauseIcon = $('#pauseIcon');
+      const pauseText = $('#pauseText');
+      const pauseLayer = $('#pauseLayer');
+      const pauseDescription = $('#pauseDescription');
+      const clearButton = $('#clearButton');
+      const toast = $('#toast');
+      const resultModal = $('#resultModal');
+
+      // idle：等待第一笔；running：挑战中；paused：暂停；ended：已结算。
+      let gameState = 'idle';
+      let score = 0;
+      let bestScore = readBestScore();
+      let sessionBestBaseline = bestScore;
+      let bestDirty = false;
+      let timeLeft = GAME_DURATION;
+      let deadline = 0;
+      let pausedRemaining = GAME_DURATION * 1000;
+      let animationId = 0;
+      let lastShownSecond = -1;
+      let selectedColor = '#5ef2ff';
+      let brushSize = 8;
+      let viewWidth = 0;
+      let viewHeight = 0;
+      let boardRect = null;
+      let activePointer = null;
+      let lastPoint = null;
+      let strokeDistance = 0;
+      let combo = 1;
+      let toastTimer = 0;
+
+      const formatNumber = (value) => Math.max(0, Math.floor(value)).toLocaleString('zh-CN');
+
+      // localStorage 在隐私模式或 file:// 下可能受限，读写都需容错。
+      function readBestScore() {
+        try {
+          const value = Number(localStorage.getItem(STORAGE_KEY));
+          return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+        } catch (error) {
+          return 0;
+        }
+      }
+
+      function saveBestScore() {
+        if (!bestDirty) return;
+        try {
+          localStorage.setItem(STORAGE_KEY, String(bestScore));
+          bestDirty = false;
+        } catch (error) {
+          // 存储不可用时仍保留本次页面中的最高分。
+        }
+      }
+
+      // ===== 画布尺寸：按设备像素比绘制，旋转屏幕时保留作品 =====
+      function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        const width = Math.max(1, Math.round(rect.width));
+        const height = Math.max(1, Math.round(rect.height));
+        const ratio = Math.min(window.devicePixelRatio || 1, 2);
+
+        if (width === viewWidth && height === viewHeight && canvas.width === Math.round(width * ratio)) return;
+
+        const snapshot = document.createElement('canvas');
+        if (canvas.width && canvas.height) {
+          snapshot.width = canvas.width;
+          snapshot.height = canvas.height;
+          snapshot.getContext('2d').drawImage(canvas, 0, 0);
+        }
+
+        viewWidth = width;
+        viewHeight = height;
+        canvas.width = Math.round(width * ratio);
+        canvas.height = Math.round(height * ratio);
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        if (snapshot.width && snapshot.height) {
+          ctx.save();
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.drawImage(snapshot, 0, 0, snapshot.width, snapshot.height, 0, 0, canvas.width, canvas.height);
+          ctx.restore();
+        }
+        boardRect = canvas.getBoundingClientRect();
+      }
+
+      function clearCanvas() {
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+      }
+
+      // ===== 游戏状态与计时 =====
+      function startGame() {
+        if (gameState !== 'idle') return;
+        gameState = 'running';
+        deadline = performance.now() + GAME_DURATION * 1000;
+        timeLeft = GAME_DURATION;
+        pauseButton.disabled = false;
+        pauseDescription.textContent = '时间与画布已为你冻结';
+        cancelAnimationFrame(animationId);
+        animationId = requestAnimationFrame(tick);
+      }
+
+      function tick(now) {
+        if (gameState !== 'running') return;
+        timeLeft = Math.max(0, (deadline - now) / 1000);
+        updateTimerUI();
+        if (timeLeft <= 0) {
+          finishGame(false);
+          return;
+        }
+        animationId = requestAnimationFrame(tick);
+      }
+
+      function pauseGame(automatic = false) {
+        if (gameState !== 'running') return;
+        pausedRemaining = Math.max(0, deadline - performance.now());
+        timeLeft = pausedRemaining / 1000;
+        gameState = 'paused';
+        cancelAnimationFrame(animationId);
+        finishStroke();
+        pauseDescription.textContent = automatic ? '检测到页面切出，已自动暂停' : '时间与画布已为你冻结';
+        pauseLayer.classList.add('visible');
+        pauseLayer.setAttribute('aria-hidden', 'false');
+        pauseButton.classList.add('is-paused');
+        pauseButton.setAttribute('aria-label', '继续游戏');
+        pauseIcon.setAttribute('d', 'm8 5 11 7-11 7V5Z');
+        pauseText.textContent = '继续';
+        setToolsDisabled(true);
+        updateTimerUI(true);
+      }
+
+      function resumeGame() {
+        if (gameState !== 'paused') return;
+        gameState = 'running';
+        deadline = performance.now() + pausedRemaining;
+        pauseLayer.classList.remove('visible');
+        pauseLayer.setAttribute('aria-hidden', 'true');
+        pauseButton.classList.remove('is-paused');
+        pauseButton.setAttribute('aria-label', '暂停游戏');
+        pauseIcon.setAttribute('d', 'M8 5v14M16 5v14');
+        pauseText.textContent = '暂停';
+        setToolsDisabled(false);
+        cancelAnimationFrame(animationId);
+        animationId = requestAnimationFrame(tick);
+      }
+
+      function togglePause() {
+        if (gameState === 'running') pauseGame();
+        else if (gameState === 'paused') resumeGame();
+      }
+
+      function finishGame(won) {
+        if (gameState !== 'running') return;
+        gameState = 'ended';
+        cancelAnimationFrame(animationId);
+        finishStroke();
+        if (!won) timeLeft = 0;
+        updateTimerUI(true);
+        updateScoreUI();
+        saveBestScore();
+        pauseButton.disabled = true;
+        pauseLayer.classList.remove('visible');
+        pauseLayer.setAttribute('aria-hidden', 'true');
+
+        const finalScore = Math.floor(score);
+        const isNewRecord = finalScore > sessionBestBaseline;
+        $('#finalScore').textContent = formatNumber(finalScore);
+        $('#finalBest').textContent = formatNumber(bestScore);
+        $('#newRecord').hidden = !isNewRecord;
+        resultModal.classList.toggle('win', won);
+        resultModal.classList.toggle('loss', !won);
+        $('#resultIcon').textContent = won ? '✦' : '↻';
+        $('#resultKicker').textContent = won ? 'CHALLENGE COMPLETE' : 'TIME IS UP';
+        $('#resultTitle').textContent = won ? '灵感爆棚！' : '再涂一笔就好';
+        $('#resultMessage').textContent = won
+          ? `你用 ${Math.max(1, Math.ceil(GAME_DURATION - timeLeft))} 秒点亮了霓虹画布，这份灵感闪闪发光！`
+          : `距离目标还差 ${formatNumber(TARGET_SCORE - finalScore)} 分。别停下想象，下一局一定可以！`;
+
+        if (won) {
+          board.classList.remove('win-flash');
+          void board.offsetWidth;
+          board.classList.add('win-flash');
+        }
+
+        resultModal.classList.add('open');
+        resultModal.setAttribute('aria-hidden', 'false');
+        app.inert = true;
+        window.setTimeout(() => $('#restartButton').focus({ preventScroll: true }), 80);
+      }
+
+      function resetGame() {
+        cancelAnimationFrame(animationId);
+        finishStroke();
+        saveBestScore();
+        gameState = 'idle';
+        score = 0;
+        timeLeft = GAME_DURATION;
+        pausedRemaining = GAME_DURATION * 1000;
+        strokeDistance = 0;
+        combo = 1;
+        sessionBestBaseline = bestScore;
+        lastShownSecond = -1;
+        clearCanvas();
+        clearTimeout(toastTimer);
+        toast.classList.remove('show');
+        board.classList.remove('win-flash');
+        resultModal.classList.remove('open', 'win', 'loss');
+        resultModal.setAttribute('aria-hidden', 'true');
+        app.inert = false;
+        pauseLayer.classList.remove('visible');
+        pauseLayer.setAttribute('aria-hidden', 'true');
+        pauseButton.disabled = true;
+        pauseButton.classList.remove('is-paused');
+        pauseButton.setAttribute('aria-label', '暂停游戏');
+        pauseIcon.setAttribute('d', 'M8 5v14M16 5v14');
+        pauseText.textContent = '暂停';
+        setToolsDisabled(false);
+        setHint('initial');
+        startHint.classList.remove('is-hidden');
+        comboEl.classList.remove('visible');
+        updateScoreUI();
+        updateTimerUI(true);
+      }
+
+      function setToolsDisabled(disabled) {
+        $$('.tool-control').forEach((button) => { button.disabled = disabled; });
+      }
+
+      // ===== 分数、连笔倍率与界面刷新 =====
+      function addScore(distance) {
+        strokeDistance += distance;
+        combo = Math.min(3, 1 + Math.floor(strokeDistance / 280) * 0.25);
+        score += distance * 0.42 * combo;
+
+        if (Math.floor(score) > bestScore) {
+          bestScore = Math.floor(score);
+          bestDirty = true;
+        }
+        updateScoreUI();
+        comboEl.textContent = `连笔 ×${combo.toFixed(2).replace(/0$/, '')}`;
+        comboEl.classList.toggle('visible', combo > 1);
+
+        if (score >= TARGET_SCORE) finishGame(true);
+      }
+
+      function updateScoreUI() {
+        const shownScore = Math.floor(score);
+        scoreEl.textContent = formatNumber(shownScore);
+        bestScoreEl.textContent = formatNumber(bestScore);
+        progressScore.textContent = formatNumber(Math.min(shownScore, TARGET_SCORE));
+        progressFill.style.transform = `scaleX(${Math.min(1, score / TARGET_SCORE)})`;
+        progressTrack.setAttribute('aria-valuenow', String(Math.min(shownScore, TARGET_SCORE)));
+      }
+
+      function updateTimerUI(force = false) {
+        const seconds = Math.ceil(timeLeft);
+        if (force || seconds !== lastShownSecond) {
+          timeLeftEl.textContent = String(seconds);
+          lastShownSecond = seconds;
+        }
+        timeCard.classList.toggle('urgent', timeLeft <= 10 && gameState !== 'idle' && gameState !== 'ended');
+      }
+
+      function setHint(type) {
+        if (type === 'cleared') {
+          hintTitle.textContent = '画布已清空';
+          hintText.innerHTML = '分数与挑战时间保留<br>继续画下新的灵感吧';
+        } else {
+          hintTitle.textContent = '画下第一笔，挑战开始';
+          hintText.innerHTML = '手指或鼠标按住拖动，自由涂鸦<br>在 60 秒内获得 1,200 分';
+        }
+      }
+
+      function showToast(message) {
+        clearTimeout(toastTimer);
+        toast.textContent = message;
+        toast.classList.add('show');
+        toastTimer = window.setTimeout(() => toast.classList.remove('show'), 1800);
+      }
+
+      // ===== Pointer Events：同一套逻辑兼容手指、鼠标和触控笔 =====
+      function getPoint(event) {
+        if (!boardRect) boardRect = board.getBoundingClientRect();
+        return {
+          x: Math.max(0, Math.min(viewWidth, event.clientX - boardRect.left)),
+          y: Math.max(0, Math.min(viewHeight, event.clientY - boardRect.top))
+        };
+      }
+
+      function drawDot(point) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = selectedColor;
+        ctx.shadowColor = selectedColor;
+        ctx.shadowBlur = brushSize * 1.5;
+        ctx.globalAlpha = 0.9;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, brushSize / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawSegment(from, to) {
+        const distance = Math.hypot(to.x - from.x, to.y - from.y);
+        if (distance < 0.35 || gameState !== 'running') return;
+
+        // 三层笔迹形成柔和外光、饱和主色和细腻高光。
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+
+        ctx.strokeStyle = selectedColor;
+        ctx.shadowColor = selectedColor;
+        ctx.globalAlpha = 0.16;
+        ctx.lineWidth = brushSize * 2.5;
+        ctx.shadowBlur = brushSize * 1.8;
+        ctx.stroke();
+
+        ctx.globalAlpha = 0.92;
+        ctx.lineWidth = brushSize;
+        ctx.shadowBlur = brushSize * 0.7;
+        ctx.stroke();
+
+        ctx.globalAlpha = 0.28;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = Math.max(1, brushSize * 0.2);
+        ctx.shadowBlur = 0;
+        ctx.stroke();
+        ctx.restore();
+
+        addScore(distance);
+      }
+
+      function drawTo(point) {
+        if (!lastPoint || gameState !== 'running') return;
+        drawSegment(lastPoint, point);
+        lastPoint = point;
+      }
+
+      function beginStroke(event) {
+        if (gameState === 'ended' || gameState === 'paused') return;
+        if (activePointer !== null) return;
+        event.preventDefault();
+        startGame();
+        boardRect = canvas.getBoundingClientRect();
+        activePointer = event.pointerId;
+        lastPoint = getPoint(event);
+        strokeDistance = 0;
+        combo = 1;
+        comboEl.classList.remove('visible');
+        canvas.setPointerCapture(event.pointerId);
+        drawDot(lastPoint);
+        startHint.classList.add('is-hidden');
+      }
+
+      function moveStroke(event) {
+        if (event.pointerId !== activePointer || gameState !== 'running') return;
+        event.preventDefault();
+        const events = typeof event.getCoalescedEvents === 'function' ? event.getCoalescedEvents() : [event];
+        for (const pointEvent of events) {
+          if (gameState !== 'running') break;
+          drawTo(getPoint(pointEvent));
+        }
+      }
+
+      function finishStroke(event) {
+        if (activePointer === null) return;
+        const pointerId = activePointer;
+        activePointer = null;
+        lastPoint = null;
+        if (canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId);
+        saveBestScore();
+      }
+
+      canvas.addEventListener('pointerdown', beginStroke, { passive: false });
+      canvas.addEventListener('pointermove', moveStroke, { passive: false });
+      canvas.addEventListener('pointerup', (event) => {
+        if (event.pointerId !== activePointer) return;
+        event.preventDefault();
+        drawTo(getPoint(event));
+        finishStroke(event);
+      }, { passive: false });
+      canvas.addEventListener('pointercancel', finishStroke);
+      canvas.addEventListener('lostpointercapture', finishStroke);
+      canvas.addEventListener('contextmenu', (event) => event.preventDefault());
+
+      // ===== 工具按钮 =====
+      $$('.swatch').forEach((button) => {
+        button.addEventListener('click', () => {
+          selectedColor = button.dataset.color;
+          $$('.swatch').forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        });
+      });
+
+      $$('.size-button').forEach((button) => {
+        button.addEventListener('click', () => {
+          brushSize = Number(button.dataset.size);
+          $$('.size-button').forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        });
+      });
+
+      clearButton.addEventListener('click', () => {
+        if (gameState === 'paused' || gameState === 'ended') return;
+        finishStroke();
+        clearCanvas();
+        setHint(gameState === 'idle' ? 'initial' : 'cleared');
+        startHint.classList.remove('is-hidden');
+        showToast(gameState === 'idle' ? '画布已清空' : '画布已清空，分数保留');
+      });
+
+      pauseButton.addEventListener('click', togglePause);
+      $('#resumeButton').addEventListener('click', resumeGame);
+      $('#pauseRestartButton').addEventListener('click', () => {
+        resetGame();
+        canvas.focus({ preventScroll: true });
+      });
+      $('#restartButton').addEventListener('click', () => {
+        resetGame();
+        canvas.focus({ preventScroll: true });
+      });
+
+      // ===== 键盘快捷键与触屏浏览器手势兜底 =====
+      document.addEventListener('keydown', (event) => {
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        const key = event.key.toLowerCase();
+
+        if (gameState === 'ended') {
+          if (key === 'r') resetGame();
+          if (key === 'tab') {
+            event.preventDefault();
+            $('#restartButton').focus({ preventScroll: true });
+          }
+          return;
+        }
+
+        if ((key === ' ' || key === 'p') && !(key === ' ' && event.target.closest('button'))) {
+          event.preventDefault();
+          togglePause();
+          return;
+        }
+        if (key === 'c') {
+          clearButton.click();
+          return;
+        }
+        if (/^[1-6]$/.test(key)) {
+          const swatch = $$('.swatch')[Number(key) - 1];
+          if (swatch && !swatch.disabled) swatch.click();
+          return;
+        }
+        if (key === '[' || key === ']') {
+          const sizes = $$('.size-button');
+          const current = sizes.findIndex((button) => Number(button.dataset.size) === brushSize);
+          const direction = key === '[' ? -1 : 1;
+          const next = Math.max(0, Math.min(sizes.length - 1, current + direction));
+          if (!sizes[next].disabled) sizes[next].click();
+        }
+      });
+
+      document.addEventListener('touchmove', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('dblclick', (event) => event.preventDefault(), { passive: false });
+      ['gesturestart', 'gesturechange', 'gestureend'].forEach((name) => {
+        document.addEventListener(name, (event) => event.preventDefault(), { passive: false });
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && gameState === 'running') pauseGame(true);
+      });
+      window.addEventListener('beforeunload', saveBestScore);
+      window.addEventListener('resize', resizeCanvas);
+
+      // ResizeObserver 让画布始终贴合可用空间，旧浏览器用 resize 事件兜底。
+      if ('ResizeObserver' in window) {
+        const observer = new ResizeObserver(resizeCanvas);
+        observer.observe(board);
+      }
+
+      resizeCanvas();
+      updateScoreUI();
+      updateTimerUI(true);
+    })();
+  </script>
+</body>
+</html>

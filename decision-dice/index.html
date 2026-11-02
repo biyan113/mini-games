@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#090b18">
+  <title>选择骰子 · 命运挑战</title>
+  <style>
+    /* 基础与移动端安全区域 */
+    :root {
+      color-scheme: dark;
+      --bg: #090b18;
+      --panel: rgba(20, 24, 46, .78);
+      --panel-strong: #151a35;
+      --line: rgba(151, 163, 255, .16);
+      --text: #f2f4ff;
+      --muted: #9299bd;
+      --cyan: #63f4e4;
+      --blue: #74a8ff;
+      --purple: #ad8bff;
+      --pink: #ff79bb;
+      --danger: #ff708e;
+      --success: #63f4c0;
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      background: var(--bg);
+    }
+
+    body {
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body::before,
+    body::after {
+      position: fixed;
+      z-index: -2;
+      width: 65vw;
+      height: 65vw;
+      max-width: 520px;
+      max-height: 520px;
+      border-radius: 50%;
+      content: "";
+      pointer-events: none;
+      filter: blur(80px);
+      opacity: .18;
+    }
+
+    body::before { top: -18%; left: -25%; background: #5850e9; }
+    body::after { right: -28%; bottom: -20%; background: #08b8b0; }
+
+    button, input { font: inherit; }
+    button { color: inherit; border: 0; cursor: pointer; touch-action: none; }
+    button:disabled { cursor: default; }
+    button:focus-visible, input:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    #app {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      width: min(100%, 520px);
+      height: 100dvh;
+      min-height: 100%;
+      margin: 0 auto;
+      padding: calc(14px + env(safe-area-inset-top)) 18px calc(12px + env(safe-area-inset-bottom));
+      isolation: isolate;
+    }
+
+    #app::before {
+      position: absolute;
+      z-index: -1;
+      inset: 0;
+      background-image: linear-gradient(rgba(135, 150, 255, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(135, 150, 255, .035) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: linear-gradient(to bottom, black, transparent 85%);
+      content: "";
+      pointer-events: none;
+    }
+
+    .topbar {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 48px;
+      margin-bottom: 16px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-mark {
+      display: grid;
+      width: 40px;
+      height: 40px;
+      place-items: center;
+      border: 1px solid rgba(99, 244, 228, .38);
+      border-radius: 13px;
+      color: var(--cyan);
+      background: linear-gradient(145deg, rgba(99, 244, 228, .16), rgba(173, 139, 255, .14));
+      box-shadow: 0 0 22px rgba(99, 244, 228, .13), inset 0 0 16px rgba(99, 244, 228, .06);
+      font-size: 25px;
+      line-height: 1;
+    }
+    .brand-name { font-size: 16px; font-weight: 800; letter-spacing: 2px; }
+    .brand-sub { margin-top: 2px; color: #727b9f; font-size: 8px; font-weight: 700; letter-spacing: 2.4px; }
+    .top-actions { display: flex; align-items: center; gap: 10px; }
+    .best-mini { text-align: right; }
+    .best-mini span { display: block; color: var(--muted); font-size: 10px; letter-spacing: 1px; }
+    .best-mini strong { display: block; margin-top: 1px; color: var(--cyan); font-size: 19px; font-variant-numeric: tabular-nums; }
+
+    .icon-button {
+      display: grid;
+      width: 40px;
+      height: 40px;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      color: var(--muted);
+      background: rgba(25, 30, 57, .72);
+      font-size: 17px;
+      transition: border-color .2s, color .2s, transform .2s;
+    }
+    .icon-button:not(:disabled):active { transform: scale(.92); }
+    .icon-button:not(:disabled):hover { border-color: var(--cyan); color: var(--cyan); }
+
+    .screen { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
+    .hero { flex: 0 0 auto; margin: 4px 2px 18px; }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .eyebrow::before { width: 5px; height: 5px; border-radius: 50%; background: currentColor; box-shadow: 0 0 9px currentColor; content: ""; }
+    .hero h1 { margin: 9px 0 7px; font-size: clamp(27px, 7.5vw, 38px); line-height: 1.18; letter-spacing: -1px; }
+    .hero h1 em { color: var(--cyan); font-style: normal; text-shadow: 0 0 25px rgba(99, 244, 228, .3); }
+    .hero p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: linear-gradient(145deg, rgba(28, 33, 63, .86), rgba(15, 19, 39, .8));
+      box-shadow: 0 18px 50px rgba(0, 0, 0, .2), inset 0 1px 0 rgba(255, 255, 255, .035);
+      backdrop-filter: blur(18px);
+    }
+
+    .options-panel { flex: 0 1 auto; min-height: 0; padding: 18px; }
+    .section-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 13px; }
+    .section-heading h2 { margin: 0; font-size: 15px; letter-spacing: .5px; }
+    .count-pill { padding: 4px 9px; border: 1px solid rgba(173, 139, 255, .2); border-radius: 20px; color: var(--purple); background: rgba(173, 139, 255, .08); font-size: 11px; font-variant-numeric: tabular-nums; }
+    .option-form { display: flex; gap: 8px; }
+    .option-form input {
+      min-width: 0;
+      flex: 1;
+      height: 43px;
+      padding: 0 13px;
+      border: 1px solid rgba(146, 153, 189, .2);
+      border-radius: 12px;
+      outline: none;
+      color: var(--text);
+      background: rgba(7, 10, 24, .55);
+      font-size: 14px;
+      user-select: text;
+      touch-action: manipulation;
+    }
+    .option-form input::placeholder { color: #656d91; }
+    .option-form input:focus { border-color: rgba(99, 244, 228, .65); box-shadow: 0 0 0 3px rgba(99, 244, 228, .07); }
+    .add-button {
+      flex: 0 0 auto;
+      width: 60px;
+      border: 1px solid rgba(99, 244, 228, .25);
+      border-radius: 12px;
+      color: var(--cyan);
+      background: rgba(99, 244, 228, .09);
+      font-size: 13px;
+      font-weight: 700;
+      transition: background .2s, transform .2s;
+    }
+    .add-button:active { transform: scale(.95); }
+    .add-button:hover { background: rgba(99, 244, 228, .16); }
+    .input-hint { margin: 8px 1px 12px; color: #747d9f; font-size: 11px; }
+
+    .options-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; overflow: visible; }
+    .option-item {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      min-height: 38px;
+      gap: 10px;
+      padding: 7px 9px;
+      border: 1px solid rgba(146, 153, 189, .12);
+      border-radius: 11px;
+      background: rgba(8, 12, 28, .42);
+      transition: transform .2s, opacity .2s, border-color .2s;
+      touch-action: none;
+    }
+    .option-item:hover { border-color: rgba(99, 244, 228, .28); }
+    .option-number {
+      display: grid;
+      flex: 0 0 auto;
+      width: 23px;
+      height: 23px;
+      place-items: center;
+      border-radius: 7px;
+      color: var(--purple);
+      background: rgba(173, 139, 255, .12);
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .option-text { flex: 1; overflow: hidden; color: #dfe3fa; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+    .remove-option {
+      display: grid;
+      flex: 0 0 auto;
+      width: 27px;
+      height: 27px;
+      place-items: center;
+      border-radius: 8px;
+      color: #737c9f;
+      background: transparent;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .remove-option:hover { color: var(--danger); background: rgba(255, 112, 142, .1); }
+    .empty-options { grid-column: 1 / -1; padding: 16px 0; color: var(--muted); font-size: 12px; text-align: center; }
+    .form-message { min-height: 17px; margin: 7px 1px 5px; color: var(--danger); font-size: 11px; }
+    .form-message.success { color: var(--success); }
+
+    .primary-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 47px;
+      gap: 10px;
+      padding: 12px 18px;
+      border: 1px solid rgba(160, 255, 241, .35);
+      border-radius: 14px;
+      color: #071a22;
+      background: linear-gradient(105deg, #63f4e4, #8ed7ff 55%, #b398ff);
+      box-shadow: 0 8px 24px rgba(99, 244, 228, .15), inset 0 1px 0 rgba(255, 255, 255, .5);
+      font-size: 14px;
+      font-weight: 850;
+      letter-spacing: .5px;
+      transition: transform .18s, filter .18s, opacity .18s;
+    }
+    .primary-button:not(:disabled):hover { filter: brightness(1.08); }
+    .primary-button:not(:disabled):active { transform: translateY(2px) scale(.985); }
+    .primary-button:disabled { opacity: .42; filter: saturate(.5); }
+    .primary-button span { font-size: 20px; line-height: 1; }
+
+    .rules-panel { flex: 0 0 auto; margin-top: 13px; padding: 13px 15px; border: 1px solid rgba(146, 153, 189, .1); border-radius: 16px; background: rgba(17, 21, 42, .46); }
+    .rules-title { margin: 0 0 9px; color: #b5bddc; font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+    .rules-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .rule { min-width: 0; color: var(--muted); font-size: 10px; line-height: 1.55; }
+    .rule b { display: block; margin-bottom: 2px; color: #dce2ff; font-size: 12px; }
+    .rule-icon { margin-right: 3px; color: var(--cyan); }
+
+    /* 游戏界面 */
+    .game-meta { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; margin: 0 2px 10px; }
+    .round-label { margin-top: 5px; font-size: 20px; font-weight: 800; letter-spacing: .5px; }
+    .lives { display: flex; gap: 5px; padding: 8px 10px; border: 1px solid rgba(255, 112, 142, .17); border-radius: 12px; background: rgba(255, 112, 142, .06); }
+    .heart { color: var(--danger); font-size: 17px; line-height: 1; text-shadow: 0 0 10px rgba(255, 112, 142, .5); transition: color .2s, opacity .2s; }
+    .heart.lost { color: #454966; opacity: .6; text-shadow: none; }
+    .score-row { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; margin: 0 2px 13px; color: var(--muted); font-size: 12px; }
+    .score-row strong { margin-left: 5px; color: var(--text); font-size: 19px; font-variant-numeric: tabular-nums; }
+    .score-row .streak-value { color: var(--pink); }
+
+    .target-panel { position: relative; flex: 0 0 auto; padding: 14px 17px; overflow: hidden; text-align: center; }
+    .target-panel::after { position: absolute; top: -35px; right: -20px; width: 100px; height: 100px; border-radius: 50%; background: var(--purple); content: ""; filter: blur(45px); opacity: .13; pointer-events: none; }
+    .target-label { display: block; color: var(--purple); font-size: 10px; font-weight: 800; letter-spacing: 2px; }
+    .target-option { display: block; max-width: 100%; margin: 6px 0 3px; overflow: hidden; color: #f5f2ff; font-size: 22px; font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
+    .target-tip { color: var(--muted); font-size: 11px; }
+
+    .timer-wrap { flex: 0 0 auto; margin: 14px 2px 0; }
+    .timer-heading { display: flex; justify-content: space-between; margin-bottom: 6px; color: var(--muted); font-size: 11px; }
+    .timer-heading strong { color: var(--cyan); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .timer-track { height: 5px; overflow: hidden; border-radius: 10px; background: rgba(146, 153, 189, .13); }
+    .timer-bar { width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--purple), var(--cyan)); box-shadow: 0 0 12px rgba(99, 244, 228, .45); transition: width .1s linear, background .2s; }
+    .timer-bar.urgent { background: linear-gradient(90deg, #ff6f9d, #ffbd7a); box-shadow: 0 0 12px rgba(255, 112, 142, .5); }
+
+    .dice-stage { position: relative; display: flex; flex: 1 1 auto; min-height: 150px; flex-direction: column; align-items: center; justify-content: center; padding: 13px 0 9px; }
+    .dice-stage::before { position: absolute; width: 190px; height: 100px; border-radius: 50%; background: rgba(99, 244, 228, .1); content: ""; filter: blur(34px); pointer-events: none; }
+    .dice-stage::after { position: absolute; bottom: 30px; width: 126px; height: 14px; border-radius: 50%; background: rgba(0, 0, 0, .45); content: ""; filter: blur(8px); }
+    .dice-button { position: relative; z-index: 1; display: grid; width: 126px; height: 126px; place-items: center; padding: 0; border-radius: 29px; background: transparent; perspective: 500px; }
+    .dice-button:not(:disabled):active .dice-face { transform: scale(.93) rotate(-3deg); }
+    .dice-button:disabled { opacity: 1; }
+    .dice-face {
+      display: grid;
+      width: 112px;
+      height: 112px;
+      grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+      padding: 18px;
+      border: 1px solid rgba(211, 255, 250, .75);
+      border-radius: 25px;
+      background: linear-gradient(145deg, #ecfffc 0%, #b6e9ed 47%, #9ca9eb 100%);
+      box-shadow: 0 0 0 5px rgba(99, 244, 228, .06), 0 0 35px rgba(99, 244, 228, .32), 9px 12px 0 rgba(82, 79, 159, .38), inset 4px 4px 10px rgba(255, 255, 255, .8), inset -6px -7px 12px rgba(74, 99, 165, .22);
+      transform: rotate(-5deg);
+      transition: transform .2s;
+    }
+    .pip { display: block; width: 15px; height: 15px; align-self: center; justify-self: center; border-radius: 50%; background: #252855; box-shadow: inset 1px 2px 3px rgba(0, 0, 0, .35), 0 1px 1px rgba(255, 255, 255, .45); opacity: 0; transform: scale(.4); transition: opacity .1s, transform .1s; }
+    .pip.visible { opacity: 1; transform: scale(1); }
+    .dice-button.rolling .dice-face { animation: dice-roll .72s cubic-bezier(.3, .8, .4, 1) infinite; }
+    @keyframes dice-roll {
+      0% { transform: rotate(-5deg) scale(1); }
+      35% { transform: rotate(18deg) scale(1.08) translateY(-7px); }
+      70% { transform: rotate(-22deg) scale(.96) translateY(2px); }
+      100% { transform: rotate(-5deg) scale(1); }
+    }
+    .roll-hint { position: relative; z-index: 1; margin-top: 15px; color: #aeb7d7; font-size: 12px; letter-spacing: 1px; }
+    .roll-hint.active { color: var(--cyan); }
+
+    .result-panel { display: flex; flex: 0 0 auto; min-height: 69px; flex-direction: column; align-items: center; justify-content: center; padding: 9px 14px; border: 1px solid rgba(146, 153, 189, .13); border-radius: 16px; background: rgba(17, 22, 44, .7); text-align: center; transition: border-color .2s, background .2s; }
+    .result-panel.success { border-color: rgba(99, 244, 192, .4); background: rgba(48, 151, 133, .12); }
+    .result-panel.fail { border-color: rgba(255, 112, 142, .35); background: rgba(159, 49, 91, .1); }
+    .result-label { color: var(--muted); font-size: 10px; letter-spacing: 1px; }
+    .result-text { max-width: 100%; margin: 2px 0; overflow: hidden; color: var(--text); font-size: 18px; text-overflow: ellipsis; white-space: nowrap; }
+    .result-panel.success .result-text { color: var(--success); }
+    .result-panel.fail .result-text { color: #ff9cb3; }
+    .result-detail { max-width: 100%; overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .game-actions { flex: 0 0 auto; margin-top: 12px; }
+    .keyboard-hint { flex: 0 0 auto; margin: 9px 0 0; color: #656e91; font-size: 10px; text-align: center; }
+
+    .footer { flex: 0 0 auto; margin-top: 12px; color: #555e80; font-size: 9px; letter-spacing: 1.5px; text-align: center; }
+
+    /* 弹窗与轻提示 */
+    .modal-overlay { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(4, 6, 17, .76); backdrop-filter: blur(12px); animation: fade-in .2s ease-out; }
+    .modal { width: min(100%, 360px); padding: 27px 23px 21px; border: 1px solid rgba(173, 139, 255, .3); border-radius: 25px; background: linear-gradient(145deg, #202548, #11162d); box-shadow: 0 25px 80px rgba(0, 0, 0, .5), 0 0 35px rgba(173, 139, 255, .1); text-align: center; animation: modal-in .25s ease-out; }
+    .modal-icon { display: grid; width: 58px; height: 58px; margin: 0 auto 14px; place-items: center; border: 1px solid rgba(99, 244, 228, .35); border-radius: 19px; color: var(--cyan); background: rgba(99, 244, 228, .1); box-shadow: 0 0 25px rgba(99, 244, 228, .13); font-size: 29px; }
+    .modal h2 { margin: 0 0 8px; font-size: 25px; }
+    .modal p { margin: 0 auto; color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .final-score { margin: 17px 0 19px; padding: 12px; border: 1px solid rgba(99, 244, 228, .14); border-radius: 14px; background: rgba(7, 12, 28, .35); }
+    .final-score span { display: block; color: var(--muted); font-size: 11px; }
+    .final-score strong { display: block; margin-top: 2px; color: var(--cyan); font-size: 34px; font-variant-numeric: tabular-nums; }
+    .modal-primary { margin-top: 20px; }
+    .modal-secondary { width: 100%; min-height: 40px; margin-top: 8px; border-radius: 11px; color: var(--muted); background: transparent; font-size: 12px; }
+    .modal-secondary:hover { color: var(--text); background: rgba(146, 153, 189, .08); }
+    .toast { position: fixed; z-index: 30; bottom: calc(22px + env(safe-area-inset-bottom)); left: 50%; max-width: calc(100% - 36px); padding: 10px 16px; border: 1px solid rgba(99, 244, 228, .25); border-radius: 12px; color: var(--text); background: #1b2442; box-shadow: 0 8px 30px rgba(0, 0, 0, .35); font-size: 12px; opacity: 0; pointer-events: none; transform: translate(-50%, 12px); transition: opacity .2s, transform .2s; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes modal-in { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+    /* 矮屏设备压缩留白，保持所有操作可见 */
+    @media (max-height: 700px) {
+      #app { padding-top: calc(9px + env(safe-area-inset-top)); }
+      .topbar { margin-bottom: 9px; }
+      .hero { margin-bottom: 11px; }
+      .hero h1 { margin: 5px 0; font-size: 27px; }
+      .options-panel { padding: 14px; }
+      .options-list { gap: 5px; }
+      .option-item { min-height: 33px; padding-top: 5px; padding-bottom: 5px; }
+      .rules-panel { margin-top: 9px; padding: 10px 13px; }
+      .rules-title { margin-bottom: 5px; }
+      .dice-stage { min-height: 133px; padding-top: 7px; }
+      .dice-button { width: 108px; height: 108px; }
+      .dice-face { width: 96px; height: 96px; padding: 15px; border-radius: 21px; }
+      .pip { width: 13px; height: 13px; }
+      .roll-hint { margin-top: 10px; }
+      .timer-wrap { margin-top: 9px; }
+      .game-actions { margin-top: 8px; }
+      .footer { margin-top: 7px; }
+    }
+
+    @media (max-height: 580px) {
+      .hero p, .rules-panel, .footer, .keyboard-hint { display: none; }
+      .hero { margin-bottom: 8px; }
+      .hero h1 { font-size: 24px; }
+      .options-list { gap: 4px; }
+      .dice-stage { min-height: 112px; }
+      .dice-stage::after { bottom: 20px; }
+      .target-panel { padding: 10px 14px; }
+      .target-option { font-size: 19px; }
+      .result-panel { min-height: 57px; }
+    }
+
+    @media (min-width: 600px) {
+      #app { padding-right: 24px; padding-left: 24px; }
+      .hero { margin-top: 14px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">⚄</div>
+        <div>
+          <div class="brand-name">选择骰子</div>
+          <div class="brand-sub">DECISION DICE</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <div class="best-mini"><span>最高分</span><strong id="bestScore">0</strong></div>
+        <button id="pauseButton" class="icon-button" type="button" aria-label="暂停游戏" title="暂停（P）" hidden>Ⅱ</button>
+      </div>
+    </header>
+
+    <!-- 设置选项与开始游戏 -->
+    <section id="setupScreen" class="screen" aria-label="设置选项">
+      <div class="hero">
+        <span class="eyebrow">LET FATE DECIDE</span>
+        <h1>选择困难？<br>交给<em>命运。</em></h1>
+        <p>输入你的选项，点击骰子，让随机数替你做一次决定。</p>
+      </div>
+
+      <section class="panel options-panel">
+        <div class="section-heading">
+          <h2>你的选项</h2>
+          <span id="optionCount" class="count-pill">0 / 8</span>
+        </div>
+        <form id="optionForm" class="option-form">
+          <input id="optionInput" type="text" maxlength="30" placeholder="例如：今晚吃火锅" autocomplete="off" enterkeyhint="done" aria-label="添加选项">
+          <button class="add-button" type="submit">添加</button>
+        </form>
+        <p class="input-hint">可用逗号一次添加多个，最多 8 个</p>
+        <div id="optionsList" class="options-list" aria-label="已添加的选项"></div>
+        <p id="setupMessage" class="form-message" aria-live="polite"></p>
+        <button id="startButton" class="primary-button" type="button">开始命运挑战 <span aria-hidden="true">→</span></button>
+      </section>
+
+      <section class="rules-panel" aria-label="玩法说明">
+        <h3 class="rules-title">怎么玩</h3>
+        <div class="rules-grid">
+          <div class="rule"><b><span class="rule-icon">☝</span>点击骰子</b>随机选择一个选项</div>
+          <div class="rule"><b><span class="rule-icon">←</span>左滑删除</b>也可点 × 删除选项</div>
+          <div class="rule"><b><span class="rule-icon">♥</span>命中得分</b>十轮获胜，三颗生命</div>
+        </div>
+      </section>
+    </section>
+
+    <!-- 掷骰与计分 -->
+    <section id="gameScreen" class="screen" aria-label="命运挑战" hidden>
+      <div class="game-meta">
+        <div>
+          <span class="eyebrow">FATE CHALLENGE</span>
+          <div id="roundLabel" class="round-label">第 1 / 10 轮</div>
+        </div>
+        <div id="lives" class="lives" aria-label="剩余生命"></div>
+      </div>
+      <div class="score-row">
+        <div>当前得分<strong id="score">0</strong></div>
+        <div>连击<strong id="streak" class="streak-value">0</strong></div>
+      </div>
+
+      <div class="panel target-panel">
+        <span class="target-label">本轮幸运选项</span>
+        <strong id="targetOption" class="target-option">—</strong>
+        <span class="target-tip">掷中它就能得分，越快奖励越高</span>
+      </div>
+
+      <div class="timer-wrap">
+        <div class="timer-heading"><span>本轮倒计时</span><strong id="timerText">15.0s</strong></div>
+        <div class="timer-track"><div id="timerBar" class="timer-bar"></div></div>
+      </div>
+
+      <div class="dice-stage">
+        <button id="diceButton" class="dice-button" type="button" aria-label="点击掷骰子">
+          <span id="diceFace" class="dice-face" aria-hidden="true">
+            <i class="pip"></i><i class="pip"></i><i class="pip"></i>
+            <i class="pip"></i><i class="pip"></i><i class="pip"></i>
+            <i class="pip"></i><i class="pip"></i><i class="pip"></i>
+          </span>
+        </button>
+        <div id="rollHint" class="roll-hint">点击骰子，交给命运</div>
+      </div>
+
+      <div id="resultPanel" class="result-panel" aria-live="polite">
+        <span id="resultLabel" class="result-label">等待掷骰</span>
+        <strong id="resultText" class="result-text">准备好了吗？</strong>
+        <span id="resultDetail" class="result-detail">本轮将随机选择一个选项</span>
+      </div>
+      <div class="game-actions">
+        <button id="rollButton" class="primary-button" type="button">随机帮我选 <span aria-hidden="true">⚄</span></button>
+      </div>
+      <p class="keyboard-hint">触屏点击骰子 · 空格掷骰 · P 暂停</p>
+    </section>
+
+    <footer class="footer">每一次随机，都是一个新的可能</footer>
+  </main>
+
+  <!-- 暂停、胜利和失败共用一个弹窗 -->
+  <div id="modalOverlay" class="modal-overlay" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDescription">
+      <div id="modalIcon" class="modal-icon" aria-hidden="true">Ⅱ</div>
+      <h2 id="modalTitle">游戏暂停</h2>
+      <p id="modalDescription">休息一下，准备好后继续。</p>
+      <div id="finalScore" class="final-score" hidden><span>本局得分 · 最高分 <b id="modalBest">0</b></span><strong id="modalScore">0</strong></div>
+      <button id="modalPrimary" class="primary-button modal-primary" type="button">继续游戏</button>
+      <button id="modalSecondary" class="modal-secondary" type="button">重新开始</button>
+    </section>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // 游戏常量：选项不宜过多，保证手机屏幕上始终清晰可点。
+      const MAX_OPTIONS = 8;
+      const TOTAL_ROUNDS = 10;
+      const MAX_LIVES = 3;
+      const ROUND_SECONDS = 15;
+      const ROLL_DURATION = 850;
+      const RESULT_DURATION = 1350;
+      const STORAGE_KEY = 'decision-dice-high-score-v1';
+      const $ = (id) => document.getElementById(id);
+
+      const dom = {
+        setupScreen: $('setupScreen'),
+        gameScreen: $('gameScreen'),
+        pauseButton: $('pauseButton'),
+        bestScore: $('bestScore'),
+        optionForm: $('optionForm'),
+        optionInput: $('optionInput'),
+        optionsList: $('optionsList'),
+        optionCount: $('optionCount'),
+        setupMessage: $('setupMessage'),
+        startButton: $('startButton'),
+        roundLabel: $('roundLabel'),
+        lives: $('lives'),
+        score: $('score'),
+        streak: $('streak'),
+        targetOption: $('targetOption'),
+        timerText: $('timerText'),
+        timerBar: $('timerBar'),
+        diceButton: $('diceButton'),
+        diceFace: $('diceFace'),
+        rollHint: $('rollHint'),
+        rollButton: $('rollButton'),
+        resultPanel: $('resultPanel'),
+        resultLabel: $('resultLabel'),
+        resultText: $('resultText'),
+        resultDetail: $('resultDetail'),
+        modalOverlay: $('modalOverlay'),
+        modalIcon: $('modalIcon'),
+        modalTitle: $('modalTitle'),
+        modalDescription: $('modalDescription'),
+        finalScore: $('finalScore'),
+        modalScore: $('modalScore'),
+        modalBest: $('modalBest'),
+        modalPrimary: $('modalPrimary'),
+        modalSecondary: $('modalSecondary'),
+        toast: $('toast')
+      };
+
+      // 所有可变状态集中管理，便于暂停、重开和恢复。
+      const state = {
+        screen: 'setup',
+        options: ['吃火锅', '看电影', '去散步'],
+        score: 0,
+        best: 0,
+        round: 1,
+        lives: MAX_LIVES,
+        streak: 0,
+        target: '',
+        timeLeft: ROUND_SECONDS,
+        phase: 'idle', // idle / awaiting / rolling / result / ended
+        pendingResult: '',
+        roundEndsAt: 0,
+        rollEndsAt: 0,
+        nextAt: 0,
+        nextFaceAt: 0,
+        rafId: 0,
+        paused: false,
+        pauseStarted: 0,
+        modalType: '',
+        toastTimer: 0
+      };
+
+      // 本地存储不可用时（例如隐私模式）仍然可以正常游戏。
+      try {
+        state.best = Math.max(0, Number.parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10) || 0);
+      } catch (error) {
+        state.best = 0;
+      }
+      dom.bestScore.textContent = state.best;
+
+      function randomItem(list) {
+        return list[Math.floor(Math.random() * list.length)];
+      }
+
+      function saveBest() {
+        if (state.score > state.best) {
+          state.best = state.score;
+          try { localStorage.setItem(STORAGE_KEY, String(state.best)); } catch (error) { /* 忽略存储异常 */ }
+        }
+        dom.bestScore.textContent = state.best;
+      }
+
+      function showToast(message) {
+        window.clearTimeout(state.toastTimer);
+        dom.toast.textContent = message;
+        dom.toast.classList.add('show');
+        state.toastTimer = window.setTimeout(() => dom.toast.classList.remove('show'), 2200);
+      }
+
+      function showSetupMessage(message, success = false) {
+        dom.setupMessage.textContent = message;
+        dom.setupMessage.classList.toggle('success', success);
+      }
+
+      // 使用 textContent 创建选项，避免用户输入被当作 HTML 执行。
+      function renderOptions() {
+        dom.optionsList.replaceChildren();
+        dom.optionCount.textContent = `${state.options.length} / ${MAX_OPTIONS}`;
+        if (!state.options.length) {
+          const empty = document.createElement('div');
+          empty.className = 'empty-options';
+          empty.textContent = '还没有选项，先添加两个吧';
+          dom.optionsList.appendChild(empty);
+          return;
+        }
+
+        state.options.forEach((option, index) => {
+          const item = document.createElement('div');
+          item.className = 'option-item';
+          item.setAttribute('aria-label', `选项 ${index + 1}：${option}，向左滑动删除`);
+
+          const number = document.createElement('span');
+          number.className = 'option-number';
+          number.textContent = String(index + 1).padStart(2, '0');
+          const text = document.createElement('span');
+          text.className = 'option-text';
+          text.textContent = option;
+          const remove = document.createElement('button');
+          remove.className = 'remove-option';
+          remove.type = 'button';
+          remove.textContent = '×';
+          remove.setAttribute('aria-label', `删除${option}`);
+          remove.addEventListener('click', () => removeOption(index));
+
+          item.append(number, text, remove);
+          addSwipeToDelete(item, index);
+          dom.optionsList.appendChild(item);
+        });
+      }
+
+      function removeOption(index) {
+        if (state.screen !== 'setup' || !state.options[index]) return;
+        const removed = state.options[index];
+        state.options.splice(index, 1);
+        renderOptions();
+        showSetupMessage(`已删除「${removed}」`, true);
+      }
+
+      // 左滑删除同时支持触屏和鼠标拖动。
+      function addSwipeToDelete(item, index) {
+        let startX = 0;
+        let startY = 0;
+        let dragging = false;
+
+        item.addEventListener('pointerdown', (event) => {
+          if (event.target.closest('button')) return;
+          startX = event.clientX;
+          startY = event.clientY;
+          dragging = true;
+          item.setPointerCapture?.(event.pointerId);
+        });
+        item.addEventListener('pointermove', (event) => {
+          if (!dragging) return;
+          const dx = event.clientX - startX;
+          const dy = event.clientY - startY;
+          if (Math.abs(dx) > Math.abs(dy)) {
+            item.style.transform = `translateX(${Math.max(-95, Math.min(0, dx))}px)`;
+          }
+        });
+        const finish = (event) => {
+          if (!dragging) return;
+          dragging = false;
+          const dx = event.clientX - startX;
+          item.style.transform = '';
+          if (dx < -60) removeOption(index);
+        };
+        item.addEventListener('pointerup', finish);
+        item.addEventListener('pointercancel', () => {
+          dragging = false;
+          item.style.transform = '';
+        });
+      }
+
+      function addOptions(rawValue) {
+        const values = rawValue.split(/[,，\n;；]/).map((value) => value.trim()).filter(Boolean);
+        if (!values.length) {
+          showSetupMessage('请输入一个选项，例如「去旅行」');
+          return;
+        }
+
+        let added = 0;
+        let skipped = 0;
+        for (const value of values) {
+          if (state.options.length >= MAX_OPTIONS) {
+            skipped += values.length - added - skipped;
+            break;
+          }
+          if (state.options.includes(value)) {
+            skipped += 1;
+            continue;
+          }
+          state.options.push(value);
+          added += 1;
+        }
+        dom.optionInput.value = '';
+        renderOptions();
+        if (added) showSetupMessage(`已添加 ${added} 个选项，准备接受命运吧！`, true);
+        if (skipped) showSetupMessage(added ? `已添加 ${added} 个，${skipped} 个重复或超出上限` : '选项重复或已达到 8 个上限');
+      }
+
+      function setScreen(screen) {
+        state.screen = screen;
+        dom.setupScreen.hidden = screen !== 'setup';
+        dom.gameScreen.hidden = screen !== 'game';
+        dom.pauseButton.hidden = screen !== 'game';
+      }
+
+      function renderDice(value) {
+        // 每个面使用 3×3 点阵，数字只负责表现骰子动画。
+        const patterns = {
+          1: [4],
+          2: [0, 8],
+          3: [0, 4, 8],
+          4: [0, 2, 6, 8],
+          5: [0, 2, 4, 6, 8],
+          6: [0, 2, 3, 5, 6, 8]
+        };
+        const visible = patterns[value] || patterns[1];
+        [...dom.diceFace.children].forEach((pip, index) => pip.classList.toggle('visible', visible.includes(index)));
+      }
+
+      function updateLives() {
+        dom.lives.replaceChildren();
+        for (let i = 0; i < MAX_LIVES; i += 1) {
+          const heart = document.createElement('span');
+          heart.className = `heart${i >= state.lives ? ' lost' : ''}`;
+          heart.textContent = '♥';
+          heart.setAttribute('aria-hidden', 'true');
+          dom.lives.appendChild(heart);
+        }
+        dom.lives.setAttribute('aria-label', `剩余 ${state.lives} 颗生命`);
+      }
+
+      function updateTimer() {
+        dom.timerText.textContent = `${Math.max(0, state.timeLeft).toFixed(1)}s`;
+        dom.timerBar.style.width = `${Math.max(0, Math.min(100, state.timeLeft / ROUND_SECONDS * 100))}%`;
+        dom.timerBar.classList.toggle('urgent', state.timeLeft <= 3);
+      }
+
+      function updateControls() {
+        const canRoll = state.screen === 'game' && state.phase === 'awaiting' && !state.paused;
+        dom.rollButton.disabled = !canRoll;
+        dom.diceButton.disabled = !canRoll;
+        dom.diceButton.classList.toggle('rolling', state.phase === 'rolling' && !state.paused);
+        dom.pauseButton.disabled = state.phase === 'ended';
+        if (state.phase === 'rolling') {
+          dom.rollHint.textContent = '命运旋转中…';
+          dom.rollHint.classList.add('active');
+        } else if (state.phase === 'result') {
+          dom.rollHint.textContent = '结果已揭晓';
+          dom.rollHint.classList.remove('active');
+        } else {
+          dom.rollHint.textContent = '点击骰子，交给命运';
+          dom.rollHint.classList.remove('active');
+        }
+      }
+
+      function updateGameNumbers() {
+        dom.roundLabel.textContent = `第 ${Math.min(state.round, TOTAL_ROUNDS)} / ${TOTAL_ROUNDS} 轮`;
+        dom.score.textContent = state.score;
+        dom.streak.textContent = state.streak;
+        updateLives();
+        updateTimer();
+        updateControls();
+      }
+
+      function setResult(type, label, text, detail) {
+        dom.resultPanel.classList.toggle('success', type === 'success');
+        dom.resultPanel.classList.toggle('fail', type === 'fail');
+        dom.resultLabel.textContent = label;
+        dom.resultText.textContent = text;
+        dom.resultDetail.textContent = detail;
+      }
+
+      function prepareRound() {
+        if (state.lives <= 0) {
+          endGame(false);
+          return;
+        }
+        if (state.round > TOTAL_ROUNDS) {
+          endGame(true);
+          return;
+        }
+        const now = performance.now();
+        state.target = randomItem(state.options);
+        state.pendingResult = '';
+        state.timeLeft = ROUND_SECONDS;
+        state.phase = 'awaiting';
+        state.roundEndsAt = now + ROUND_SECONDS * 1000;
+        dom.targetOption.textContent = state.target;
+        setResult('', '等待掷骰', '准备好了吗？', '本轮将随机选择一个选项');
+        renderDice(Math.floor(Math.random() * 6) + 1);
+        updateGameNumbers();
+      }
+
+      function startGame() {
+        if (state.options.length < 2) {
+          setScreen('setup');
+          showSetupMessage('至少添加 2 个选项，才能开始挑战');
+          return;
+        }
+        cancelAnimationFrame(state.rafId);
+        state.score = 0;
+        state.round = 1;
+        state.lives = MAX_LIVES;
+        state.streak = 0;
+        state.paused = false;
+        state.phase = 'idle';
+        hideModal();
+        setScreen('game');
+        prepareRound();
+        state.rafId = requestAnimationFrame(gameLoop);
+      }
+
+      function rollDice() {
+        if (state.screen !== 'game' || state.paused || state.phase !== 'awaiting') return;
+        const now = performance.now();
+        state.timeLeft = Math.max(0, (state.roundEndsAt - now) / 1000);
+        state.pendingResult = randomItem(state.options);
+        state.phase = 'rolling';
+        state.rollEndsAt = now + ROLL_DURATION;
+        state.nextFaceAt = now;
+        updateGameNumbers();
+      }
+
+      function resolveRoll() {
+        if (state.phase !== 'rolling') return;
+        const selected = state.pendingResult;
+        const matched = selected === state.target;
+        state.phase = 'result';
+        state.nextAt = performance.now() + RESULT_DURATION;
+        renderDice((state.options.indexOf(selected) % 6) + 1);
+
+        if (matched) {
+          // 命中基础分 + 剩余时间奖励 + 连击奖励。
+          const gained = 100 + Math.round(state.timeLeft * 8) + state.streak * 20;
+          state.score += gained;
+          state.streak += 1;
+          setResult('success', '命运命中', selected, `漂亮！ +${gained} 分 · ${state.streak} 连击`);
+          saveBest();
+        } else {
+          state.lives -= 1;
+          state.streak = 0;
+          setResult('fail', '命运偏航', selected, `本轮目标是「${state.target}」· 失去 1 颗生命`);
+        }
+        updateGameNumbers();
+      }
+
+      function handleTimeout() {
+        if (state.phase !== 'awaiting') return;
+        state.timeLeft = 0;
+        state.phase = 'result';
+        state.lives -= 1;
+        state.streak = 0;
+        state.nextAt = performance.now() + RESULT_DURATION;
+        setResult('fail', '时间到', '还没有做出选择', `本轮目标是「${state.target}」· 失去 1 颗生命`);
+        updateGameNumbers();
+      }
+
+      function advanceRound() {
+        state.round += 1;
+        prepareRound();
+      }
+
+      // 单一动画循环同时处理倒计时、骰子动画和自动进入下一轮，暂停时可完整冻结。
+      function gameLoop(now) {
+        if (state.screen !== 'game' || state.paused || state.phase === 'ended') {
+          state.rafId = 0;
+          return;
+        }
+
+        if (state.phase === 'awaiting') {
+          state.timeLeft = Math.max(0, (state.roundEndsAt - now) / 1000);
+          updateTimer();
+          if (state.timeLeft <= 0) handleTimeout();
+        } else if (state.phase === 'rolling') {
+          if (now >= state.nextFaceAt) {
+            renderDice(Math.floor(Math.random() * 6) + 1);
+            state.nextFaceAt = now + 85;
+          }
+          if (now >= state.rollEndsAt) resolveRoll();
+        } else if (state.phase === 'result' && now >= state.nextAt) {
+          advanceRound();
+        }
+
+        if (state.screen === 'game' && !state.paused && state.phase !== 'ended') {
+          state.rafId = requestAnimationFrame(gameLoop);
+        } else {
+          state.rafId = 0;
+        }
+      }
+
+      function showModal(type) {
+        state.modalType = type;
+        const isPause = type === 'pause';
+        const isVictory = type === 'victory';
+        dom.modalIcon.textContent = isPause ? 'Ⅱ' : (isVictory ? '✦' : '☄');
+        dom.modalTitle.textContent = isPause ? '游戏暂停' : (isVictory ? '挑战成功！' : '游戏结束');
+        dom.modalDescription.textContent = isPause
+          ? '时间已冻结，准备好后继续你的命运挑战。'
+          : (isVictory ? `你完成了 ${TOTAL_ROUNDS} 轮挑战，命运站在你这边！` : '生命耗尽了，再试一次，让命运给出新的答案。');
+        dom.finalScore.hidden = isPause;
+        dom.modalScore.textContent = state.score;
+        dom.modalBest.textContent = state.best;
+        dom.modalPrimary.textContent = isPause ? '继续游戏' : '再来一局';
+        dom.modalSecondary.textContent = isPause ? '重新开始' : '编辑选项';
+        dom.modalOverlay.hidden = false;
+        window.setTimeout(() => dom.modalPrimary.focus(), 0);
+      }
+
+      function hideModal() {
+        dom.modalOverlay.hidden = true;
+        state.modalType = '';
+      }
+
+      function pauseGame() {
+        if (state.screen !== 'game' || state.phase === 'ended' || state.paused) return;
+        state.paused = true;
+        state.pauseStarted = performance.now();
+        cancelAnimationFrame(state.rafId);
+        state.rafId = 0;
+        updateControls();
+        showModal('pause');
+      }
+
+      function resumeGame() {
+        if (!state.paused) return;
+        // 把所有截止时间向后平移，暂停期间不会损失倒计时或动画进度。
+        const pausedFor = performance.now() - state.pauseStarted;
+        if (state.phase === 'awaiting') state.roundEndsAt += pausedFor;
+        if (state.phase === 'rolling') {
+          state.rollEndsAt += pausedFor;
+          state.nextFaceAt += pausedFor;
+        }
+        if (state.phase === 'result') state.nextAt += pausedFor;
+        state.paused = false;
+        hideModal();
+        updateControls();
+        state.rafId = requestAnimationFrame(gameLoop);
+      }
+
+      function endGame(victory) {
+        state.phase = 'ended';
+        state.paused = false;
+        cancelAnimationFrame(state.rafId);
+        state.rafId = 0;
+        saveBest();
+        updateGameNumbers();
+        showModal(victory ? 'victory' : 'gameover');
+      }
+
+      function editOptions() {
+        cancelAnimationFrame(state.rafId);
+        state.rafId = 0;
+        state.paused = false;
+        state.phase = 'idle';
+        hideModal();
+        setScreen('setup');
+        renderOptions();
+        showSetupMessage('调整选项后，再次开始挑战吧', true);
+      }
+
+      // 事件绑定：按钮、键盘和触屏手势都能完成核心操作。
+      dom.optionForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        addOptions(dom.optionInput.value);
+        dom.optionInput.focus();
+      });
+      dom.startButton.addEventListener('click', startGame);
+      dom.rollButton.addEventListener('click', rollDice);
+      dom.diceButton.addEventListener('click', rollDice);
+      dom.pauseButton.addEventListener('click', pauseGame);
+      dom.modalPrimary.addEventListener('click', () => {
+        if (state.modalType === 'pause') resumeGame();
+        else startGame();
+      });
+      dom.modalSecondary.addEventListener('click', () => {
+        if (state.modalType === 'pause') startGame();
+        else editOptions();
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.code === 'Space' && state.screen === 'game' && !state.paused) {
+          event.preventDefault();
+          rollDice();
+        }
+        if (event.key.toLowerCase() === 'p' && state.screen === 'game' && state.phase !== 'ended') {
+          event.preventDefault();
+          if (state.paused) resumeGame();
+          else pauseGame();
+        }
+        if (event.key === 'Escape' && state.paused) resumeGame();
+      });
+
+      // 切到后台时自动暂停，避免手机切屏回来直接输掉一局。
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state.screen === 'game' && state.phase !== 'ended' && !state.paused) pauseGame();
+      });
+
+      // 禁止双击缩放、双指缩放手势和页面拖动；选项删除使用 Pointer Events，不受影响。
+      document.addEventListener('dblclick', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('touchmove', (event) => event.preventDefault(), { passive: false });
+      let lastTouchEnd = 0;
+      document.addEventListener('touchend', (event) => {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) event.preventDefault();
+        lastTouchEnd = now;
+      }, { passive: false });
+
+      renderOptions();
+      renderDice(5);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070a16">
+  <title>疯狂点击 · 霓虹财富冲刺</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070a16;
+      --panel: rgba(17, 23, 43, .78);
+      --line: rgba(148, 163, 255, .14);
+      --text: #f5f7ff;
+      --muted: #8992b2;
+      --cyan: #43f3ff;
+      --pink: #ff4fd8;
+      --violet: #8b5cf6;
+      --gold: #ffd166;
+      --green: #68f7b0;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      font-family: Inter, ui-rounded, "SF Pro Rounded", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 4%, rgba(98, 60, 234, .22), transparent 35%),
+        radial-gradient(circle at 92% 72%, rgba(0, 224, 255, .10), transparent 38%),
+        var(--bg);
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .18;
+      background-image:
+        linear-gradient(rgba(106, 123, 255, .12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(106, 123, 255, .12) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: linear-gradient(to bottom, black, transparent 85%);
+    }
+
+    button { font: inherit; color: inherit; }
+    button, .coin { touch-action: none; }
+    [hidden] { display: none !important; }
+
+    .app {
+      position: relative;
+      width: 100%;
+      max-width: 480px;
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: max(12px, env(safe-area-inset-top)) 14px max(10px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* 顶栏 */
+    .header { display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
+    .brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .brand-mark {
+      width: 36px; height: 36px; display: grid; place-items: center;
+      border: 1px solid rgba(67, 243, 255, .32); border-radius: 12px;
+      background: linear-gradient(145deg, rgba(67, 243, 255, .15), rgba(139, 92, 246, .15));
+      box-shadow: inset 0 0 14px rgba(67, 243, 255, .08), 0 0 20px rgba(67, 243, 255, .08);
+      color: var(--cyan); font-size: 20px;
+    }
+    h1 { margin: 0; font-size: 18px; letter-spacing: .08em; line-height: 1.15; }
+    .subtitle { margin-top: 3px; color: var(--muted); font-size: 9px; letter-spacing: .18em; }
+    .best {
+      margin-left: auto; text-align: right; white-space: nowrap;
+      color: var(--muted); font-size: 10px;
+    }
+    .best strong { display: block; margin-top: 2px; color: var(--gold); font-size: 14px; font-variant-numeric: tabular-nums; }
+    .icon-button {
+      width: 38px; height: 38px; flex: 0 0 auto; border: 1px solid var(--line);
+      border-radius: 12px; background: rgba(19, 25, 47, .8); cursor: pointer;
+      display: grid; place-items: center; font-size: 16px;
+    }
+    .icon-button:active { transform: scale(.94); background: rgba(67, 243, 255, .12); }
+
+    .panel {
+      flex-shrink: 0;
+      border: 1px solid var(--line); border-radius: 16px;
+      background: linear-gradient(135deg, rgba(24, 31, 57, .84), rgba(12, 17, 34, .82));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035), 0 8px 28px rgba(0, 0, 0, .16);
+      backdrop-filter: blur(12px);
+    }
+
+    /* 任务与分数 */
+    .mission { padding: 10px 12px; }
+    .mission-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .mission-name { font-size: 12px; font-weight: 700; letter-spacing: .06em; }
+    .live-dot {
+      display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%;
+      background: var(--pink); box-shadow: 0 0 10px var(--pink); vertical-align: 1px;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    .timer { color: var(--cyan); font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .06em; }
+    .timer.danger { color: #ff6987; text-shadow: 0 0 14px rgba(255, 79, 116, .6); }
+    .progress-track { height: 6px; margin: 8px 0 6px; overflow: hidden; border-radius: 99px; background: rgba(105, 119, 176, .14); }
+    .progress-fill {
+      width: 0%; height: 100%; border-radius: inherit;
+      background: linear-gradient(90deg, var(--violet), var(--pink), var(--gold));
+      box-shadow: 0 0 12px rgba(255, 79, 216, .5); transition: width .16s ease-out;
+    }
+    .goal-line { display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; }
+    .goal-line span:last-child { color: #c6cdea; }
+
+    .score-panel { padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .eyebrow { color: var(--muted); font-size: 10px; letter-spacing: .12em; }
+    .score {
+      margin-top: 1px; font-size: clamp(30px, 8vw, 40px); line-height: 1.08; font-weight: 900;
+      letter-spacing: -.03em; font-variant-numeric: tabular-nums;
+      background: linear-gradient(110deg, #fff 20%, #aaf9ff 70%, #d9b7ff);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .wallet { text-align: right; }
+    .cash { margin-top: 4px; color: var(--gold); font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .auto-rate { margin-top: 3px; color: var(--green); font-size: 10px; }
+
+    /* 点击区域 */
+    .arena {
+      position: relative; flex: 1 1 auto; min-height: 142px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      isolation: isolate;
+    }
+    .arena::before {
+      content: ""; position: absolute; z-index: -1; width: 190px; height: 190px; border-radius: 50%;
+      background: rgba(100, 64, 255, .13); filter: blur(28px);
+    }
+    .combo {
+      min-height: 25px; margin-bottom: 5px; padding: 4px 12px; border: 1px solid rgba(255, 79, 216, .18);
+      border-radius: 99px; background: rgba(255, 79, 216, .06); color: #f5b8eb;
+      font-size: 11px; font-weight: 700; letter-spacing: .04em; transition: transform .15s, color .15s;
+    }
+    .combo.hot { color: #fff; border-color: rgba(255, 79, 216, .48); box-shadow: 0 0 18px rgba(255, 79, 216, .13); }
+    .coin-wrap { position: relative; display: grid; place-items: center; }
+    .coin-ring {
+      position: absolute; width: 154px; height: 154px; border: 1px solid rgba(67, 243, 255, .16); border-radius: 50%;
+      animation: ringSpin 12s linear infinite;
+    }
+    .coin-ring::before, .coin-ring::after {
+      content: ""; position: absolute; width: 5px; height: 5px; border-radius: 50%;
+      background: var(--cyan); box-shadow: 0 0 9px var(--cyan);
+    }
+    .coin-ring::before { top: 12px; left: 24px; }
+    .coin-ring::after { right: -3px; top: 72px; background: var(--pink); box-shadow: 0 0 9px var(--pink); }
+    .coin {
+      position: relative; width: clamp(120px, 35vw, 150px); height: clamp(120px, 35vw, 150px);
+      padding: 0; border: 2px solid rgba(255, 236, 166, .65); border-radius: 50%; cursor: pointer;
+      background:
+        radial-gradient(circle at 36% 27%, rgba(255, 255, 255, .7), transparent 10%),
+        radial-gradient(circle at 35% 30%, #ffe89a, #f8b83e 48%, #b96817 76%, #6e360e);
+      box-shadow:
+        inset 0 0 0 6px rgba(118, 57, 8, .18), inset 0 -10px 18px rgba(105, 45, 5, .28),
+        0 0 0 7px rgba(255, 190, 65, .06), 0 0 32px rgba(255, 178, 51, .27), 0 14px 30px rgba(0, 0, 0, .35);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: #6f350b; text-shadow: 0 1px 0 rgba(255, 255, 255, .35);
+      will-change: transform;
+    }
+    .coin::after { content: ""; position: absolute; inset: 10px; border: 1px dashed rgba(115, 53, 7, .25); border-radius: 50%; }
+    .coin-symbol { font-family: Georgia, serif; font-size: 47px; font-weight: 900; line-height: .9; }
+    .coin-label { margin-top: 8px; font-size: 12px; font-weight: 900; letter-spacing: .16em; }
+    .coin-value { margin-top: 3px; font-size: 10px; font-weight: 800; opacity: .78; }
+    .tap-hint { margin-top: 8px; color: var(--muted); font-size: 10px; letter-spacing: .08em; }
+    .float-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+    .float-text {
+      position: absolute; z-index: 5; transform: translate(-50%, -50%); pointer-events: none;
+      color: var(--gold); font-size: 18px; font-weight: 900; white-space: nowrap;
+      text-shadow: 0 0 12px rgba(255, 190, 65, .65); animation: floatUp .75s ease-out forwards;
+    }
+    .float-text.critical { color: var(--pink); font-size: 23px; text-shadow: 0 0 14px rgba(255, 79, 216, .8); }
+
+    /* 升级商店 */
+    .shop { flex-shrink: 0; }
+    .shop-title { display: flex; align-items: center; justify-content: space-between; margin: 0 2px 7px; }
+    .shop-title h2 { margin: 0; font-size: 12px; letter-spacing: .1em; }
+    .shop-title span { color: var(--muted); font-size: 9px; }
+    .upgrades { display: grid; gap: 6px; }
+    .upgrade {
+      width: 100%; min-height: 57px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 14px;
+      background: linear-gradient(110deg, rgba(23, 30, 55, .94), rgba(13, 18, 36, .94));
+      display: flex; align-items: center; gap: 10px; text-align: left; cursor: pointer;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .025);
+    }
+    .upgrade:not(:disabled):active { transform: scale(.985); border-color: rgba(67, 243, 255, .45); }
+    .upgrade:disabled { cursor: default; opacity: .5; }
+    .upgrade.affordable { border-color: rgba(67, 243, 255, .24); }
+    .upgrade-icon {
+      width: 38px; height: 38px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 11px;
+      background: rgba(139, 92, 246, .11); border: 1px solid rgba(139, 92, 246, .16); font-size: 20px;
+    }
+    .upgrade-info { min-width: 0; flex: 1; }
+    .upgrade-name { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; }
+    .level { padding: 1px 5px; border-radius: 5px; background: rgba(139, 92, 246, .15); color: #bfa9ff; font-size: 8px; }
+    .upgrade-desc { margin-top: 3px; color: var(--muted); font-size: 9px; white-space: nowrap; }
+    .upgrade-desc strong { color: var(--green); font-weight: 700; }
+    .price { min-width: 62px; text-align: right; color: var(--gold); font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums; }
+    .price small { display: block; margin-top: 2px; color: var(--muted); font-size: 8px; font-weight: 500; }
+    .footer { flex-shrink: 0; text-align: center; color: #626d8e; font-size: 9px; letter-spacing: .04em; }
+
+    /* 弹窗与提示 */
+    .toast {
+      position: fixed; z-index: 30; left: 50%; top: max(16px, env(safe-area-inset-top));
+      transform: translate(-50%, -20px); max-width: calc(100% - 36px); padding: 9px 16px;
+      border: 1px solid rgba(67, 243, 255, .3); border-radius: 99px;
+      background: rgba(11, 18, 36, .94); box-shadow: 0 8px 30px rgba(0, 0, 0, .35), 0 0 18px rgba(67, 243, 255, .1);
+      color: #d9fcff; font-size: 12px; white-space: nowrap; opacity: 0; pointer-events: none;
+      transition: opacity .2s, transform .2s;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .modal {
+      position: fixed; z-index: 40; inset: 0; padding: 24px;
+      display: grid; place-items: center; background: rgba(3, 5, 13, .76); backdrop-filter: blur(10px);
+    }
+    .dialog {
+      width: min(100%, 360px); padding: 28px 22px 22px; border: 1px solid rgba(139, 92, 246, .34);
+      border-radius: 25px; text-align: center;
+      background: linear-gradient(145deg, rgba(29, 36, 67, .98), rgba(10, 14, 29, .98));
+      box-shadow: 0 25px 80px rgba(0, 0, 0, .55), 0 0 45px rgba(139, 92, 246, .12), inset 0 1px 0 rgba(255, 255, 255, .06);
+      animation: dialogIn .25s ease-out;
+    }
+    .modal-icon {
+      width: 68px; height: 68px; margin: 0 auto 15px; display: grid; place-items: center;
+      border: 1px solid rgba(67, 243, 255, .25); border-radius: 22px;
+      background: rgba(67, 243, 255, .08); box-shadow: 0 0 28px rgba(67, 243, 255, .1); font-size: 34px;
+    }
+    .dialog h2 { margin: 0; font-size: 25px; letter-spacing: .06em; }
+    .dialog p { margin: 9px 0 18px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .modal-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 18px; }
+    .modal-stat { padding: 10px 6px; border: 1px solid var(--line); border-radius: 12px; background: rgba(5, 9, 21, .35); }
+    .modal-stat span { display: block; color: var(--muted); font-size: 9px; }
+    .modal-stat strong { display: block; margin-top: 4px; color: var(--gold); font-size: 18px; font-variant-numeric: tabular-nums; }
+    .primary-button, .secondary-button {
+      width: 100%; min-height: 47px; border-radius: 13px; cursor: pointer; font-weight: 800; letter-spacing: .08em;
+    }
+    .primary-button {
+      border: 0; background: linear-gradient(100deg, #7154e9, #d846c3); color: white;
+      box-shadow: 0 8px 24px rgba(174, 67, 210, .25), inset 0 1px 0 rgba(255, 255, 255, .25);
+    }
+    .primary-button:active, .secondary-button:active { transform: scale(.98); }
+    .secondary-button { margin-top: 8px; border: 1px solid var(--line); background: transparent; color: var(--muted); }
+    .confetti { position: fixed; z-index: 45; top: -15px; width: 7px; height: 13px; border-radius: 2px; pointer-events: none; animation: confettiFall 2.2s ease-in forwards; }
+
+    @keyframes pulse { 50% { opacity: .35; transform: scale(.75); } }
+    @keyframes ringSpin { to { transform: rotate(360deg); } }
+    @keyframes floatUp { 0% { opacity: 0; transform: translate(-50%, -20%) scale(.75); } 18% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -150%) scale(1.08); } }
+    @keyframes dialogIn { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+    @keyframes confettiFall { to { transform: translate(var(--drift), 110vh) rotate(720deg); opacity: .15; } }
+
+    /* 矮屏压缩布局，保证商店始终可见 */
+    @media (max-height: 700px) {
+      .app { gap: 7px; padding-top: max(8px, env(safe-area-inset-top)); }
+      .brand-mark { width: 32px; height: 32px; }
+      h1 { font-size: 16px; }
+      .subtitle { display: none; }
+      .mission { padding: 7px 11px; }
+      .score-panel { padding: 7px 12px; }
+      .score { font-size: 29px; }
+      .arena { min-height: 125px; }
+      .coin { width: 112px; height: 112px; }
+      .coin-ring { width: 133px; height: 133px; }
+      .coin-symbol { font-size: 38px; }
+      .coin-label { margin-top: 5px; }
+      .combo { margin-bottom: 2px; }
+      .tap-hint { display: none; }
+      .upgrade { min-height: 50px; padding: 5px 9px; }
+      .upgrade-icon { width: 34px; height: 34px; font-size: 18px; }
+      .footer { display: none; }
+    }
+
+    @media (max-height: 580px) {
+      .goal-line, .coin-ring, .shop-title span { display: none; }
+      .mission { padding: 6px 10px; }
+      .progress-track { margin-bottom: 0; }
+      .score-panel { padding: 5px 11px; }
+      .score { font-size: 25px; }
+      .arena { min-height: 105px; }
+      .coin { width: 94px; height: 94px; }
+      .coin-symbol { font-size: 31px; }
+      .coin-label { font-size: 9px; margin-top: 4px; }
+      .coin-value { display: none; }
+      .combo { position: absolute; top: 0; min-height: 21px; padding: 2px 9px; }
+      .upgrade { min-height: 45px; }
+      .upgrade-desc { margin-top: 1px; }
+      .shop-title { margin-bottom: 4px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="header">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">⚡</div>
+        <div>
+          <h1>疯狂点击</h1>
+          <div class="subtitle">NEON FORTUNE</div>
+        </div>
+      </div>
+      <div class="best">历史最高分<strong id="bestScore">0</strong></div>
+      <button class="icon-button" id="pauseButton" aria-label="暂停游戏" title="暂停（P）">Ⅱ</button>
+    </header>
+
+    <section class="panel mission" aria-label="本局任务">
+      <div class="mission-row">
+        <span class="mission-name"><i class="live-dot"></i>90 秒财富冲刺</span>
+        <strong class="timer" id="timer">01:30</strong>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="goal-line"><span id="progressText">目标进度 0%</span><span>目标 ¥25,000</span></div>
+    </section>
+
+    <section class="panel score-panel" aria-label="得分与资金">
+      <div>
+        <div class="eyebrow">本局得分</div>
+        <div class="score" id="score">0</div>
+      </div>
+      <div class="wallet">
+        <div class="eyebrow">可用资金</div>
+        <div class="cash" id="cash">¥0</div>
+        <div class="auto-rate" id="autoRate">自动 +0 / 秒</div>
+      </div>
+    </section>
+
+    <main class="arena" id="arena">
+      <div class="combo" id="combo">连击蓄能 · 最高 3 倍</div>
+      <div class="coin-wrap">
+        <div class="coin-ring" aria-hidden="true"></div>
+        <button class="coin" id="coin" aria-label="点击赚钱">
+          <span class="coin-symbol">¥</span>
+          <span class="coin-label">点我赚钱</span>
+          <span class="coin-value" id="tapValue">每次 +5</span>
+        </button>
+      </div>
+      <div class="tap-hint">保持连击，收益暴涨！</div>
+      <div class="float-layer" id="floatLayer" aria-hidden="true"></div>
+    </main>
+
+    <section class="shop" aria-label="升级商店">
+      <div class="shop-title"><h2>升级商店</h2><span>购买只扣资金，不扣得分</span></div>
+      <div class="upgrades">
+        <button class="upgrade" data-upgrade="tap">
+          <span class="upgrade-icon" aria-hidden="true">🧤</span>
+          <span class="upgrade-info">
+            <span class="upgrade-name">力量指套 <span class="level" id="tapLevel">Lv.0</span></span>
+            <span class="upgrade-desc"><strong id="tapEffect">每次点击 +5</strong> · 下级 +3</span>
+          </span>
+          <span class="price" id="tapPrice">¥40<small>点击升级</small></span>
+        </button>
+        <button class="upgrade" data-upgrade="worker">
+          <span class="upgrade-icon" aria-hidden="true">🤖</span>
+          <span class="upgrade-info">
+            <span class="upgrade-name">霓虹打工仔 <span class="level" id="workerLevel">Lv.0</span></span>
+            <span class="upgrade-desc"><strong>每秒自动 +4</strong> · 放置赚钱</span>
+          </span>
+          <span class="price" id="workerPrice">¥80<small>点击升级</small></span>
+        </button>
+        <button class="upgrade" data-upgrade="miner">
+          <span class="upgrade-icon" aria-hidden="true">💎</span>
+          <span class="upgrade-info">
+            <span class="upgrade-name">量子矿机 <span class="level" id="minerLevel">Lv.0</span></span>
+            <span class="upgrade-desc"><strong>每秒自动 +25</strong> · 高额产出</span>
+          </span>
+          <span class="price" id="minerPrice">¥500<small>点击升级</small></span>
+        </button>
+      </div>
+    </section>
+
+    <footer class="footer">轻点金币赚钱 · 空格 / 回车点击 · P 暂停</footer>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <div class="modal" id="modal" hidden>
+    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDescription">
+      <div class="modal-icon" id="modalIcon">⏸</div>
+      <h2 id="modalTitle">游戏暂停</h2>
+      <p id="modalDescription">休息一下，财富引擎已暂时冻结。</p>
+      <div class="modal-stats">
+        <div class="modal-stat"><span id="statLabelA">本局得分</span><strong id="statValueA">0</strong></div>
+        <div class="modal-stat"><span id="statLabelB">剩余时间</span><strong id="statValueB">01:30</strong></div>
+      </div>
+      <button class="primary-button" id="modalPrimary">继续游戏</button>
+      <button class="secondary-button" id="modalSecondary">重新开始</button>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // 游戏常量与 DOM 引用
+      const DURATION = 90;
+      const TARGET = 25000;
+      const STORAGE_KEY = 'crazy-clicker-best-v1';
+      const $ = (id) => document.getElementById(id);
+      const ui = {
+        score: $('score'), cash: $('cash'), best: $('bestScore'), timer: $('timer'),
+        autoRate: $('autoRate'), progress: $('progressFill'), progressText: $('progressText'),
+        coin: $('coin'), tapValue: $('tapValue'), combo: $('combo'), arena: $('arena'),
+        floatLayer: $('floatLayer'), pause: $('pauseButton'), toast: $('toast'),
+        modal: $('modal'), modalIcon: $('modalIcon'), modalTitle: $('modalTitle'),
+        modalDescription: $('modalDescription'), modalPrimary: $('modalPrimary'),
+        modalSecondary: $('modalSecondary'), statLabelA: $('statLabelA'),
+        statLabelB: $('statLabelB'), statValueA: $('statValueA'), statValueB: $('statValueB')
+      };
+      const upgradeButtons = [...document.querySelectorAll('.upgrade')];
+
+      // localStorage 在隐私模式下可能不可用，读写均做保护
+      function loadBest() {
+        try { return Math.max(0, Number(localStorage.getItem(STORAGE_KEY)) || 0); }
+        catch (_) { return 0; }
+      }
+      function saveBest() {
+        try { localStorage.setItem(STORAGE_KEY, String(Math.floor(state.best))); }
+        catch (_) { /* 无法存储时仍可正常游戏 */ }
+      }
+
+      let state;
+      let toastTimer;
+      let lastFrame = performance.now();
+      let lastRender = 0;
+
+      function freshState() {
+        return {
+          cash: 0, score: 0, best: state ? state.best : loadBest(),
+          timeLeft: DURATION, paused: false, ended: false,
+          levels: { tap: 0, worker: 0, miner: 0 },
+          combo: 0, lastTap: 0, taps: 0
+        };
+      }
+
+      const costs = {
+        tap: () => Math.floor(40 * Math.pow(1.55, state.levels.tap)),
+        worker: () => Math.floor(80 * Math.pow(1.62, state.levels.worker)),
+        miner: () => Math.floor(500 * Math.pow(1.7, state.levels.miner))
+      };
+      const tapPower = () => 5 + state.levels.tap * 3;
+      const autoPower = () => state.levels.worker * 4 + state.levels.miner * 25;
+      const comboMultiplier = () => 1 + Math.min(2, Math.floor(state.combo / 8) * .25);
+      const format = (value) => Math.floor(value).toLocaleString('zh-CN');
+
+      function formatTime(seconds) {
+        const safe = Math.max(0, Math.ceil(seconds));
+        return `${String(Math.floor(safe / 60)).padStart(2, '0')}:${String(safe % 60).padStart(2, '0')}`;
+      }
+
+      // 统一刷新界面，资金与得分分开计算
+      function render() {
+        ui.score.textContent = format(state.score);
+        ui.cash.textContent = `¥${format(state.cash)}`;
+        ui.best.textContent = format(state.best);
+        ui.timer.textContent = formatTime(state.timeLeft);
+        ui.timer.classList.toggle('danger', state.timeLeft <= 10 && !state.ended);
+        ui.autoRate.textContent = `自动 +${format(autoPower())} / 秒`;
+        ui.tapValue.textContent = `每次 +${format(tapPower())}`;
+
+        const percent = Math.min(100, state.score / TARGET * 100);
+        ui.progress.style.width = `${percent}%`;
+        ui.progressText.textContent = `目标进度 ${Math.floor(percent)}%`;
+
+        const multiplier = comboMultiplier();
+        ui.combo.textContent = state.combo > 1
+          ? `${state.combo} 连击 · 收益 ×${multiplier.toFixed(2).replace(/0$/, '')}`
+          : '连击蓄能 · 最高 3 倍';
+        ui.combo.classList.toggle('hot', multiplier > 1);
+
+        for (const type of ['tap', 'worker', 'miner']) {
+          $(`${type}Level`).textContent = `Lv.${state.levels[type]}`;
+          const price = costs[type]();
+          const button = document.querySelector(`[data-upgrade="${type}"]`);
+          const canBuy = state.cash >= price && !state.paused && !state.ended;
+          button.disabled = !canBuy;
+          button.classList.toggle('affordable', canBuy);
+          button.setAttribute('aria-label', `${button.querySelector('.upgrade-name').textContent.trim()}，价格 ${price}`);
+          $(`${type}Price`).innerHTML = `¥${format(price)}<small>${canBuy ? '点击升级' : '资金不足'}</small>`;
+        }
+        $('tapEffect').textContent = `每次点击 +${format(tapPower())}`;
+      }
+
+      // 所有收益都同时计入资金和得分，达到目标立即胜利
+      function earn(amount) {
+        if (state.ended || state.paused) return;
+        state.cash += amount;
+        state.score += amount;
+        if (state.score > state.best) {
+          state.best = state.score;
+          saveBest();
+        }
+        if (state.score >= TARGET) finish(true);
+      }
+
+      function tapCoin(event) {
+        if (state.paused || state.ended) return;
+        const now = performance.now();
+        state.combo = now - state.lastTap <= 850 ? state.combo + 1 : 1;
+        state.lastTap = now;
+        state.taps++;
+
+        // 8% 概率触发五倍暴击，快速连点则逐步提升常规倍率
+        const critical = Math.random() < .08;
+        const amount = tapPower() * comboMultiplier() * (critical ? 5 : 1);
+        earn(amount);
+
+        const rect = ui.arena.getBoundingClientRect();
+        const hasPointer = event && Number.isFinite(event.clientX) && event.clientX > 0;
+        const x = hasPointer ? event.clientX - rect.left : rect.width / 2 + (Math.random() - .5) * 35;
+        const y = hasPointer ? event.clientY - rect.top : rect.height / 2;
+        spawnFloat(x, y, `+${format(amount)}${critical ? ' 暴击!' : ''}`, critical);
+
+        ui.coin.animate(
+          [{ transform: 'scale(1)' }, { transform: 'scale(.91)' }, { transform: 'scale(1)' }],
+          { duration: 150, easing: 'ease-out' }
+        );
+        if (critical && navigator.vibrate) navigator.vibrate(25);
+        render();
+      }
+
+      function spawnFloat(x, y, text, critical = false) {
+        // 限制节点数量，避免高速点击时堆积
+        if (ui.floatLayer.childElementCount > 24) ui.floatLayer.firstElementChild.remove();
+        const node = document.createElement('span');
+        node.className = `float-text${critical ? ' critical' : ''}`;
+        node.textContent = text;
+        node.style.left = `${Math.max(35, Math.min(ui.arena.clientWidth - 35, x))}px`;
+        node.style.top = `${Math.max(25, Math.min(ui.arena.clientHeight - 10, y))}px`;
+        node.addEventListener('animationend', () => node.remove(), { once: true });
+        ui.floatLayer.appendChild(node);
+      }
+
+      function buyUpgrade(type) {
+        if (state.paused || state.ended) return;
+        const price = costs[type]();
+        if (state.cash < price) return;
+        state.cash -= price;
+        state.levels[type]++;
+        const messages = {
+          tap: `指套强化！每次点击 +${tapPower()}`,
+          worker: `打工仔上岗！自动收益 +${autoPower()}/秒`,
+          miner: `矿机启动！自动收益 +${autoPower()}/秒`
+        };
+        showToast(messages[type]);
+        if (navigator.vibrate) navigator.vibrate(12);
+        render();
+      }
+
+      function showToast(message) {
+        clearTimeout(toastTimer);
+        ui.toast.textContent = message;
+        ui.toast.classList.add('show');
+        toastTimer = setTimeout(() => ui.toast.classList.remove('show'), 1500);
+      }
+
+      function setPaused(paused) {
+        if (state.ended) return;
+        state.paused = paused;
+        state.combo = 0;
+        ui.pause.textContent = paused ? '▶' : 'Ⅱ';
+        ui.pause.setAttribute('aria-label', paused ? '继续游戏' : '暂停游戏');
+        if (paused) {
+          showModal('pause');
+        } else {
+          ui.modal.hidden = true;
+          lastFrame = performance.now();
+          ui.pause.focus({ preventScroll: true });
+        }
+        render();
+      }
+
+      function finish(won) {
+        if (state.ended) return;
+        state.ended = true;
+        state.paused = false;
+        saveBest();
+        showModal(won ? 'win' : 'lose');
+        if (won) {
+          launchConfetti();
+          if (navigator.vibrate) navigator.vibrate([50, 50, 100]);
+        }
+        render();
+      }
+
+      function showModal(type) {
+        const isPause = type === 'pause';
+        const isWin = type === 'win';
+        ui.modalIcon.textContent = isPause ? '⏸' : isWin ? '🏆' : '⏰';
+        ui.modalTitle.textContent = isPause ? '游戏暂停' : isWin ? '财富目标达成！' : '时间到！';
+        ui.modalDescription.textContent = isPause
+          ? '休息一下，倒计时与财富引擎均已冻结。'
+          : isWin
+            ? `你用 ${Math.ceil(DURATION - state.timeLeft)} 秒点亮了霓虹金库，漂亮！`
+            : `距离目标还差 ¥${format(Math.max(0, TARGET - state.score))}，升级点击与自动收益再试一次！`;
+        ui.statLabelA.textContent = isPause ? '本局得分' : '最终得分';
+        ui.statValueA.textContent = format(state.score);
+        ui.statLabelB.textContent = isPause ? '剩余时间' : '历史最高';
+        ui.statValueB.textContent = isPause ? formatTime(state.timeLeft) : format(state.best);
+        ui.modalPrimary.textContent = isPause ? '继续游戏' : '再来一局';
+        ui.modalSecondary.hidden = !isPause;
+        ui.modal.hidden = false;
+        ui.modalPrimary.focus({ preventScroll: true });
+      }
+
+      function restart() {
+        state = freshState();
+        ui.modal.hidden = true;
+        ui.floatLayer.replaceChildren();
+        ui.pause.textContent = 'Ⅱ';
+        ui.pause.setAttribute('aria-label', '暂停游戏');
+        clearTimeout(toastTimer);
+        ui.toast.classList.remove('show');
+        lastFrame = performance.now();
+        render();
+      }
+
+      function launchConfetti() {
+        const colors = ['#43f3ff', '#ff4fd8', '#ffd166', '#68f7b0', '#8b5cf6'];
+        for (let i = 0; i < 36; i++) {
+          const piece = document.createElement('i');
+          piece.className = 'confetti';
+          piece.style.left = `${Math.random() * 100}vw`;
+          piece.style.background = colors[i % colors.length];
+          piece.style.setProperty('--drift', `${(Math.random() - .5) * 180}px`);
+          piece.style.animationDelay = `${Math.random() * .45}s`;
+          piece.addEventListener('animationend', () => piece.remove(), { once: true });
+          document.body.appendChild(piece);
+        }
+      }
+
+      // requestAnimationFrame 驱动倒计时和放置收益，暂停时不累计时间
+      function gameLoop(now) {
+        const delta = Math.min((now - lastFrame) / 1000, .1);
+        lastFrame = now;
+        if (!state.paused && !state.ended) {
+          state.timeLeft -= delta;
+          if (state.timeLeft <= 0) {
+            state.timeLeft = 0;
+            finish(state.score >= TARGET);
+          } else {
+            const passive = autoPower() * delta;
+            if (passive > 0) earn(passive);
+            if (state.combo && now - state.lastTap > 850) state.combo = 0;
+          }
+        }
+        if (now - lastRender > 70) {
+          render();
+          lastRender = now;
+        }
+        requestAnimationFrame(gameLoop);
+      }
+
+      // 触屏与鼠标使用 pointerdown，键盘仍可通过按钮原生 click 操作
+      ui.coin.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        tapCoin(event);
+      });
+      ui.coin.addEventListener('click', (event) => {
+        if (event.detail === 0) tapCoin(event); // 仅响应键盘生成的 click
+      });
+      ui.coin.addEventListener('contextmenu', (event) => event.preventDefault());
+      upgradeButtons.forEach((button) => {
+        button.addEventListener('click', () => buyUpgrade(button.dataset.upgrade));
+      });
+      ui.pause.addEventListener('click', () => setPaused(!state.paused));
+      ui.modalPrimary.addEventListener('click', () => state.paused ? setPaused(false) : restart());
+      ui.modalSecondary.addEventListener('click', restart);
+
+      document.addEventListener('keydown', (event) => {
+        if (event.code === 'KeyP' && !event.repeat && !state.ended) {
+          event.preventDefault();
+          setPaused(!state.paused);
+          return;
+        }
+        if ((event.code === 'Space' || event.code === 'Enter') && !event.repeat) {
+          // 焦点在按钮上时保留原生键盘行为，避免一次按键触发两次
+          if (document.activeElement && document.activeElement.tagName === 'BUTTON') return;
+          event.preventDefault();
+          tapCoin();
+        }
+      });
+
+      // 禁止双击缩放、双指缩放及页面滚动
+      document.addEventListener('dblclick', (event) => event.preventDefault());
+      document.addEventListener('gesturestart', (event) => event.preventDefault());
+      document.addEventListener('touchmove', (event) => event.preventDefault(), { passive: false });
+
+      // 切到后台时自动暂停，避免 unseen 时间造成失败
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && !state.paused && !state.ended) setPaused(true);
+      });
+
+      state = freshState();
+      render();
+      requestAnimationFrame(gameLoop);
+    })();
+  </script>
+</body>
+</html>

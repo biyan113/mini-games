@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070816">
+  <meta name="description" content="手机优先的霓虹滑雪躲避小游戏">
+  <title>滑雪躲避 · 霓虹雪线</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --cyan: #62f6ff;
+      --pink: #ff4fc8;
+      --violet: #9b7bff;
+      --text: #f4f5ff;
+      --muted: #a7abc9;
+      --glass: rgba(15, 18, 43, 0.68);
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      background: #070816;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+      border: 0;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    #gameCanvas {
+      position: fixed;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      outline: none;
+      touch-action: none;
+    }
+
+    .hud {
+      position: fixed;
+      z-index: 5;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: calc(12px + var(--safe-top)) 14px 0;
+      pointer-events: none;
+    }
+
+    .hud-inner {
+      width: min(100%, 620px);
+      margin: 0 auto;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 11px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      letter-spacing: 0.08em;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 32px;
+      height: 32px;
+      place-items: center;
+      border: 1px solid rgba(98, 246, 255, 0.42);
+      border-radius: 10px;
+      color: var(--cyan);
+      background: linear-gradient(145deg, rgba(98, 246, 255, 0.14), rgba(155, 123, 255, 0.08));
+      box-shadow: inset 0 0 16px rgba(98, 246, 255, 0.08), 0 0 18px rgba(98, 246, 255, 0.08);
+      font-size: 18px;
+    }
+
+    .brand-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .brand-name {
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .brand-subtitle {
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.23em;
+    }
+
+    .pause-button {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      border-radius: 14px;
+      background: rgba(14, 17, 39, 0.76);
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.18);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      pointer-events: auto;
+      transition: transform 160ms ease, border-color 160ms ease, opacity 160ms ease;
+    }
+
+    .pause-button:active:not(:disabled) {
+      transform: scale(0.92);
+      border-color: var(--cyan);
+    }
+
+    .pause-button:disabled {
+      cursor: default;
+      opacity: 0.36;
+    }
+
+    #pauseIcon {
+      font-size: 16px;
+      font-weight: 900;
+      letter-spacing: -0.12em;
+      transform: translateX(-1px);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr 1fr;
+      gap: 8px;
+    }
+
+    .stat {
+      position: relative;
+      min-width: 0;
+      padding: 10px 12px 11px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      background: linear-gradient(145deg, rgba(23, 27, 58, 0.79), rgba(10, 13, 32, 0.68));
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.06), 0 10px 30px rgba(0, 0, 0, 0.13);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .stat-primary {
+      border-color: rgba(98, 246, 255, 0.2);
+      background: linear-gradient(145deg, rgba(19, 48, 69, 0.76), rgba(13, 18, 42, 0.75));
+    }
+
+    .stat-label {
+      display: block;
+      margin-bottom: 2px;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 650;
+      letter-spacing: 0.08em;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .stat-value {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      font-size: clamp(20px, 6vw, 28px);
+      font-weight: 850;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.08;
+      letter-spacing: -0.04em;
+    }
+
+    .stat-primary .stat-value {
+      color: #eaffff;
+      text-shadow: 0 0 18px rgba(98, 246, 255, 0.28);
+    }
+
+    .stat-unit {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .progress-track {
+      position: absolute;
+      right: 10px;
+      bottom: 5px;
+      left: 10px;
+      height: 2px;
+      overflow: hidden;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .progress-fill {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cyan), var(--pink));
+      box-shadow: 0 0 8px var(--cyan);
+      transition: width 120ms linear;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 30px;
+      padding: 7px 3px 0;
+    }
+
+    .health {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+
+    .health::before {
+      margin-right: 2px;
+      color: var(--muted);
+      content: "体力";
+      font-size: 10px;
+      font-weight: 650;
+      letter-spacing: 0.08em;
+    }
+
+    .heart {
+      color: var(--pink);
+      font-size: 15px;
+      line-height: 1;
+      text-shadow: 0 0 10px rgba(255, 79, 200, 0.65);
+      transition: color 200ms ease, opacity 200ms ease, transform 200ms ease;
+    }
+
+    .heart.lost {
+      color: #545872;
+      opacity: 0.46;
+      text-shadow: none;
+      transform: scale(0.82);
+    }
+
+    .goal-label {
+      color: #c2c6df;
+      font-size: 10px;
+      font-weight: 650;
+      letter-spacing: 0.05em;
+    }
+
+    .goal-label strong {
+      color: var(--cyan);
+      font-weight: 800;
+    }
+
+    .control-hint {
+      position: fixed;
+      z-index: 4;
+      right: 0;
+      bottom: calc(15px + var(--safe-bottom));
+      left: 0;
+      display: flex;
+      width: max-content;
+      max-width: calc(100% - 28px);
+      margin: auto;
+      padding: 9px 14px;
+      align-items: center;
+      gap: 9px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      color: #d8dbf2;
+      background: rgba(11, 14, 34, 0.65);
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      pointer-events: none;
+    }
+
+    .drag-icon {
+      color: var(--cyan);
+      font-size: 19px;
+      line-height: 0.8;
+      text-shadow: 0 0 12px rgba(98, 246, 255, 0.55);
+      animation: dragHint 2.2s ease-in-out infinite;
+    }
+
+    .keyboard-hint {
+      padding-left: 8px;
+      border-left: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--muted);
+      font-size: 9px;
+    }
+
+    .toast {
+      position: fixed;
+      z-index: 8;
+      top: 43%;
+      left: 50%;
+      padding: 9px 16px;
+      border: 1px solid rgba(255, 79, 200, 0.45);
+      border-radius: 999px;
+      color: #fff0fb;
+      background: rgba(65, 16, 59, 0.88);
+      box-shadow: 0 0 28px rgba(255, 79, 200, 0.2);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, 10px) scale(0.94);
+    }
+
+    .toast.show {
+      animation: toastPop 1s ease both;
+    }
+
+    .modal {
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      display: grid;
+      padding: calc(20px + var(--safe-top)) 18px calc(20px + var(--safe-bottom));
+      place-items: center;
+      visibility: hidden;
+      background: rgba(3, 5, 17, 0.56);
+      backdrop-filter: blur(0);
+      -webkit-backdrop-filter: blur(0);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 220ms ease, visibility 220ms ease, backdrop-filter 220ms ease;
+    }
+
+    .modal.visible {
+      visibility: visible;
+      background: rgba(3, 5, 17, 0.65);
+      backdrop-filter: blur(9px);
+      -webkit-backdrop-filter: blur(9px);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      position: relative;
+      width: min(100%, 390px);
+      max-height: 100%;
+      padding: 27px 24px 22px;
+      overflow: auto;
+      border: 1px solid rgba(98, 246, 255, 0.2);
+      border-radius: 27px;
+      background:
+        radial-gradient(circle at 90% 0%, rgba(155, 123, 255, 0.16), transparent 42%),
+        radial-gradient(circle at 0% 100%, rgba(98, 246, 255, 0.08), transparent 42%),
+        linear-gradient(150deg, rgba(22, 26, 58, 0.97), rgba(9, 12, 30, 0.98));
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.09), 0 24px 80px rgba(0, 0, 0, 0.48),
+        0 0 45px rgba(98, 246, 255, 0.06);
+      text-align: center;
+      touch-action: pan-y;
+      transform: translateY(14px) scale(0.97);
+      transition: transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .modal.visible .modal-card {
+      transform: translateY(0) scale(1);
+    }
+
+    .modal-symbol {
+      display: grid;
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 15px;
+      place-items: center;
+      border: 1px solid rgba(98, 246, 255, 0.32);
+      border-radius: 20px;
+      color: var(--cyan);
+      background: linear-gradient(145deg, rgba(98, 246, 255, 0.14), rgba(255, 79, 200, 0.08));
+      box-shadow: inset 0 0 22px rgba(98, 246, 255, 0.08), 0 0 28px rgba(98, 246, 255, 0.1);
+      font-size: 28px;
+      font-weight: 900;
+      text-shadow: 0 0 16px rgba(98, 246, 255, 0.5);
+      transform: rotate(-4deg);
+    }
+
+    .modal-kicker {
+      margin: 0 0 7px;
+      color: var(--cyan);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    .modal-title {
+      margin: 0;
+      font-size: clamp(27px, 8vw, 35px);
+      font-weight: 900;
+      line-height: 1.16;
+      letter-spacing: -0.04em;
+    }
+
+    .modal-message {
+      margin: 10px auto 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .intro-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+      margin-bottom: 19px;
+    }
+
+    .instruction {
+      padding: 12px 8px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 15px;
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .instruction-icon {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--cyan);
+      font-size: 20px;
+      font-weight: 850;
+      line-height: 1.1;
+    }
+
+    .instruction:nth-child(2) .instruction-icon {
+      color: var(--pink);
+    }
+
+    .instruction strong {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 12px;
+    }
+
+    .instruction small {
+      display: block;
+      color: var(--muted);
+      font-size: 9px;
+      line-height: 1.5;
+    }
+
+    .result-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+      margin: 0 0 19px;
+    }
+
+    .result-item {
+      padding: 12px 8px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 15px;
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .result-item span {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .result-item strong {
+      color: var(--cyan);
+      font-size: 25px;
+      font-weight: 850;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .result-item strong small {
+      margin-left: 3px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .primary-button,
+    .secondary-button {
+      width: 100%;
+      min-height: 50px;
+      border-radius: 15px;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      transition: transform 150ms ease, filter 150ms ease;
+    }
+
+    .primary-button {
+      color: #07131d;
+      background: linear-gradient(100deg, #72f7ff, #8ed8ff 48%, #c69cff);
+      box-shadow: 0 10px 28px rgba(98, 246, 255, 0.18), inset 0 1px rgba(255, 255, 255, 0.6);
+    }
+
+    .secondary-button {
+      margin-top: 9px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #d7daef;
+      background: rgba(255, 255, 255, 0.045);
+    }
+
+    .primary-button:active,
+    .secondary-button:active {
+      filter: brightness(0.9);
+      transform: scale(0.975);
+    }
+
+    .modal-footnote {
+      margin: 13px 0 0;
+      color: #777d9f;
+      font-size: 9px;
+      line-height: 1.5;
+      letter-spacing: 0.04em;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    @keyframes dragHint {
+      0%, 100% { transform: translateX(-2px); }
+      50% { transform: translateX(3px); }
+    }
+
+    @keyframes toastPop {
+      0% { opacity: 0; transform: translate(-50%, 12px) scale(0.92); }
+      18%, 68% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -16px) scale(0.97); }
+    }
+
+    @media (max-width: 350px) {
+      .hud { padding-right: 10px; padding-left: 10px; }
+      .stat { padding-right: 9px; padding-left: 9px; }
+      .keyboard-hint { display: none; }
+      .modal-card { padding-right: 19px; padding-left: 19px; }
+    }
+
+    @media (max-height: 650px) {
+      .hud { padding-top: calc(8px + var(--safe-top)); }
+      .topbar { margin-bottom: 7px; }
+      .brand-mark { width: 28px; height: 28px; }
+      .pause-button { width: 37px; height: 37px; }
+      .stat { padding-top: 7px; padding-bottom: 9px; }
+      .status-row { min-height: 24px; padding-top: 4px; }
+      .modal-card { padding-top: 19px; padding-bottom: 17px; }
+      .modal-symbol { width: 48px; height: 48px; margin-bottom: 10px; font-size: 23px; }
+      .modal-message { margin-top: 7px; margin-bottom: 12px; }
+      .intro-details, .result-panel { margin-bottom: 13px; }
+      .modal-footnote { margin-top: 9px; }
+      .control-hint { bottom: calc(9px + var(--safe-bottom)); }
+    }
+
+    @media (min-width: 700px) {
+      .hud { padding-top: 20px; }
+      .control-hint { bottom: 22px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" tabindex="0" aria-label="滑雪游戏区域：按住并左右拖动来躲避树木">
+    你的浏览器需要支持 Canvas 才能运行滑雪躲避。
+  </canvas>
+
+  <header class="hud" aria-label="游戏状态">
+    <div class="hud-inner">
+      <div class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">✦</span>
+          <span class="brand-copy">
+            <span class="brand-name">霓虹雪线</span>
+            <span class="brand-subtitle">NEON SKI</span>
+          </span>
+        </div>
+        <button id="pauseBtn" class="pause-button" type="button" aria-label="暂停游戏" disabled>
+          <span id="pauseIcon" aria-hidden="true">Ⅱ</span>
+        </button>
+      </div>
+
+      <div class="stats">
+        <div class="stat stat-primary">
+          <span class="stat-label">滑行距离</span>
+          <strong class="stat-value"><span id="scoreValue">0</span><small class="stat-unit">米</small></strong>
+          <div id="progressTrack" class="progress-track" role="progressbar" aria-label="终点进度" aria-valuemin="0" aria-valuemax="1000" aria-valuenow="0">
+            <div id="progressFill" class="progress-fill"></div>
+          </div>
+        </div>
+        <div class="stat">
+          <span class="stat-label">最高分</span>
+          <strong class="stat-value"><span id="bestValue">0</span><small class="stat-unit">米</small></strong>
+        </div>
+        <div class="stat">
+          <span class="stat-label">当前速度</span>
+          <strong class="stat-value"><span id="speedValue">26</span><small class="stat-unit">km/h</small></strong>
+        </div>
+      </div>
+
+      <div class="status-row">
+        <div id="health" class="health" role="status" aria-label="剩余体力 3 / 3"></div>
+        <div class="goal-label">终点 <strong>1000 米</strong></div>
+      </div>
+    </div>
+  </header>
+
+  <div id="toast" class="toast" role="status" aria-live="polite">撞树！速度下降</div>
+
+  <div class="control-hint" aria-hidden="true">
+    <span class="drag-icon">↔</span>
+    <span>按住雪道 · 左右拖动</span>
+    <span class="keyboard-hint">← → / A D</span>
+  </div>
+
+  <div id="modal" class="modal visible" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-hidden="false">
+    <section class="modal-card">
+      <div id="modalSymbol" class="modal-symbol" aria-hidden="true">✦</div>
+      <p id="modalKicker" class="modal-kicker">NIGHT RUN · 夜滑挑战</p>
+      <h1 id="modalTitle" class="modal-title">滑雪躲避</h1>
+      <p id="modalMessage" class="modal-message">穿越霓虹雪道，向 1000 米终点冲刺。</p>
+
+      <div id="introDetails" class="intro-details">
+        <div class="instruction">
+          <span class="instruction-icon" aria-hidden="true">↔</span>
+          <strong>左右拖动</strong>
+          <small>按住雪道移动滑雪者<br>也支持方向键 / A D</small>
+        </div>
+        <div class="instruction">
+          <span class="instruction-icon" aria-hidden="true">♥</span>
+          <strong>躲开树木</strong>
+          <small>撞树会减速并损失体力<br>抵达 1000 米即获胜</small>
+        </div>
+      </div>
+
+      <div id="resultPanel" class="result-panel" hidden>
+        <div class="result-item">
+          <span>本次距离</span>
+          <strong><span id="finalScore">0</span><small>米</small></strong>
+        </div>
+        <div class="result-item">
+          <span>历史最高</span>
+          <strong><span id="finalBest">0</span><small>米</small></strong>
+        </div>
+      </div>
+
+      <button id="primaryBtn" class="primary-button" type="button">开始滑行 →</button>
+      <button id="secondaryBtn" class="secondary-button" type="button" hidden>重新开始</button>
+      <p class="modal-footnote">3 点体力 · 越滑越快 · 最高纪录保存在本机</p>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // ---------- DOM 与常量 ----------
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const pauseBtn = document.getElementById("pauseBtn");
+      const pauseIcon = document.getElementById("pauseIcon");
+      const scoreValue = document.getElementById("scoreValue");
+      const bestValue = document.getElementById("bestValue");
+      const speedValue = document.getElementById("speedValue");
+      const healthEl = document.getElementById("health");
+      const progressTrack = document.getElementById("progressTrack");
+      const progressFill = document.getElementById("progressFill");
+      const toast = document.getElementById("toast");
+      const modal = document.getElementById("modal");
+      const modalSymbol = document.getElementById("modalSymbol");
+      const modalKicker = document.getElementById("modalKicker");
+      const modalTitle = document.getElementById("modalTitle");
+      const modalMessage = document.getElementById("modalMessage");
+      const introDetails = document.getElementById("introDetails");
+      const resultPanel = document.getElementById("resultPanel");
+      const finalScore = document.getElementById("finalScore");
+      const finalBest = document.getElementById("finalBest");
+      const primaryBtn = document.getElementById("primaryBtn");
+      const secondaryBtn = document.getElementById("secondaryBtn");
+
+      const GOAL_DISTANCE = 1000;
+      const MAX_HEALTH = 3;
+      const STORAGE_KEY = "neon-ski-best-v1";
+
+      // ---------- 游戏状态 ----------
+      let width = 0;
+      let height = 0;
+      let pixelRatio = 1;
+      let state = "ready"; // ready / running / paused / over / won
+      let distance = 0;
+      let best = loadBest();
+      let speed = 220;
+      let health = MAX_HEALTH;
+      let spawnTimer = 0;
+      let invulnerable = 0;
+      let shake = 0;
+      let flash = 0;
+      let elapsed = 0;
+      let lastTime = performance.now();
+      let drag = null;
+      let trees = [];
+      let particles = [];
+      let stars = [];
+      let snowflakes = [];
+      const keys = { left: false, right: false };
+      const player = { x: 0, targetX: 0, y: 0, lean: 0 };
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function random(min, max) {
+        return min + Math.random() * (max - min);
+      }
+
+      function playerBounds() {
+        const margin = Math.max(28, Math.min(56, width * 0.09));
+        return { min: margin, max: width - margin };
+      }
+
+      // 本地存储在隐私模式下可能不可用，需静默降级。
+      function loadBest() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(STORAGE_KEY), 10);
+          return Number.isFinite(value) && value >= 0 ? value : 0;
+        } catch (error) {
+          return 0;
+        }
+      }
+
+      function saveBest() {
+        try {
+          localStorage.setItem(STORAGE_KEY, String(best));
+        } catch (error) {
+          // 存储失败不影响本局游戏。
+        }
+      }
+
+      // ---------- 自适应画布与背景 ----------
+      function resizeCanvas() {
+        const oldWidth = width;
+        const rect = canvas.getBoundingClientRect();
+        width = Math.max(1, rect.width);
+        height = Math.max(1, rect.height);
+        pixelRatio = Math.min(window.devicePixelRatio || 1, 2.5);
+        canvas.width = Math.round(width * pixelRatio);
+        canvas.height = Math.round(height * pixelRatio);
+
+        if (oldWidth > 0) {
+          const ratio = width / oldWidth;
+          player.x *= ratio;
+          player.targetX *= ratio;
+          trees.forEach((tree) => { tree.x *= ratio; });
+        } else {
+          player.x = width / 2;
+          player.targetX = width / 2;
+        }
+        player.y = height * (height < 560 ? 0.74 : 0.77);
+        const bounds = playerBounds();
+        player.x = clamp(player.x, bounds.min, bounds.max);
+        player.targetX = clamp(player.targetX, bounds.min, bounds.max);
+        createBackdrop();
+      }
+
+      function createBackdrop() {
+        const starCount = Math.round(clamp(width / 8, 28, 80));
+        const snowCount = Math.round(clamp(width / 8, 30, 78));
+        stars = Array.from({ length: starCount }, () => ({
+          x: Math.random() * width,
+          y: Math.random() * height * 0.52,
+          size: random(0.4, 1.5),
+          alpha: random(0.25, 0.85),
+          depth: random(0.2, 1)
+        }));
+        snowflakes = Array.from({ length: snowCount }, () => ({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          size: random(0.6, 2),
+          speed: random(14, 38),
+          alpha: random(0.15, 0.55),
+          phase: random(0, Math.PI * 2)
+        }));
+      }
+
+      // ---------- 分数、体力与界面 ----------
+      function updateHUD() {
+        const currentScore = Math.floor(distance);
+        scoreValue.textContent = String(currentScore);
+        bestValue.textContent = String(Math.max(best, currentScore));
+        speedValue.textContent = String(Math.round(speed * 0.12));
+        const progress = clamp(distance / GOAL_DISTANCE * 100, 0, 100);
+        progressFill.style.width = `${progress}%`;
+        progressTrack.setAttribute("aria-valuenow", String(currentScore));
+      }
+
+      function renderHealth() {
+        healthEl.innerHTML = Array.from({ length: MAX_HEALTH }, (_, index) => (
+          `<span class="heart${index < health ? "" : " lost"}" aria-hidden="true">♥</span>`
+        )).join("");
+        healthEl.setAttribute("aria-label", `剩余体力 ${health} / ${MAX_HEALTH}`);
+      }
+
+      function updatePauseButton() {
+        const paused = state === "paused";
+        pauseIcon.textContent = paused ? "▶" : "Ⅱ";
+        pauseBtn.setAttribute("aria-label", paused ? "继续游戏" : "暂停游戏");
+        pauseBtn.disabled = state !== "running" && state !== "paused";
+      }
+
+      function showModal(kind) {
+        const isIntro = kind === "ready";
+        const isResult = kind === "over" || kind === "won";
+        introDetails.hidden = !isIntro;
+        resultPanel.hidden = !isResult;
+        secondaryBtn.hidden = kind !== "paused";
+
+        if (kind === "ready") {
+          modalSymbol.textContent = "✦";
+          modalKicker.textContent = "NIGHT RUN · 夜滑挑战";
+          modalTitle.textContent = "滑雪躲避";
+          modalMessage.textContent = "穿越霓虹雪道，向 1000 米终点冲刺。";
+          primaryBtn.textContent = "开始滑行 →";
+        } else if (kind === "paused") {
+          modalSymbol.textContent = "Ⅱ";
+          modalKicker.textContent = "TAKE A BREATH";
+          modalTitle.textContent = "已暂停";
+          modalMessage.textContent = "雪花等你，准备好再继续。";
+          primaryBtn.textContent = "继续滑行 →";
+        } else if (kind === "won") {
+          modalSymbol.textContent = "🏆";
+          modalKicker.textContent = "FINISH LINE · 挑战成功";
+          modalTitle.textContent = "抵达霓虹终点！";
+          modalMessage.textContent = "漂亮！你征服了这条 1000 米雪道。";
+          primaryBtn.textContent = "再来一局 →";
+        } else {
+          modalSymbol.textContent = "◆";
+          modalKicker.textContent = "RUN ENDED · 挑战结束";
+          modalTitle.textContent = "滑雪中断";
+          modalMessage.textContent = "体力耗尽。调整节奏，再刷一次纪录！";
+          primaryBtn.textContent = "再滑一次 →";
+        }
+
+        if (isResult) {
+          finalScore.textContent = String(Math.floor(distance));
+          finalBest.textContent = String(best);
+        }
+        modal.classList.add("visible");
+        modal.setAttribute("aria-hidden", "false");
+        window.setTimeout(() => primaryBtn.focus({ preventScroll: true }), 80);
+      }
+
+      function hideModal() {
+        modal.classList.remove("visible");
+        modal.setAttribute("aria-hidden", "true");
+        canvas.focus({ preventScroll: true });
+      }
+
+      function showCollisionToast() {
+        toast.classList.remove("show");
+        // 强制重启动画，连续撞树时也能清晰反馈。
+        void toast.offsetWidth;
+        toast.classList.add("show");
+      }
+
+      // ---------- 游戏流程 ----------
+      function resetGame() {
+        distance = 0;
+        speed = 220;
+        health = MAX_HEALTH;
+        spawnTimer = 0.2;
+        invulnerable = 0;
+        shake = 0;
+        flash = 0;
+        drag = null;
+        trees = [];
+        particles = [];
+        keys.left = false;
+        keys.right = false;
+        player.x = width / 2;
+        player.targetX = width / 2;
+        player.lean = 0;
+        renderHealth();
+        updateHUD();
+      }
+
+      function startGame() {
+        resetGame();
+        state = "running";
+        updatePauseButton();
+        hideModal();
+      }
+
+      function pauseGame() {
+        if (state !== "running") return;
+        state = "paused";
+        drag = null;
+        keys.left = false;
+        keys.right = false;
+        updatePauseButton();
+        showModal("paused");
+      }
+
+      function resumeGame() {
+        if (state !== "paused") return;
+        state = "running";
+        updatePauseButton();
+        hideModal();
+      }
+
+      function finishGame(won) {
+        state = won ? "won" : "over";
+        drag = null;
+        keys.left = false;
+        keys.right = false;
+        const currentScore = Math.floor(distance);
+        if (currentScore > best) {
+          best = currentScore;
+          saveBest();
+        }
+        updateHUD();
+        updatePauseButton();
+        showModal(state);
+      }
+
+      // ---------- 树木生成与碰撞 ----------
+      function spawnRow() {
+        const laneCount = width < 430 ? 5 : 7;
+        const margin = Math.max(26, width * 0.065);
+        const laneWidth = (width - margin * 2) / laneCount;
+        const lanes = Array.from({ length: laneCount }, (_, index) => index);
+        const doubleChance = clamp((distance - 100) / 1500, 0, 0.42);
+        const treeCount = distance > 100 && Math.random() < doubleChance ? 2 : 1;
+        const sizeScale = clamp(width / 390, 0.86, 1.15);
+
+        for (let i = 0; i < treeCount; i += 1) {
+          const laneIndex = Math.floor(Math.random() * lanes.length);
+          const lane = lanes.splice(laneIndex, 1)[0];
+          trees.push({
+            x: margin + laneWidth * (lane + 0.5) + random(-laneWidth * 0.14, laneWidth * 0.14),
+            y: -65 - i * 16,
+            size: random(43, 59) * sizeScale,
+            hit: false,
+            tint: Math.random() > 0.5 ? "cyan" : "violet"
+          });
+        }
+      }
+
+      function burstAt(x, y) {
+        for (let i = 0; i < 20; i += 1) {
+          const angle = random(0, Math.PI * 2);
+          const force = random(45, 180);
+          particles.push({
+            x,
+            y: y - 8,
+            vx: Math.cos(angle) * force,
+            vy: Math.sin(angle) * force - 35,
+            life: random(0.35, 0.8),
+            maxLife: 0.8,
+            size: random(1.5, 4),
+            color: Math.random() > 0.45 ? "#ff4fc8" : "#62f6ff"
+          });
+        }
+      }
+
+      function hitTree(tree) {
+        if (tree.hit || invulnerable > 0 || state !== "running") return;
+        tree.hit = true;
+        health -= 1;
+        speed = Math.max(112, speed * 0.48); // 撞树立即减速，随后逐渐恢复。
+        invulnerable = 1.2;
+        shake = 13;
+        flash = 0.32;
+        burstAt(player.x, player.y);
+        renderHealth();
+        showCollisionToast();
+      }
+
+      function checkCollision(tree) {
+        const hitWidth = tree.size * 0.22 + 13;
+        const hitHeight = tree.size * 0.2 + 14;
+        if (Math.abs(tree.x - player.x) < hitWidth && Math.abs(tree.y - player.y) < hitHeight) {
+          hitTree(tree);
+        }
+      }
+
+      // ---------- 每帧更新 ----------
+      function update(dt) {
+        elapsed += dt;
+        shake = Math.max(0, shake - dt * 34);
+        flash = Math.max(0, flash - dt);
+
+        // 环境雪始终缓慢飘落，暂停时游戏对象保持静止。
+        const ambientBoost = state === "running" ? speed * 0.1 : 5;
+        snowflakes.forEach((flake) => {
+          flake.y += (flake.speed + ambientBoost) * dt;
+          flake.x += Math.sin(elapsed * 0.8 + flake.phase) * dt * 5;
+          if (flake.y > height + 4) {
+            flake.y = -4;
+            flake.x = Math.random() * width;
+          }
+          if (flake.x < -4) flake.x = width + 4;
+          if (flake.x > width + 4) flake.x = -4;
+        });
+
+        if (state !== "paused") {
+          for (let i = particles.length - 1; i >= 0; i -= 1) {
+            const particle = particles[i];
+            particle.life -= dt;
+            if (particle.life <= 0) {
+              particles.splice(i, 1);
+              continue;
+            }
+            particle.x += particle.vx * dt;
+            particle.y += particle.vy * dt;
+            particle.vy += 150 * dt;
+            particle.vx *= Math.pow(0.96, dt * 60);
+          }
+        }
+
+        if (state !== "running") return;
+
+        invulnerable = Math.max(0, invulnerable - dt);
+        const targetSpeed = 220 + Math.min(190, distance * 0.19);
+        speed += (targetSpeed - speed) * Math.min(1, dt * 0.82);
+        distance = Math.min(GOAL_DISTANCE, distance + speed * dt * 0.07);
+
+        const direction = Number(keys.right) - Number(keys.left);
+        if (direction !== 0) {
+          player.targetX += direction * Math.max(290, width * 0.9) * dt;
+        }
+        const bounds = playerBounds();
+        player.targetX = clamp(player.targetX, bounds.min, bounds.max);
+        const previousX = player.x;
+        player.x += (player.targetX - player.x) * (1 - Math.exp(-dt * 17));
+        const horizontalSpeed = (player.x - previousX) / Math.max(dt, 0.001);
+        player.lean += (clamp(horizontalSpeed / 360, -0.55, 0.55) - player.lean) * Math.min(1, dt * 11);
+
+        spawnTimer -= dt;
+        if (spawnTimer <= 0) {
+          spawnRow();
+          spawnTimer = Math.max(0.44, 0.82 - distance / 2400) * random(0.9, 1.13);
+        }
+
+        for (let i = trees.length - 1; i >= 0; i -= 1) {
+          const tree = trees[i];
+          tree.y += speed * dt;
+          checkCollision(tree);
+          if (tree.y > height + 90) trees.splice(i, 1);
+        }
+
+        updateHUD();
+        if (health <= 0) {
+          finishGame(false);
+        } else if (distance >= GOAL_DISTANCE) {
+          finishGame(true);
+        }
+      }
+
+      // ---------- 霓虹雪道绘制 ----------
+      function drawBackground() {
+        const sky = ctx.createLinearGradient(0, 0, 0, height);
+        sky.addColorStop(0, "#060817");
+        sky.addColorStop(0.5, "#10132d");
+        sky.addColorStop(1, "#101a34");
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, width, height);
+
+        const aurora = ctx.createRadialGradient(width * 0.15, height * 0.24, 0, width * 0.15, height * 0.24, width * 0.75);
+        aurora.addColorStop(0, "rgba(74, 80, 210, 0.18)");
+        aurora.addColorStop(0.55, "rgba(27, 174, 190, 0.05)");
+        aurora.addColorStop(1, "rgba(5, 8, 23, 0)");
+        ctx.fillStyle = aurora;
+        ctx.fillRect(0, 0, width, height * 0.8);
+
+        stars.forEach((star) => {
+          const twinkle = 0.72 + Math.sin(elapsed * 1.5 + star.x) * 0.28;
+          ctx.globalAlpha = star.alpha * twinkle;
+          ctx.fillStyle = "#d8faff";
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+
+        drawMountains(height * 0.23, height * 0.09, "#10152f", "rgba(130, 111, 255, 0.16)", 0);
+        drawMountains(height * 0.29, height * 0.065, "#111a35", "rgba(98, 246, 255, 0.13)", 1.7);
+
+        const horizon = height * 0.22;
+        const slope = ctx.createLinearGradient(0, horizon, 0, height);
+        slope.addColorStop(0, "rgba(27, 38, 70, 0.72)");
+        slope.addColorStop(1, "rgba(21, 40, 65, 0.92)");
+        ctx.fillStyle = slope;
+        ctx.beginPath();
+        ctx.moveTo(width * 0.09, horizon);
+        ctx.lineTo(width * 0.91, horizon);
+        ctx.lineTo(width * 1.08, height);
+        ctx.lineTo(-width * 0.08, height);
+        ctx.closePath();
+        ctx.fill();
+
+        // 雪道两侧的霓虹边界。
+        ctx.save();
+        ctx.shadowColor = "rgba(98, 246, 255, 0.5)";
+        ctx.shadowBlur = 8;
+        ctx.strokeStyle = "rgba(98, 246, 255, 0.19)";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(width * 0.09, horizon);
+        ctx.lineTo(-width * 0.08, height);
+        ctx.moveTo(width * 0.91, horizon);
+        ctx.lineTo(width * 1.08, height);
+        ctx.stroke();
+        ctx.restore();
+
+        // 向下移动的虚线与横向雪纹强化速度感。
+        ctx.save();
+        ctx.strokeStyle = "rgba(126, 204, 236, 0.075)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([7, 24]);
+        ctx.lineDashOffset = -(distance * 5 + elapsed * (state === "running" ? 10 : 2));
+        [0.3, 0.5, 0.7].forEach((ratio) => {
+          ctx.beginPath();
+          ctx.moveTo(width * ratio, horizon);
+          ctx.lineTo(width * (0.5 + (ratio - 0.5) * 1.45), height);
+          ctx.stroke();
+        });
+        ctx.restore();
+
+        const stripeOffset = (distance * 8) % 92;
+        ctx.strokeStyle = "rgba(184, 225, 255, 0.045)";
+        ctx.lineWidth = 1;
+        for (let y = horizon - 92 + stripeOffset; y < height; y += 92) {
+          const perspective = clamp((y - horizon) / Math.max(1, height - horizon), 0, 1);
+          const inset = width * (0.09 * (1 - perspective));
+          ctx.beginPath();
+          ctx.moveTo(inset, y);
+          ctx.lineTo(width - inset, y);
+          ctx.stroke();
+        }
+      }
+
+      function drawMountains(baseY, amplitude, fill, stroke, phase) {
+        ctx.beginPath();
+        ctx.moveTo(0, baseY);
+        const segments = 8;
+        for (let i = 0; i <= segments; i += 1) {
+          const peak = (Math.sin(i * 2.17 + phase) * 0.5 + 0.5) * amplitude;
+          ctx.lineTo(i / segments * width, baseY - peak);
+        }
+        ctx.lineTo(width, baseY + amplitude * 0.7);
+        ctx.lineTo(0, baseY + amplitude * 0.7);
+        ctx.closePath();
+        ctx.fillStyle = fill;
+        ctx.fill();
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      function drawFinishLine() {
+        const remaining = GOAL_DISTANCE - distance;
+        if (remaining > 60) return;
+        const y = player.y - remaining / 0.07;
+        if (y < -40 || y > height + 40) return;
+        const cells = 12;
+        const cellWidth = width / cells;
+        ctx.save();
+        ctx.shadowColor = "#62f6ff";
+        ctx.shadowBlur = 12;
+        for (let row = 0; row < 2; row += 1) {
+          for (let i = 0; i < cells; i += 1) {
+            ctx.fillStyle = (i + row) % 2 === 0 ? "#b9fbff" : "#ff69d1";
+            ctx.fillRect(i * cellWidth, y + row * 7, cellWidth + 1, 7);
+          }
+        }
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "rgba(5, 9, 25, 0.88)";
+        ctx.fillRect(width / 2 - 55, y - 25, 110, 19);
+        ctx.fillStyle = "#dffeff";
+        ctx.font = "800 10px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("FINISH · 终点", width / 2, y - 12);
+        ctx.restore();
+      }
+
+      function drawTree(tree) {
+        const size = tree.size;
+        ctx.save();
+        ctx.translate(tree.x, tree.y);
+        if (tree.hit) ctx.globalAlpha = 0.48;
+
+        ctx.fillStyle = "rgba(1, 5, 16, 0.34)";
+        ctx.beginPath();
+        ctx.ellipse(0, 5, size * 0.37, size * 0.1, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.shadowColor = tree.tint === "cyan" ? "rgba(59, 234, 255, 0.48)" : "rgba(164, 113, 255, 0.48)";
+        ctx.shadowBlur = 13;
+        ctx.fillStyle = "#513e68";
+        ctx.fillRect(-3, -13, 6, 17);
+
+        for (let layer = 0; layer < 3; layer += 1) {
+          const baseY = -layer * size * 0.18;
+          const halfWidth = size * (0.37 - layer * 0.055);
+          const topY = baseY - size * 0.46;
+          const foliage = ctx.createLinearGradient(-halfWidth, 0, halfWidth, 0);
+          foliage.addColorStop(0, tree.tint === "cyan" ? "#0d3a4a" : "#25244e");
+          foliage.addColorStop(0.55, "#102b42");
+          foliage.addColorStop(1, "#091c31");
+          ctx.beginPath();
+          ctx.moveTo(0, topY);
+          ctx.lineTo(-halfWidth, baseY);
+          ctx.quadraticCurveTo(0, baseY - size * 0.06, halfWidth, baseY);
+          ctx.closePath();
+          ctx.fillStyle = foliage;
+          ctx.fill();
+          ctx.strokeStyle = tree.tint === "cyan" ? "rgba(98, 246, 255, 0.5)" : "rgba(174, 135, 255, 0.48)";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          // 每层松针上的少量霓虹积雪。
+          ctx.beginPath();
+          ctx.moveTo(0, topY + 2);
+          ctx.lineTo(-halfWidth * 0.55, baseY - size * 0.17);
+          ctx.strokeStyle = "rgba(198, 250, 255, 0.38)";
+          ctx.lineWidth = 1.4;
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = "#e5ffff";
+        ctx.beginPath();
+        ctx.arc(0, -size * 0.83, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawPlayer() {
+        ctx.save();
+        ctx.translate(player.x, player.y);
+        if (invulnerable > 0 && Math.floor(invulnerable * 12) % 2 === 0) {
+          ctx.globalAlpha = 0.42;
+        }
+
+        if (invulnerable > 0) {
+          ctx.strokeStyle = `rgba(98, 246, 255, ${0.2 + invulnerable * 0.25})`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.ellipse(0, -10, 26, 38, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        ctx.rotate(player.lean * 0.32);
+        ctx.fillStyle = "rgba(1, 5, 16, 0.4)";
+        ctx.beginPath();
+        ctx.ellipse(0, 14, 24, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 滑雪板、雪杖与身体采用分色霓虹描边。
+        ctx.save();
+        ctx.strokeStyle = "#7df8ff";
+        ctx.shadowColor = "#62f6ff";
+        ctx.shadowBlur = 10;
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(-8, 1);
+        ctx.lineTo(-12, 19);
+        ctx.quadraticCurveTo(-13, 24, -17, 22);
+        ctx.moveTo(8, 1);
+        ctx.lineTo(12, 19);
+        ctx.quadraticCurveTo(13, 24, 17, 22);
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.strokeStyle = "rgba(189, 172, 255, 0.72)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-8, -20);
+        ctx.lineTo(-20, 9);
+        ctx.moveTo(8, -20);
+        ctx.lineTo(20, 9);
+        ctx.stroke();
+
+        ctx.save();
+        ctx.shadowColor = "#ff4fc8";
+        ctx.shadowBlur = 14;
+        const jacket = ctx.createLinearGradient(-10, -25, 10, -5);
+        jacket.addColorStop(0, "#ff77d7");
+        jacket.addColorStop(1, "#a650e7");
+        ctx.fillStyle = jacket;
+        ctx.beginPath();
+        ctx.moveTo(-7, -26);
+        ctx.quadraticCurveTo(-13, -20, -10, -7);
+        ctx.quadraticCurveTo(0, -2, 10, -7);
+        ctx.quadraticCurveTo(13, -20, 7, -26);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        ctx.strokeStyle = "#25213e";
+        ctx.lineWidth = 4;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(-4, -7);
+        ctx.lineTo(-8, 3);
+        ctx.moveTo(4, -7);
+        ctx.lineTo(8, 3);
+        ctx.stroke();
+
+        ctx.fillStyle = "#d9d7f4";
+        ctx.beginPath();
+        ctx.arc(0, -34, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#292444";
+        ctx.beginPath();
+        ctx.arc(0, -35, 7, Math.PI, Math.PI * 2);
+        ctx.fill();
+        ctx.save();
+        ctx.strokeStyle = "#62f6ff";
+        ctx.shadowColor = "#62f6ff";
+        ctx.shadowBlur = 8;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(-5, -34);
+        ctx.lineTo(5, -34);
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.strokeStyle = "#ff8de0";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-4, -28);
+        ctx.quadraticCurveTo(-13 - player.lean * 12, -28, -18 - player.lean * 15, -23);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawParticles() {
+        particles.forEach((particle) => {
+          ctx.globalAlpha = clamp(particle.life / particle.maxLife, 0, 1);
+          ctx.fillStyle = particle.color;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+      }
+
+      function drawSnow() {
+        snowflakes.forEach((flake) => {
+          ctx.globalAlpha = flake.alpha;
+          ctx.fillStyle = "#e5f8ff";
+          ctx.beginPath();
+          ctx.arc(flake.x, flake.y, flake.size, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+      }
+
+      function render() {
+        ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+        ctx.clearRect(0, 0, width, height);
+        ctx.save();
+        if (shake > 0) {
+          ctx.translate(random(-shake, shake) * 0.45, random(-shake, shake) * 0.45);
+        }
+        drawBackground();
+        drawFinishLine();
+        trees.sort((a, b) => a.y - b.y);
+        trees.forEach(drawTree);
+        drawPlayer();
+        drawParticles();
+        drawSnow();
+        ctx.restore();
+
+        // 边缘暗角让 HUD 与主体更突出。
+        const vignette = ctx.createRadialGradient(width / 2, height * 0.48, width * 0.15, width / 2, height * 0.48, Math.max(width, height) * 0.72);
+        vignette.addColorStop(0, "rgba(2, 4, 15, 0)");
+        vignette.addColorStop(1, "rgba(2, 4, 15, 0.38)");
+        ctx.fillStyle = vignette;
+        ctx.fillRect(0, 0, width, height);
+
+        if (flash > 0) {
+          ctx.fillStyle = `rgba(255, 55, 174, ${flash * 0.34})`;
+          ctx.fillRect(0, 0, width, height);
+        }
+      }
+
+      // ---------- 触屏、鼠标与键盘输入 ----------
+      function pointerPosition(event) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      }
+
+      canvas.addEventListener("pointerdown", (event) => {
+        if (state !== "running" || (event.pointerType === "mouse" && event.button !== 0)) return;
+        event.preventDefault();
+        const point = pointerPosition(event);
+        drag = {
+          id: event.pointerId,
+          startX: point.x,
+          startPlayerX: player.x
+        };
+        player.targetX = player.x;
+        canvas.setPointerCapture(event.pointerId);
+      });
+
+      canvas.addEventListener("pointermove", (event) => {
+        if (!drag || drag.id !== event.pointerId || state !== "running") return;
+        event.preventDefault();
+        const point = pointerPosition(event);
+        const bounds = playerBounds();
+        // 相对拖动不要求手指盖住滑雪者，略微放大位移更适合手机。
+        player.targetX = clamp(
+          drag.startPlayerX + (point.x - drag.startX) * 1.18,
+          bounds.min,
+          bounds.max
+        );
+      });
+
+      function endDrag(event) {
+        if (!drag || drag.id !== event.pointerId) return;
+        drag = null;
+        if (canvas.hasPointerCapture(event.pointerId)) {
+          canvas.releasePointerCapture(event.pointerId);
+        }
+      }
+
+      canvas.addEventListener("pointerup", endDrag);
+      canvas.addEventListener("pointercancel", endDrag);
+      canvas.addEventListener("contextmenu", (event) => event.preventDefault());
+
+      window.addEventListener("keydown", (event) => {
+        const code = event.code;
+        if (["ArrowLeft", "ArrowRight", "Space"].includes(code)) event.preventDefault();
+        if (code === "ArrowLeft" || code === "KeyA") keys.left = true;
+        if (code === "ArrowRight" || code === "KeyD") keys.right = true;
+        if (event.repeat) return;
+        if (code === "KeyP" || code === "Escape" || (code === "Space" && state === "running")) {
+          if (state === "running") pauseGame();
+          else if (state === "paused") resumeGame();
+        }
+      });
+
+      window.addEventListener("keyup", (event) => {
+        if (event.code === "ArrowLeft" || event.code === "KeyA") keys.left = false;
+        if (event.code === "ArrowRight" || event.code === "KeyD") keys.right = false;
+      });
+
+      primaryBtn.addEventListener("click", () => {
+        if (state === "paused") resumeGame();
+        else if (state !== "running") startGame();
+      });
+      secondaryBtn.addEventListener("click", startGame);
+      pauseBtn.addEventListener("click", () => {
+        if (state === "running") pauseGame();
+        else if (state === "paused") resumeGame();
+      });
+
+      // 禁止页面滚动、手势缩放与双击缩放，保留游戏内触控。
+      document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturechange", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("dblclick", (event) => event.preventDefault(), { passive: false });
+      let lastTouchEnd = 0;
+      document.addEventListener("touchend", (event) => {
+        const now = performance.now();
+        if (now - lastTouchEnd < 350) event.preventDefault();
+        lastTouchEnd = now;
+      }, { passive: false });
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && state === "running") pauseGame();
+      });
+      window.addEventListener("pagehide", () => {
+        const currentScore = Math.floor(distance);
+        if (currentScore > best) {
+          best = currentScore;
+          saveBest();
+        }
+      });
+      window.addEventListener("resize", resizeCanvas);
+
+      // ---------- 启动主循环 ----------
+      function frame(now) {
+        const dt = Math.min(0.034, Math.max(0, (now - lastTime) / 1000));
+        lastTime = now;
+        update(dt);
+        render();
+        requestAnimationFrame(frame);
+      }
+
+      resizeCanvas();
+      resetGame();
+      updatePauseButton();
+      showModal("ready");
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>

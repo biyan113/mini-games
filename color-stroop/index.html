@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080a12">
+  <meta name="description" content="色彩陷阱：忽略字色，按汉字含义选择颜色，挑战你的反应力。">
+  <title>色彩陷阱 · Color Trap</title>
+  <style>
+    /* ---------- 基础与移动端适配 ---------- */
+    :root {
+      color-scheme: dark;
+      --bg: #070810;
+      --panel: rgba(17, 20, 34, 0.82);
+      --line: rgba(255, 255, 255, 0.09);
+      --text: #f6f7ff;
+      --muted: #8d93ab;
+      --cyan: #53e9ff;
+      --violet: #9b72ff;
+      --pink: #ff5fa2;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(100, 64, 190, 0.17), transparent 38%),
+        radial-gradient(circle at 90% 100%, rgba(0, 196, 255, 0.11), transparent 38%),
+        var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    button {
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    button:focus-visible {
+      outline: 3px solid rgba(83, 233, 255, 0.9);
+      outline-offset: 3px;
+    }
+
+    button:disabled {
+      cursor: default;
+      opacity: 0.4;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    /* ---------- 氛围背景 ---------- */
+    .ambient {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .ambient::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: 0.2;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+      background-size: 36px 36px;
+      mask-image: linear-gradient(to bottom, black, transparent 85%);
+    }
+
+    .orb {
+      position: absolute;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.16;
+      animation: drift 9s ease-in-out infinite alternate;
+    }
+
+    .orb-one {
+      top: -90px;
+      left: -80px;
+      background: #8a4dff;
+    }
+
+    .orb-two {
+      right: -90px;
+      bottom: -70px;
+      background: #00c8ff;
+      animation-delay: -4s;
+    }
+
+    /* ---------- 应用骨架 ---------- */
+    .app {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: clamp(9px, 1.6vh, 15px);
+      width: min(100%, 540px);
+      height: 100dvh;
+      max-height: 960px;
+      padding: calc(12px + var(--safe-top)) clamp(14px, 4vw, 22px) calc(12px + var(--safe-bottom));
+      isolation: isolate;
+    }
+
+    .topbar {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 43px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      border: 1px solid rgba(143, 110, 255, 0.55);
+      border-radius: 13px;
+      background: linear-gradient(145deg, rgba(155, 114, 255, 0.28), rgba(83, 233, 255, 0.08));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 0 24px rgba(139, 92, 246, 0.18);
+      color: #c9b8ff;
+      font-size: 22px;
+      font-weight: 900;
+      text-shadow: 0 0 14px rgba(155, 114, 255, 0.8);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 19px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+    }
+
+    .brand p {
+      margin: 2px 0 0;
+      color: #767d98;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.26em;
+    }
+
+    .pause-button {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 72px;
+      min-height: 42px;
+      justify-content: center;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(255, 255, 255, 0.045);
+      color: #b9bfd4;
+      font-size: 12px;
+      transition: background 160ms ease, transform 160ms ease;
+    }
+
+    .pause-button:not(:disabled):active {
+      transform: scale(0.95);
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .pause-button svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    /* ---------- 数据面板 ---------- */
+    .stats {
+      display: grid;
+      flex: 0 0 auto;
+      grid-template-columns: 1fr 1.12fr 1fr;
+      gap: 8px;
+    }
+
+    .stat {
+      position: relative;
+      min-width: 0;
+      padding: 9px 6px 8px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: rgba(18, 21, 35, 0.72);
+      text-align: center;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+    }
+
+    .stat-label {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+    }
+
+    .stat strong {
+      display: block;
+      overflow: hidden;
+      font-size: clamp(19px, 5vw, 24px);
+      font-variant-numeric: tabular-nums;
+      line-height: 1.15;
+      text-overflow: ellipsis;
+    }
+
+    .stat strong.bump {
+      animation: score-bump 220ms ease-out;
+    }
+
+    .timer-stat {
+      border-color: rgba(83, 233, 255, 0.22);
+      background: linear-gradient(150deg, rgba(83, 233, 255, 0.1), rgba(18, 21, 35, 0.8));
+    }
+
+    .timer-stat strong {
+      color: var(--cyan);
+      text-shadow: 0 0 16px rgba(83, 233, 255, 0.28);
+    }
+
+    .timer-stat small {
+      margin-left: 2px;
+      color: #778ca0;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .timer-stat.urgent {
+      border-color: rgba(255, 80, 112, 0.5);
+      background: rgba(255, 60, 100, 0.09);
+      animation: urgent-pulse 1s ease-in-out infinite;
+    }
+
+    .timer-stat.urgent strong {
+      color: #ff6587;
+      text-shadow: 0 0 16px rgba(255, 80, 112, 0.45);
+    }
+
+    .time-track {
+      flex: 0 0 auto;
+      height: 3px;
+      margin-top: -4px;
+      overflow: hidden;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, 0.055);
+    }
+
+    .time-bar {
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--violet), var(--cyan));
+      box-shadow: 0 0 10px rgba(83, 233, 255, 0.55);
+      transform-origin: left center;
+      transition: background 200ms ease;
+    }
+
+    .time-bar.urgent {
+      background: linear-gradient(90deg, #ff9d5c, #ff4f79);
+      box-shadow: 0 0 10px rgba(255, 79, 121, 0.5);
+    }
+
+    /* ---------- 游戏主区域 ---------- */
+    .game-panel {
+      display: flex;
+      flex: 1 1 auto;
+      flex-direction: column;
+      min-height: 0;
+      padding: clamp(13px, 2.3vh, 20px);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: linear-gradient(155deg, rgba(22, 25, 43, 0.91), rgba(11, 14, 26, 0.91));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 18px 50px rgba(0, 0, 0, 0.2);
+    }
+
+    .prompt-section {
+      position: relative;
+      flex: 0 0 auto;
+      text-align: center;
+    }
+
+    .round-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #a7aec5;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+    }
+
+    .combo {
+      padding: 4px 9px;
+      border: 1px solid rgba(155, 114, 255, 0.18);
+      border-radius: 99px;
+      background: rgba(155, 114, 255, 0.07);
+      color: #a99acb;
+      font-size: 10px;
+      transition: color 160ms ease, border-color 160ms ease;
+    }
+
+    .combo.hot {
+      border-color: rgba(255, 95, 162, 0.4);
+      color: #ff8cbd;
+      text-shadow: 0 0 12px rgba(255, 95, 162, 0.35);
+    }
+
+    .word-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: clamp(82px, 13.5vh, 122px);
+    }
+
+    .word {
+      --word-glow: rgba(255, 255, 255, 0.35);
+      font-size: clamp(66px, 10.5vh, 98px);
+      font-weight: 900;
+      line-height: 1;
+      text-shadow: 0 0 28px var(--word-glow);
+      transform-origin: center;
+    }
+
+    .word.word-in {
+      animation: word-in 230ms cubic-bezier(0.2, 0.85, 0.25, 1.15);
+    }
+
+    .quote {
+      align-self: center;
+      margin: 0 clamp(8px, 3vw, 18px);
+      color: rgba(255, 255, 255, 0.08);
+      font-family: Georgia, serif;
+      font-size: 48px;
+      font-weight: 700;
+    }
+
+    .prompt-tip {
+      margin: -2px 0 12px;
+      color: #737b96;
+      font-size: 11px;
+    }
+
+    .prompt-tip span {
+      color: #aeb5cc;
+    }
+
+    .feedback {
+      position: absolute;
+      right: 0;
+      bottom: -3px;
+      left: 0;
+      z-index: 2;
+      font-size: 13px;
+      font-weight: 800;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(5px);
+    }
+
+    .feedback.show {
+      animation: feedback-pop 520ms ease both;
+    }
+
+    .feedback.good {
+      color: #58f2b5;
+      text-shadow: 0 0 14px rgba(88, 242, 181, 0.4);
+    }
+
+    .feedback.bad {
+      color: #ff6c8d;
+      text-shadow: 0 0 14px rgba(255, 108, 141, 0.35);
+    }
+
+    .progress-row {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      margin: 0 1px 6px;
+      color: #777f99;
+      font-size: 10px;
+    }
+
+    .progress-row span:last-child {
+      color: #b1b8cc;
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+    }
+
+    .progress-track {
+      flex: 0 0 auto;
+      height: 5px;
+      margin-bottom: clamp(11px, 2vh, 17px);
+      overflow: hidden;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, 0.055);
+    }
+
+    .progress-bar {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #8f68ff, #ed65c0);
+      box-shadow: 0 0 12px rgba(180, 99, 255, 0.45);
+      transition: width 220ms ease;
+    }
+
+    .color-grid {
+      display: grid;
+      flex: 1 1 auto;
+      min-height: 0;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: repeat(3, minmax(54px, 1fr));
+      gap: clamp(9px, 1.6vh, 13px);
+    }
+
+    .color-tile {
+      --tile-rgb: 255, 255, 255;
+      position: relative;
+      min-height: 54px;
+      overflow: hidden;
+      border: 1px solid rgba(var(--tile-rgb), 0.62);
+      border-radius: clamp(15px, 2.4vh, 20px);
+      background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.22), transparent 40%),
+        linear-gradient(145deg, rgba(var(--tile-rgb), 0.92), rgba(var(--tile-rgb), 0.57));
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.34),
+        inset 0 -8px 18px rgba(0, 0, 0, 0.12),
+        0 5px 18px rgba(var(--tile-rgb), 0.13);
+      transition: transform 100ms ease, filter 100ms ease, box-shadow 140ms ease;
+      -webkit-touch-callout: none;
+    }
+
+    .color-tile::after {
+      content: "";
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      width: 26px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.13);
+      filter: blur(4px);
+      transform: rotate(-28deg);
+    }
+
+    .color-tile:active {
+      filter: brightness(1.14) saturate(1.08);
+      transform: scale(0.955);
+      box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.18), 0 0 24px rgba(var(--tile-rgb), 0.28);
+    }
+
+    .key-hint {
+      position: absolute;
+      top: 7px;
+      left: 8px;
+      display: grid;
+      width: 20px;
+      height: 20px;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      background: rgba(4, 7, 15, 0.2);
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .color-tile.correct {
+      animation: tile-correct 260ms ease;
+    }
+
+    .color-tile.wrong {
+      animation: tile-wrong 280ms ease;
+    }
+
+    .game-footer {
+      flex: 0 0 auto;
+      margin: clamp(10px, 1.8vh, 15px) 0 0;
+      color: #606880;
+      font-size: 10px;
+      text-align: center;
+      letter-spacing: 0.03em;
+    }
+
+    .game-footer kbd {
+      padding: 1px 4px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.04);
+      color: #858da6;
+      font: inherit;
+    }
+
+    /* ---------- 弹窗 ---------- */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      padding: calc(16px + var(--safe-top)) 16px calc(16px + var(--safe-bottom));
+      place-items: center;
+      background: rgba(4, 5, 12, 0.78);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      animation: overlay-in 180ms ease-out;
+      touch-action: pan-y;
+    }
+
+    .modal {
+      position: relative;
+      width: min(100%, 410px);
+      max-height: calc(100dvh - 32px - var(--safe-top) - var(--safe-bottom));
+      padding: clamp(22px, 4vh, 32px) clamp(20px, 6vw, 30px);
+      overflow-y: auto;
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      border-radius: 28px;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(142, 96, 255, 0.16), transparent 42%),
+        linear-gradient(155deg, #171a2c, #0e101d);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 24px 80px rgba(0, 0, 0, 0.55);
+      text-align: center;
+      touch-action: pan-y;
+      animation: modal-in 260ms cubic-bezier(0.2, 0.85, 0.3, 1.08);
+      scrollbar-width: none;
+    }
+
+    .modal::-webkit-scrollbar {
+      display: none;
+    }
+
+    .modal-emblem {
+      display: grid;
+      width: 66px;
+      height: 66px;
+      margin: 0 auto 16px;
+      place-items: center;
+      border: 1px solid rgba(155, 114, 255, 0.45);
+      border-radius: 21px;
+      background: linear-gradient(145deg, rgba(155, 114, 255, 0.28), rgba(83, 233, 255, 0.1));
+      box-shadow: 0 0 32px rgba(155, 114, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      color: #d0c1ff;
+      font-size: 34px;
+      font-weight: 900;
+      text-shadow: 0 0 20px rgba(155, 114, 255, 0.75);
+    }
+
+    .modal-emblem.success {
+      border-color: rgba(83, 233, 255, 0.45);
+      background: rgba(83, 233, 255, 0.1);
+      color: var(--cyan);
+      text-shadow: 0 0 20px rgba(83, 233, 255, 0.65);
+    }
+
+    .modal-emblem.failure {
+      border-color: rgba(255, 95, 135, 0.35);
+      background: rgba(255, 95, 135, 0.08);
+      color: #ff7596;
+      text-shadow: 0 0 20px rgba(255, 95, 135, 0.5);
+    }
+
+    .eyebrow {
+      margin: 0 0 7px;
+      color: #8372b6;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.28em;
+    }
+
+    .modal h2 {
+      margin: 0;
+      font-size: clamp(23px, 6.4vw, 29px);
+      line-height: 1.3;
+      letter-spacing: 0.02em;
+    }
+
+    .modal-desc {
+      margin: 10px auto 18px;
+      color: #929ab2;
+      font-size: 13px;
+      line-height: 1.75;
+    }
+
+    .rule-demo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      margin: 16px 0;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: rgba(255, 255, 255, 0.025);
+      color: #aab1c5;
+      font-size: 12px;
+    }
+
+    .demo-word {
+      color: #4b8dff;
+      font-size: 31px;
+      font-weight: 900;
+      line-height: 1;
+      text-shadow: 0 0 16px rgba(75, 141, 255, 0.35);
+    }
+
+    .demo-arrow {
+      color: #565f78;
+      font-size: 18px;
+    }
+
+    .demo-answer {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .demo-dot {
+      width: 15px;
+      height: 15px;
+      border-radius: 5px;
+      background: #ff466d;
+      box-shadow: 0 0 12px rgba(255, 70, 109, 0.45);
+    }
+
+    .rule-chips {
+      display: flex;
+      justify-content: center;
+      gap: 7px;
+      margin-bottom: 19px;
+    }
+
+    .rule-chips span {
+      padding: 6px 9px;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.035);
+      color: #a3abc0;
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .gesture-tip {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      margin: 0 0 18px;
+      color: #6f7891;
+      font-size: 11px;
+    }
+
+    .gesture-icon {
+      font-size: 17px;
+    }
+
+    .primary-button,
+    .secondary-button {
+      width: 100%;
+      min-height: 52px;
+      border-radius: 15px;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      transition: transform 120ms ease, filter 120ms ease;
+    }
+
+    .primary-button {
+      border: 1px solid rgba(178, 151, 255, 0.48);
+      background: linear-gradient(115deg, #7954e9, #a45ee2 55%, #d264c2);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 9px 28px rgba(132, 79, 224, 0.28);
+      color: white;
+    }
+
+    .primary-button:active,
+    .secondary-button:active {
+      filter: brightness(1.12);
+      transform: scale(0.975);
+    }
+
+    .secondary-button {
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.045);
+      color: #aeb5ca;
+    }
+
+    .modal-best {
+      margin: 13px 0 0;
+      color: #656e87;
+      font-size: 10px;
+    }
+
+    .pause-time {
+      margin: 18px 0 22px;
+      color: var(--cyan);
+      font-size: 42px;
+      font-variant-numeric: tabular-nums;
+      font-weight: 800;
+      text-shadow: 0 0 22px rgba(83, 233, 255, 0.3);
+    }
+
+    .pause-time small {
+      margin-left: 3px;
+      color: #79869d;
+      font-size: 14px;
+    }
+
+    .new-best {
+      display: inline-block;
+      margin: 0 0 10px;
+      padding: 5px 11px;
+      border: 1px solid rgba(255, 211, 92, 0.3);
+      border-radius: 99px;
+      background: rgba(255, 211, 92, 0.08);
+      color: #ffda73;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+    }
+
+    .final-score-label {
+      margin-top: 18px;
+      color: #737c96;
+      font-size: 10px;
+      letter-spacing: 0.15em;
+    }
+
+    .final-score {
+      margin: 2px 0 16px;
+      background: linear-gradient(100deg, #b49aff, #65eaff);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+      font-size: 52px;
+      font-variant-numeric: tabular-nums;
+      font-weight: 900;
+      line-height: 1.2;
+    }
+
+    .result-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .result-stat {
+      padding: 11px 4px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .result-stat strong {
+      display: block;
+      margin-bottom: 3px;
+      color: #e3e6f3;
+      font-size: 19px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .result-stat span {
+      color: #737c94;
+      font-size: 9px;
+    }
+
+    /* ---------- 动画 ---------- */
+    @keyframes drift {
+      to { transform: translate(30px, 24px) scale(1.12); }
+    }
+
+    @keyframes word-in {
+      from { opacity: 0; transform: scale(0.7) rotate(-4deg); filter: blur(5px); }
+      to { opacity: 1; transform: scale(1) rotate(0); filter: blur(0); }
+    }
+
+    @keyframes feedback-pop {
+      0% { opacity: 0; transform: translateY(6px) scale(0.9); }
+      22%, 72% { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-7px) scale(0.98); }
+    }
+
+    @keyframes score-bump {
+      45% { transform: scale(1.17); color: #bba4ff; }
+    }
+
+    @keyframes tile-correct {
+      45% { filter: brightness(1.45); transform: scale(0.96); box-shadow: 0 0 30px rgba(var(--tile-rgb), 0.65); }
+    }
+
+    @keyframes tile-wrong {
+      20%, 60% { transform: translateX(-5px); filter: saturate(0.5); }
+      40%, 80% { transform: translateX(5px); filter: saturate(0.5); }
+    }
+
+    @keyframes urgent-pulse {
+      50% { box-shadow: inset 0 0 20px rgba(255, 70, 110, 0.07), 0 0 14px rgba(255, 70, 110, 0.08); }
+    }
+
+    @keyframes overlay-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes modal-in {
+      from { opacity: 0; transform: translateY(14px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* ---------- 矮屏与横屏微调 ---------- */
+    @media (max-height: 700px) {
+      .app { gap: 8px; padding-top: calc(8px + var(--safe-top)); padding-bottom: calc(8px + var(--safe-bottom)); }
+      .brand-mark { width: 37px; height: 37px; border-radius: 11px; font-size: 19px; }
+      .brand h1 { font-size: 17px; }
+      .brand p { display: none; }
+      .pause-button { min-height: 37px; }
+      .stat { padding: 6px 5px; }
+      .stat strong { font-size: 19px; }
+      .game-panel { padding: 12px 14px; border-radius: 20px; }
+      .word-wrap { height: 76px; }
+      .word { font-size: 64px; }
+      .prompt-tip { margin-bottom: 10px; }
+      .progress-track { margin-bottom: 10px; }
+      .color-grid { gap: 8px; }
+      .game-footer { margin-top: 9px; }
+      .modal { padding-top: 20px; padding-bottom: 20px; }
+      .modal-emblem { width: 54px; height: 54px; margin-bottom: 11px; border-radius: 17px; font-size: 28px; }
+      .modal-desc { margin: 7px auto 12px; }
+      .rule-demo { margin: 11px 0; padding: 10px; }
+      .rule-chips { margin-bottom: 13px; }
+      .gesture-tip { margin-bottom: 13px; }
+    }
+
+    @media (max-height: 520px) and (orientation: landscape) {
+      .app { width: min(100%, 820px); max-width: 820px; gap: 6px; padding-right: 16px; padding-left: 16px; }
+      .topbar { min-height: 34px; }
+      .brand-mark { width: 32px; height: 32px; }
+      .brand h1 { font-size: 15px; }
+      .pause-button { min-height: 32px; }
+      .stats { position: absolute; top: calc(9px + var(--safe-top)); left: 50%; width: 42%; transform: translateX(-50%); }
+      .stat { padding: 4px; }
+      .stat-label { font-size: 8px; }
+      .stat strong { font-size: 16px; }
+      .time-track { display: none; }
+      .game-panel { display: grid; grid-template-columns: minmax(180px, 0.8fr) minmax(290px, 1.2fr); grid-template-rows: auto auto 1fr; column-gap: 18px; padding: 10px 14px; }
+      .prompt-section { grid-column: 1; grid-row: 1 / 4; align-self: center; width: 100%; }
+      .word-wrap { height: 82px; }
+      .word { font-size: 66px; }
+      .progress-row { grid-column: 2; grid-row: 1; }
+      .progress-track { grid-column: 2; grid-row: 2; }
+      .color-grid { grid-column: 2; grid-row: 3; grid-template-rows: repeat(3, minmax(44px, 1fr)); }
+      .color-tile { min-height: 44px; }
+      .game-footer { display: none; }
+      .modal { width: min(100%, 520px); padding: 16px 24px; }
+      .modal-emblem { float: left; width: 50px; height: 50px; margin: 0 15px 8px 0; }
+      .eyebrow, .modal h2, .modal-desc { text-align: left; }
+      .modal-desc { margin-bottom: 10px; }
+      .rule-demo { display: none; }
+      .rule-chips { clear: both; margin-bottom: 10px; }
+      .gesture-tip { margin-bottom: 10px; }
+      .primary-button, .secondary-button { min-height: 44px; }
+      .pause-time { margin: 10px 0 12px; font-size: 32px; }
+      .final-score-label { margin-top: 8px; }
+      .final-score { margin-bottom: 8px; font-size: 38px; }
+      .result-stats { margin-bottom: 10px; }
+    }
+
+    @media (min-width: 600px) and (min-height: 700px) {
+      body { align-items: center; padding: 20px; }
+      .app { height: calc(100dvh - 40px); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 30px; background: rgba(8, 10, 18, 0.45); box-shadow: 0 30px 100px rgba(0, 0, 0, 0.28); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true">
+    <div class="orb orb-one"></div>
+    <div class="orb orb-two"></div>
+  </div>
+
+  <div class="app" id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">色</div>
+        <div>
+          <h1>色彩陷阱</h1>
+          <p>COLOR TRAP</p>
+        </div>
+      </div>
+      <button class="pause-button" id="pauseButton" type="button" aria-label="暂停游戏" disabled>
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <rect x="6" y="5" width="4" height="14" rx="1"></rect>
+          <rect x="14" y="5" width="4" height="14" rx="1"></rect>
+        </svg>
+        <span>暂停</span>
+      </button>
+    </header>
+
+    <section class="stats" aria-label="游戏数据">
+      <div class="stat">
+        <span class="stat-label">本局得分</span>
+        <strong id="score">0</strong>
+      </div>
+      <div class="stat timer-stat" id="timerCard">
+        <span class="stat-label">剩余时间</span>
+        <strong><span id="time">45.0</span><small>s</small></strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">最高分</span>
+        <strong id="bestScore">0</strong>
+      </div>
+    </section>
+    <div class="time-track" aria-hidden="true">
+      <div class="time-bar" id="timeBar"></div>
+    </div>
+
+    <main class="game-panel">
+      <section class="prompt-section" aria-label="题目">
+        <div class="round-meta">
+          <span>按汉字含义选色</span>
+          <span class="combo" id="combo">连击 ×0</span>
+        </div>
+        <div class="word-wrap">
+          <span class="quote" aria-hidden="true">“</span>
+          <div class="word" id="word" aria-live="polite">红</div>
+          <span class="quote" aria-hidden="true">”</span>
+        </div>
+        <p class="prompt-tip">别被<span>文字本身的颜色</span>迷惑</p>
+        <div class="feedback" id="feedback" role="status" aria-live="polite"></div>
+      </section>
+
+      <div class="progress-row">
+        <span>胜利进度</span>
+        <span id="progressText">0 / 20</span>
+      </div>
+      <div class="progress-track" aria-hidden="true">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+
+      <section class="color-grid" id="colorGrid" aria-label="颜色选项">
+        <button class="color-tile" style="--tile-rgb: 255, 61, 102" data-color="red" type="button" aria-label="红色，快捷键 1"><span class="key-hint">1</span></button>
+        <button class="color-tile" style="--tile-rgb: 255, 210, 66" data-color="yellow" type="button" aria-label="黄色，快捷键 2"><span class="key-hint">2</span></button>
+        <button class="color-tile" style="--tile-rgb: 55, 129, 255" data-color="blue" type="button" aria-label="蓝色，快捷键 3"><span class="key-hint">3</span></button>
+        <button class="color-tile" style="--tile-rgb: 35, 220, 148" data-color="green" type="button" aria-label="绿色，快捷键 4"><span class="key-hint">4</span></button>
+        <button class="color-tile" style="--tile-rgb: 158, 99, 255" data-color="purple" type="button" aria-label="紫色，快捷键 5"><span class="key-hint">5</span></button>
+        <button class="color-tile" style="--tile-rgb: 255, 93, 187" data-color="pink" type="button" aria-label="粉色，快捷键 6"><span class="key-hint">6</span></button>
+      </section>
+
+      <p class="game-footer">轻点色块作答 · 键盘 <kbd>1–6</kbd> 选色 · <kbd>P</kbd> 暂停</p>
+    </main>
+  </div>
+
+  <!-- 开始说明 -->
+  <div class="overlay" id="startScreen">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="startTitle">
+      <div class="modal-emblem" aria-hidden="true">色</div>
+      <p class="eyebrow">STROOP CHALLENGE</p>
+      <h2 id="startTitle">颜色会说谎<br>汉字不会</h2>
+      <p class="modal-desc">根据<strong>汉字含义</strong>点击对应颜色块<br>忽略文字显示出来的颜色</p>
+      <div class="rule-demo" aria-label="示例：蓝色的红字，应点击红色">
+        <span class="demo-word">红</span>
+        <span class="demo-arrow">→</span>
+        <span class="demo-answer"><i class="demo-dot"></i>点红色</span>
+      </div>
+      <div class="rule-chips" aria-label="游戏规则">
+        <span>45 秒</span>
+        <span>答对 20 题获胜</span>
+        <span>错选 −2 秒 / −50 分</span>
+      </div>
+      <p class="gesture-tip"><span class="gesture-icon" aria-hidden="true">☝</span>轻点色块作答，连续答对分数更高</p>
+      <button class="primary-button" id="startButton" type="button">开始挑战</button>
+      <p class="modal-best">历史最高分：<span id="startBest">0</span></p>
+    </section>
+  </div>
+
+  <!-- 暂停弹窗 -->
+  <div class="overlay" id="pauseScreen" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+      <div class="modal-emblem" aria-hidden="true">Ⅱ</div>
+      <p class="eyebrow">TAKE A BREATH</p>
+      <h2 id="pauseTitle">暂停一下</h2>
+      <p class="modal-desc">计时已停止，准备好再继续</p>
+      <div class="pause-time"><span id="pauseTime">45.0</span><small>秒剩余</small></div>
+      <button class="primary-button" id="resumeButton" type="button">继续游戏</button>
+      <button class="secondary-button" id="pauseRestartButton" type="button">重新开始</button>
+    </section>
+  </div>
+
+  <!-- 结算弹窗 -->
+  <div class="overlay" id="resultScreen" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+      <div class="modal-emblem" id="resultEmblem" aria-hidden="true">★</div>
+      <p class="eyebrow" id="resultEyebrow">CHALLENGE COMPLETE</p>
+      <h2 id="resultTitle">挑战成功</h2>
+      <p class="modal-desc" id="resultDesc"></p>
+      <div class="new-best" id="newBest" hidden>✦ 新纪录 ✦</div>
+      <div class="final-score-label">本局得分</div>
+      <div class="final-score" id="finalScore">0</div>
+      <div class="result-stats">
+        <div class="result-stat"><strong id="resultCorrect">0</strong><span>答对题数</span></div>
+        <div class="result-stat"><strong id="resultAccuracy">0%</strong><span>正确率</span></div>
+        <div class="result-stat"><strong id="resultCombo">0</strong><span>最高连击</span></div>
+      </div>
+      <button class="primary-button" id="restartButton" type="button">再来一局</button>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // ---------- 游戏配置与颜色题库 ----------
+      const DURATION = 45000;
+      const TARGET = 20;
+      const WRONG_TIME_PENALTY = 2000;
+      const WRONG_SCORE_PENALTY = 50;
+      const STORAGE_KEY = "color-trap-best-v1";
+
+      const COLORS = [
+        { id: "red", name: "红", hex: "#ff3d66", glow: "rgba(255,61,102,.42)" },
+        { id: "yellow", name: "黄", hex: "#ffd242", glow: "rgba(255,210,66,.38)" },
+        { id: "blue", name: "蓝", hex: "#3781ff", glow: "rgba(55,129,255,.45)" },
+        { id: "green", name: "绿", hex: "#23dc94", glow: "rgba(35,220,148,.4)" },
+        { id: "purple", name: "紫", hex: "#9e63ff", glow: "rgba(158,99,255,.46)" },
+        { id: "pink", name: "粉", hex: "#ff5dbb", glow: "rgba(255,93,187,.42)" }
+      ];
+
+      const $ = (id) => document.getElementById(id);
+      const elements = {
+        score: $("score"),
+        bestScore: $("bestScore"),
+        startBest: $("startBest"),
+        time: $("time"),
+        timeBar: $("timeBar"),
+        timerCard: $("timerCard"),
+        word: $("word"),
+        combo: $("combo"),
+        feedback: $("feedback"),
+        progressText: $("progressText"),
+        progressBar: $("progressBar"),
+        pauseButton: $("pauseButton"),
+        startScreen: $("startScreen"),
+        pauseScreen: $("pauseScreen"),
+        resultScreen: $("resultScreen"),
+        pauseTime: $("pauseTime"),
+        resultEmblem: $("resultEmblem"),
+        resultEyebrow: $("resultEyebrow"),
+        resultTitle: $("resultTitle"),
+        resultDesc: $("resultDesc"),
+        newBest: $("newBest"),
+        finalScore: $("finalScore"),
+        resultCorrect: $("resultCorrect"),
+        resultAccuracy: $("resultAccuracy"),
+        resultCombo: $("resultCombo")
+      };
+
+      const tiles = Array.from(document.querySelectorAll(".color-tile"));
+      let state = "ready"; // ready、playing、paused、over
+      let score = 0;
+      let best = loadBest();
+      let startingBest = 0;
+      let correctCount = 0;
+      let attempts = 0;
+      let combo = 0;
+      let maxCombo = 0;
+      let currentTarget = "";
+      let previousTarget = "";
+      let endAt = 0;
+      let remaining = DURATION;
+      let animationFrame = 0;
+      let lastTimeText = "";
+      let inputLocked = false;
+      let feedbackTimer = 0;
+
+      // ---------- 本地最高分（隐私模式或禁用时静默降级） ----------
+      function loadBest() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(STORAGE_KEY), 10);
+          return Number.isFinite(value) && value > 0 ? value : 0;
+        } catch (error) {
+          return 0;
+        }
+      }
+
+      function saveBest() {
+        try {
+          localStorage.setItem(STORAGE_KEY, String(best));
+        } catch (error) {
+          // 存储不可用时仍可正常游玩，仅不保留纪录。
+        }
+      }
+
+      function randomItem(list) {
+        return list[Math.floor(Math.random() * list.length)];
+      }
+
+      function formatScore(value) {
+        return value.toLocaleString("zh-CN");
+      }
+
+      // ---------- 题目生成：字义与字色始终不同，避免连续同义 ----------
+      function nextRound() {
+        const targetChoices = COLORS.filter((color) => color.id !== previousTarget);
+        const target = randomItem(targetChoices);
+        const inkChoices = COLORS.filter((color) => color.id !== target.id);
+        const ink = randomItem(inkChoices);
+
+        currentTarget = target.id;
+        previousTarget = target.id;
+        elements.word.textContent = target.name;
+        elements.word.style.color = ink.hex;
+        elements.word.style.setProperty("--word-glow", ink.glow);
+        elements.word.setAttribute("aria-label", `汉字${target.name}，请选择它表示的颜色`);
+        elements.word.classList.remove("word-in");
+        void elements.word.offsetWidth; // 重启动画，让每题都有清晰的出现反馈。
+        elements.word.classList.add("word-in");
+      }
+
+      // ---------- 界面刷新 ----------
+      function updateBestDisplay() {
+        const text = formatScore(best);
+        elements.bestScore.textContent = text;
+        elements.startBest.textContent = text;
+      }
+
+      function updateHUD(animateScore = false) {
+        elements.score.textContent = formatScore(score);
+        elements.combo.textContent = `连击 ×${combo}`;
+        elements.combo.classList.toggle("hot", combo >= 3);
+        elements.progressText.textContent = `${correctCount} / ${TARGET}`;
+        elements.progressBar.style.width = `${Math.min(100, correctCount / TARGET * 100)}%`;
+
+        if (animateScore) {
+          elements.score.classList.remove("bump");
+          void elements.score.offsetWidth;
+          elements.score.classList.add("bump");
+        }
+      }
+
+      function renderTimer() {
+        const timeText = (Math.ceil(Math.max(0, remaining) / 100) / 10).toFixed(1);
+        if (timeText !== lastTimeText) {
+          elements.time.textContent = timeText;
+          elements.pauseTime.textContent = timeText;
+          lastTimeText = timeText;
+        }
+        const ratio = Math.max(0, Math.min(1, remaining / DURATION));
+        elements.timeBar.style.transform = `scaleX(${ratio})`;
+        const urgent = remaining <= 10000 && state !== "ready";
+        elements.timerCard.classList.toggle("urgent", urgent);
+        elements.timeBar.classList.toggle("urgent", urgent);
+      }
+
+      function showFeedback(text, type) {
+        window.clearTimeout(feedbackTimer);
+        elements.feedback.className = "feedback";
+        elements.feedback.textContent = text;
+        void elements.feedback.offsetWidth;
+        elements.feedback.className = `feedback show ${type}`;
+        feedbackTimer = window.setTimeout(() => {
+          elements.feedback.className = "feedback";
+        }, 540);
+      }
+
+      function animateTile(tile, className) {
+        tile.classList.remove("correct", "wrong");
+        void tile.offsetWidth;
+        tile.classList.add(className);
+        window.setTimeout(() => tile.classList.remove(className), 300);
+      }
+
+      // ---------- 主计时循环：基于时间戳，避免后台或掉帧导致计时不准 ----------
+      function tick(now) {
+        if (state !== "playing") return;
+        remaining = Math.max(0, endAt - now);
+        renderTimer();
+        if (remaining <= 0) {
+          finishGame(false);
+          return;
+        }
+        animationFrame = requestAnimationFrame(tick);
+      }
+
+      // ---------- 开始、暂停、继续与结算 ----------
+      function startGame() {
+        cancelAnimationFrame(animationFrame);
+        window.clearTimeout(feedbackTimer);
+        state = "playing";
+        score = 0;
+        startingBest = best;
+        correctCount = 0;
+        attempts = 0;
+        combo = 0;
+        maxCombo = 0;
+        previousTarget = "";
+        remaining = DURATION;
+        endAt = performance.now() + DURATION;
+        lastTimeText = "";
+        inputLocked = false;
+
+        elements.startScreen.hidden = true;
+        elements.pauseScreen.hidden = true;
+        elements.resultScreen.hidden = true;
+        elements.pauseButton.disabled = false;
+        elements.feedback.className = "feedback";
+        updateBestDisplay();
+        updateHUD();
+        nextRound();
+        renderTimer();
+        animationFrame = requestAnimationFrame(tick);
+      }
+
+      function pauseGame(automatic = false) {
+        if (state !== "playing") return;
+        remaining = Math.max(0, endAt - performance.now());
+        if (remaining <= 0) {
+          finishGame(false);
+          return;
+        }
+        state = "paused";
+        cancelAnimationFrame(animationFrame);
+        renderTimer();
+        $("pauseTitle").textContent = automatic ? "已自动暂停" : "暂停一下";
+        elements.pauseScreen.hidden = false;
+        if (!automatic) $("resumeButton").focus({ preventScroll: true });
+      }
+
+      function resumeGame() {
+        if (state !== "paused") return;
+        state = "playing";
+        inputLocked = false;
+        endAt = performance.now() + remaining;
+        elements.pauseScreen.hidden = true;
+        animationFrame = requestAnimationFrame(tick);
+        elements.pauseButton.focus({ preventScroll: true });
+      }
+
+      function finishGame(won) {
+        if (state === "over") return;
+        state = "over";
+        cancelAnimationFrame(animationFrame);
+        elements.pauseButton.disabled = true;
+        elements.pauseScreen.hidden = true;
+        inputLocked = false;
+
+        if (score > best) {
+          best = score;
+          saveBest();
+        }
+        updateBestDisplay();
+        renderTimer();
+
+        const isNewBest = score > startingBest && score > 0;
+        const accuracy = attempts > 0 ? Math.round(correctCount / attempts * 100) : 0;
+        const elapsed = Math.max(0, (DURATION - remaining) / 1000).toFixed(1);
+
+        elements.resultEmblem.className = `modal-emblem ${won ? "success" : "failure"}`;
+        elements.resultEmblem.textContent = won ? "★" : "⌛";
+        elements.resultEyebrow.textContent = won ? "CHALLENGE COMPLETE" : "TIME IS UP";
+        elements.resultTitle.textContent = won ? "挑战成功" : "时间到";
+        elements.resultDesc.textContent = won
+          ? `仅用 ${elapsed} 秒识破全部陷阱，反应漂亮！`
+          : `还差 ${TARGET - correctCount} 题获胜，再集中一点就能突破。`;
+        elements.newBest.hidden = !isNewBest;
+        elements.finalScore.textContent = formatScore(score);
+        elements.resultCorrect.textContent = correctCount;
+        elements.resultAccuracy.textContent = `${accuracy}%`;
+        elements.resultCombo.textContent = maxCombo;
+        elements.resultScreen.hidden = false;
+        $("restartButton").focus({ preventScroll: true });
+      }
+
+      // ---------- 作答与连击计分 ----------
+      function chooseColor(colorId, tile) {
+        if (state !== "playing" || inputLocked) return;
+        inputLocked = true;
+        // 短暂输入锁避免触屏双击把下一题也误答。
+        window.setTimeout(() => { inputLocked = false; }, 140);
+
+        attempts += 1;
+        const isCorrect = colorId === currentTarget;
+
+        if (isCorrect) {
+          correctCount += 1;
+          combo += 1;
+          maxCombo = Math.max(maxCombo, combo);
+          const gained = 100 + Math.min(combo - 1, 10) * 20;
+          score += gained;
+          showFeedback(`正确 +${gained}`, "good");
+          animateTile(tile, "correct");
+          if (score > best) {
+            best = score;
+            saveBest();
+            updateBestDisplay();
+          }
+        } else {
+          combo = 0;
+          score = Math.max(0, score - WRONG_SCORE_PENALTY);
+          endAt -= WRONG_TIME_PENALTY;
+          remaining = Math.max(0, endAt - performance.now());
+          showFeedback("踩中陷阱 −2 秒", "bad");
+          animateTile(tile, "wrong");
+        }
+
+        updateHUD(isCorrect);
+        renderTimer();
+
+        if (correctCount >= TARGET) {
+          finishGame(true);
+        } else if (remaining <= 0) {
+          finishGame(false);
+        } else {
+          nextRound();
+        }
+      }
+
+      // ---------- 触屏、鼠标与键盘输入 ----------
+      tiles.forEach((tile) => {
+        tile.addEventListener("click", () => chooseColor(tile.dataset.color, tile));
+      });
+
+      $("startButton").addEventListener("click", startGame);
+      $("restartButton").addEventListener("click", startGame);
+      $("pauseRestartButton").addEventListener("click", startGame);
+      $("resumeButton").addEventListener("click", resumeGame);
+      elements.pauseButton.addEventListener("click", () => {
+        if (state === "playing") pauseGame();
+        else if (state === "paused") resumeGame();
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.repeat) return;
+        const key = event.key.toLowerCase();
+
+        if (state === "playing" && /^[1-6]$/.test(key)) {
+          event.preventDefault();
+          const tile = tiles[Number(key) - 1];
+          chooseColor(tile.dataset.color, tile);
+          return;
+        }
+
+        if ((key === "p" || key === "escape") && (state === "playing" || state === "paused")) {
+          event.preventDefault();
+          if (state === "playing") pauseGame();
+          else resumeGame();
+        }
+      });
+
+      // 切到后台时自动暂停，返回后由玩家主动继续。
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && state === "playing") pauseGame(true);
+      });
+
+      // 禁止双击缩放与长按选择，页面本身始终不滚动。
+      document.addEventListener("dblclick", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
+
+      // 初始化静态界面。
+      updateBestDisplay();
+      updateHUD();
+      renderTimer();
+      $("startButton").focus({ preventScroll: true });
+    })();
+  </script>
+</body>
+</html>

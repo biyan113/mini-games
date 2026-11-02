@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070914">
+  <title>霓虹宾果</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070914;
+      --panel: rgba(17, 22, 43, .82);
+      --line: rgba(139, 156, 255, .16);
+      --text: #f4f6ff;
+      --muted: #8992b3;
+      --cyan: #45f3ff;
+      --pink: #ff4fd8;
+      --violet: #8b6cff;
+      --green: #65ffc3;
+      --danger: #ff6486;
+    }
+
+    * {
+      box-sizing: border-box;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(91, 62, 190, .24), transparent 35%),
+        radial-gradient(circle at 90% 85%, rgba(0, 218, 255, .12), transparent 36%),
+        var(--bg);
+      font-family: ui-rounded, "SF Pro Rounded", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .22;
+      background-image:
+        linear-gradient(rgba(105, 123, 190, .07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(105, 123, 190, .07) 1px, transparent 1px);
+      background-size: 28px 28px;
+      mask-image: linear-gradient(to bottom, black, transparent 80%);
+    }
+
+    button { font: inherit; }
+    button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+    [hidden] { display: none !important; }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      width: min(100%, 460px);
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: max(10px, env(safe-area-inset-top)) 14px max(9px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: clamp(5px, 1vh, 9px);
+    }
+
+    .topbar {
+      min-height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand { display: flex; align-items: center; gap: 9px; }
+    .brand-mark {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(69, 243, 255, .4);
+      border-radius: 9px;
+      color: var(--cyan);
+      background: rgba(69, 243, 255, .07);
+      box-shadow: inset 0 0 12px rgba(69, 243, 255, .08), 0 0 16px rgba(69, 243, 255, .08);
+      font-size: 15px;
+    }
+    .brand h1 { margin: 0; font-size: 17px; letter-spacing: 2px; }
+    .brand small { color: var(--muted); font-size: 9px; letter-spacing: 2.5px; }
+
+    .live-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 1px;
+    }
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 9px var(--green);
+      animation: breathe 1.8s ease-in-out infinite;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      padding: 7px 5px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .18);
+      backdrop-filter: blur(12px);
+    }
+    .stat { text-align: center; }
+    .stat + .stat { border-left: 1px solid var(--line); }
+    .stat-label { display: block; color: var(--muted); font-size: 9px; letter-spacing: 1px; }
+    .stat-value {
+      display: block;
+      margin-top: 1px;
+      font-size: 17px;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.2;
+    }
+    #scoreValue { color: var(--cyan); }
+    #bestValue { color: #ffd66b; }
+    #timeValue.danger { color: var(--danger); animation: breathe .8s ease-in-out infinite; }
+
+    .caller {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 8px 15px;
+      border: 1px solid rgba(139, 108, 255, .26);
+      border-radius: 18px;
+      background: linear-gradient(120deg, rgba(36, 28, 71, .88), rgba(11, 26, 44, .9));
+      box-shadow: inset 0 1px rgba(255, 255, 255, .04), 0 10px 35px rgba(0, 0, 0, .18);
+    }
+    .call-ball {
+      position: relative;
+      flex: 0 0 58px;
+      width: 58px;
+      height: 58px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(69, 243, 255, .55);
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 28%, #253c5a, #10172d 68%);
+      box-shadow: 0 0 22px rgba(69, 243, 255, .14), inset 0 0 18px rgba(69, 243, 255, .09);
+    }
+    .call-ball.pop { animation: callPop .35s cubic-bezier(.2, .9, .25, 1.35); }
+    #callLetter {
+      position: absolute;
+      top: 7px;
+      left: 10px;
+      color: var(--pink);
+      font-size: 10px;
+      font-weight: 900;
+    }
+    #callNumber { padding-top: 5px; font-size: 27px; line-height: 1; text-shadow: 0 0 15px rgba(69, 243, 255, .35); }
+    .call-info { min-width: 0; }
+    .call-info .eyebrow { display: block; color: var(--cyan); font-size: 9px; letter-spacing: 2px; }
+    #statusText {
+      display: block;
+      overflow: hidden;
+      margin-top: 3px;
+      font-size: 15px;
+      line-height: 1.3;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .call-info small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+
+    .history-row {
+      min-height: 23px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 3px;
+    }
+    .history-label { flex: none; color: var(--muted); font-size: 9px; letter-spacing: 1px; }
+    .history {
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      overflow: hidden;
+    }
+    .history:empty::after { content: "等待叫号…"; color: #535d7d; font-size: 10px; }
+    .history-chip {
+      min-width: 31px;
+      padding: 3px 5px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      color: #b9c3e3;
+      background: rgba(23, 29, 52, .75);
+      text-align: center;
+      font-size: 10px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .history-chip:first-child { color: var(--cyan); border-color: rgba(69, 243, 255, .35); }
+    #callCount { flex: none; color: var(--muted); font-size: 9px; font-variant-numeric: tabular-nums; }
+
+    .board-area {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      place-items: center;
+    }
+    .board-frame { width: 100%; }
+    .bingo-letters {
+      height: 22px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      margin-bottom: 5px;
+    }
+    .bingo-letters span {
+      display: grid;
+      place-items: center;
+      color: var(--cyan);
+      font-size: 14px;
+      font-weight: 900;
+      text-shadow: 0 0 12px currentColor;
+    }
+    .bingo-letters span:nth-child(2) { color: #71a7ff; }
+    .bingo-letters span:nth-child(3) { color: var(--violet); }
+    .bingo-letters span:nth-child(4) { color: var(--pink); }
+    .bingo-letters span:nth-child(5) { color: #ff8ca4; }
+
+    .board {
+      width: 100%;
+      aspect-ratio: 1;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      grid-template-rows: repeat(5, 1fr);
+      gap: clamp(4px, 1.2vw, 7px);
+      padding: clamp(6px, 1.6vw, 9px);
+      border: 1px solid rgba(115, 135, 216, .25);
+      border-radius: 20px;
+      background: linear-gradient(145deg, rgba(21, 27, 51, .96), rgba(10, 13, 28, .96));
+      box-shadow: 0 18px 50px rgba(0, 0, 0, .36), inset 0 1px rgba(255, 255, 255, .04);
+    }
+    .cell {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      padding: 0;
+      border: 1px solid rgba(126, 143, 204, .18);
+      border-radius: clamp(9px, 2.8vw, 14px);
+      color: #b5bfda;
+      background: rgba(28, 35, 61, .72);
+      box-shadow: inset 0 1px rgba(255, 255, 255, .025);
+      font-size: clamp(16px, 5.3vw, 25px);
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      cursor: pointer;
+      transition: transform .12s ease, color .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+    }
+    .cell:disabled { cursor: default; opacity: 1; }
+    .cell.called {
+      color: #e9fdff;
+      border-color: rgba(69, 243, 255, .58);
+      background: rgba(22, 74, 91, .43);
+      box-shadow: inset 0 0 15px rgba(69, 243, 255, .07), 0 0 12px rgba(69, 243, 255, .08);
+      animation: cellReady 1.8s ease-in-out infinite;
+    }
+    .cell.called::after {
+      content: "";
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 7px var(--cyan);
+    }
+    .cell.marked {
+      color: #07131d;
+      border-color: #a9fbff;
+      background: linear-gradient(145deg, #8bfbff, #42dce9);
+      box-shadow: 0 0 16px rgba(69, 243, 255, .3), inset 0 1px rgba(255, 255, 255, .65);
+      text-shadow: none;
+      animation: none;
+    }
+    .cell.marked::before {
+      content: "✓";
+      position: absolute;
+      top: 3px;
+      right: 6px;
+      color: rgba(4, 41, 52, .58);
+      font-size: 9px;
+    }
+    .cell.marked::after { display: none; }
+    .cell.winning {
+      color: #1e071b;
+      border-color: #ffd0f4;
+      background: linear-gradient(145deg, #ff9ce7, #ff4fd8);
+      box-shadow: 0 0 22px rgba(255, 79, 216, .55);
+      animation: winPulse .7s ease-in-out infinite alternate;
+    }
+    .cell.oops { animation: shake .3s ease; border-color: var(--danger); }
+    @media (hover: hover) {
+      .cell.called:hover { transform: translateY(-2px); background: rgba(30, 103, 119, .5); }
+    }
+    .cell.called:active { transform: scale(.92); }
+
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .control-btn, .modal-btn {
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      color: #d9def2;
+      background: rgba(24, 30, 54, .9);
+      font-weight: 700;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: transform .12s ease, filter .15s ease;
+    }
+    .control-btn:active, .modal-btn:active { transform: scale(.97); }
+    .control-btn.primary {
+      color: #07181d;
+      border-color: transparent;
+      background: linear-gradient(110deg, #62f5ff, #69ddff);
+      box-shadow: 0 6px 20px rgba(69, 243, 255, .13);
+    }
+    .control-btn:disabled { opacity: .45; }
+    .footer-hint { margin: 0; color: var(--muted); text-align: center; font-size: 9px; line-height: 1.3; }
+    .footer-hint strong { color: #c7d0eb; font-weight: 600; }
+
+    .modal {
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 22px;
+      background: rgba(3, 5, 14, .76);
+      backdrop-filter: blur(12px);
+    }
+    .modal-card {
+      position: relative;
+      width: min(100%, 360px);
+      padding: 28px 24px 22px;
+      overflow: hidden;
+      border: 1px solid rgba(116, 226, 255, .26);
+      border-radius: 25px;
+      background: linear-gradient(145deg, rgba(27, 32, 60, .98), rgba(12, 16, 34, .98));
+      box-shadow: 0 25px 90px rgba(0, 0, 0, .55), 0 0 45px rgba(69, 243, 255, .07);
+      text-align: center;
+      animation: modalIn .3s cubic-bezier(.2, .8, .2, 1.15);
+    }
+    .modal-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 18%;
+      width: 64%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      box-shadow: 0 0 12px var(--cyan);
+    }
+    .modal-icon {
+      width: 62px;
+      height: 62px;
+      margin: 0 auto 14px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(69, 243, 255, .3);
+      border-radius: 20px;
+      color: var(--cyan);
+      background: rgba(69, 243, 255, .07);
+      box-shadow: 0 0 25px rgba(69, 243, 255, .1);
+      font-size: 26px;
+      font-weight: 900;
+    }
+    .modal h2 { margin: 0; font-size: 25px; letter-spacing: 2px; }
+    .modal-text { margin: 11px 0 18px; color: #aab4d2; font-size: 13px; line-height: 1.75; }
+    .modal-text b { color: var(--cyan); }
+    .modal-stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin: 0 0 18px;
+    }
+    .result-item { padding: 10px 6px; border: 1px solid var(--line); border-radius: 12px; background: rgba(8, 12, 28, .5); }
+    .result-item span { display: block; color: var(--muted); font-size: 9px; }
+    .result-item strong { display: block; margin-top: 3px; color: var(--cyan); font-size: 20px; }
+    .modal-btn { width: 100%; color: #07181d; border: 0; background: linear-gradient(110deg, #68f7ff, #8b9bff); }
+    .modal-btn.secondary { margin-top: 9px; color: #b8c1dd; border: 1px solid var(--line); background: transparent; }
+    .key-hint { margin: 12px 0 0; color: #66708f; font-size: 9px; }
+    .confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+    .confetti i {
+      position: absolute;
+      top: -15px;
+      left: var(--left);
+      width: 5px;
+      height: 9px;
+      border-radius: 2px;
+      background: var(--color);
+      box-shadow: 0 0 8px var(--color);
+      animation: confettiFall 2.5s var(--delay) ease-in infinite;
+    }
+
+    @keyframes breathe { 50% { opacity: .45; } }
+    @keyframes callPop { from { transform: scale(.72) rotate(-8deg); } to { transform: scale(1) rotate(0); } }
+    @keyframes cellReady { 50% { border-color: rgba(69, 243, 255, .25); } }
+    @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+    @keyframes winPulse { to { transform: scale(1.045); } }
+    @keyframes modalIn { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+    @keyframes confettiFall { to { transform: translate(var(--drift), 460px) rotate(540deg); } }
+
+    @media (max-height: 620px) {
+      .app { gap: 4px; padding-top: max(6px, env(safe-area-inset-top)); }
+      .topbar { min-height: 26px; }
+      .brand-mark { width: 25px; height: 25px; }
+      .stats { padding: 5px; }
+      .caller { min-height: 64px; padding-top: 5px; padding-bottom: 5px; }
+      .call-ball { flex-basis: 50px; width: 50px; height: 50px; }
+      #callNumber { font-size: 23px; }
+      #callLetter { top: 5px; }
+      .call-info small { display: none; }
+      .history-row { min-height: 19px; }
+      .bingo-letters { height: 17px; margin-bottom: 3px; }
+      .bingo-letters span { font-size: 12px; }
+      .control-btn { min-height: 40px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" id="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">✦</span>
+        <div><h1>霓虹宾果</h1><small>NEON BINGO</small></div>
+      </div>
+      <div class="live-pill"><span class="live-dot"></span><span id="gameStateLabel">准备中</span></div>
+    </header>
+
+    <section class="stats" aria-label="游戏数据">
+      <div class="stat"><span class="stat-label">本局得分</span><strong class="stat-value" id="scoreValue">0</strong></div>
+      <div class="stat"><span class="stat-label">最高分</span><strong class="stat-value" id="bestValue">0</strong></div>
+      <div class="stat"><span class="stat-label">剩余时间</span><strong class="stat-value" id="timeValue">02:30</strong></div>
+    </section>
+
+    <section class="caller" aria-label="当前叫号" aria-live="polite">
+      <div class="call-ball" id="callBall"><span id="callLetter">—</span><strong id="callNumber">--</strong></div>
+      <div class="call-info">
+        <span class="eyebrow">当前叫号 · CURRENT CALL</span>
+        <strong id="statusText">准备好了吗？</strong>
+        <small>点按卡片上已叫出的号码进行标记</small>
+      </div>
+    </section>
+
+    <div class="history-row">
+      <span class="history-label">最近叫号</span>
+      <div class="history" id="history"></div>
+      <span id="callCount">0 / 75</span>
+    </div>
+
+    <section class="board-area" id="boardArea" aria-label="宾果游戏区">
+      <div class="board-frame" id="boardFrame">
+        <div class="bingo-letters" aria-hidden="true"><span>B</span><span>I</span><span>N</span><span>G</span><span>O</span></div>
+        <div class="board" id="board" aria-label="5 乘 5 宾果卡片"></div>
+      </div>
+    </section>
+
+    <div class="controls">
+      <button class="control-btn primary" id="pauseBtn" type="button">暂停</button>
+      <button class="control-btn" id="restartBtn" type="button">重新开始</button>
+    </div>
+    <p class="footer-hint">横、竖或斜线连成 5 格即胜 · <strong>已标记 <span id="markedCount">0 / 25</span></strong></p>
+  </main>
+
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
+    <div class="confetti" id="confetti" aria-hidden="true"></div>
+    <section class="modal-card">
+      <div class="modal-icon" id="modalIcon" aria-hidden="true">✦</div>
+      <h2 id="modalTitle">霓虹宾果</h2>
+      <p class="modal-text" id="modalText"></p>
+      <div class="modal-stats" id="modalStats" hidden></div>
+      <button class="modal-btn" id="modalPrimary" type="button">开始游戏</button>
+      <button class="modal-btn secondary" id="modalSecondary" type="button" hidden>重新开始</button>
+      <p class="key-hint">键盘：方向键选格 · Enter 标记 · P 暂停</p>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // ===== 游戏规则与 DOM =====
+      const SIZE = 5;
+      const MAX_NUMBER = 75;
+      const TIME_LIMIT = 150;
+      const CALL_INTERVAL = 1800;
+      const STORAGE_KEY = 'neon-bingo-best-v1';
+      const COLUMNS = [
+        { letter: 'B', min: 1, max: 15 },
+        { letter: 'I', min: 16, max: 30 },
+        { letter: 'N', min: 31, max: 45 },
+        { letter: 'G', min: 46, max: 60 },
+        { letter: 'O', min: 61, max: 75 }
+      ];
+      const LINES = [
+        ...Array.from({ length: SIZE }, (_, row) => Array.from({ length: SIZE }, (_, col) => row * SIZE + col)),
+        ...Array.from({ length: SIZE }, (_, col) => Array.from({ length: SIZE }, (_, row) => row * SIZE + col)),
+        Array.from({ length: SIZE }, (_, i) => i * SIZE + i),
+        Array.from({ length: SIZE }, (_, i) => i * SIZE + (SIZE - 1 - i))
+      ];
+      const LINE_NAMES = ['第 1 横线', '第 2 横线', '第 3 横线', '第 4 横线', '第 5 横线',
+        'B 列竖线', 'I 列竖线', 'N 列竖线', 'G 列竖线', 'O 列竖线', '主对角线', '副对角线'];
+
+      const $ = (id) => document.getElementById(id);
+      const app = $('app');
+      const board = $('board');
+      const boardArea = $('boardArea');
+      const boardFrame = $('boardFrame');
+      const pauseBtn = $('pauseBtn');
+      const modal = $('modal');
+      const modalPrimary = $('modalPrimary');
+      const modalSecondary = $('modalSecondary');
+      let timerId = null;
+      let callTimerId = null;
+      let toastTimerId = null;
+      let primaryAction = null;
+      let state;
+
+      // localStorage 在隐私模式下可能不可用，读写均需兜底。
+      function loadBest() {
+        try {
+          const value = Number.parseInt(localStorage.getItem(STORAGE_KEY), 10);
+          return Number.isFinite(value) && value > 0 ? value : 0;
+        } catch (_) {
+          return 0;
+        }
+      }
+
+      function saveBest() {
+        try { localStorage.setItem(STORAGE_KEY, String(state.best)); } catch (_) { /* 不影响本局游戏 */ }
+      }
+
+      // Fisher–Yates 洗牌，保证卡面和叫号均无重复。
+      function shuffle(values) {
+        const result = [...values];
+        for (let i = result.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [result[i], result[j]] = [result[j], result[i]];
+        }
+        return result;
+      }
+
+      function range(min, max) {
+        return Array.from({ length: max - min + 1 }, (_, i) => min + i);
+      }
+
+      function createCard() {
+        const columns = COLUMNS.map(({ min, max }) => shuffle(range(min, max)));
+        return Array.from({ length: SIZE * SIZE }, (_, index) => {
+          const col = index % SIZE;
+          const row = Math.floor(index / SIZE);
+          return columns[col][row];
+        });
+      }
+
+      function getLetter(number) {
+        return COLUMNS[Math.floor((number - 1) / 15)].letter;
+      }
+
+      function formatTime(seconds) {
+        const min = Math.floor(seconds / 60);
+        const sec = seconds % 60;
+        return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+      }
+
+      function setupGame() {
+        stopTimers();
+        clearTimeout(toastTimerId);
+        state = {
+          card: createCard(),
+          queue: shuffle(range(1, MAX_NUMBER)),
+          callIndex: 0,
+          called: new Set(),
+          calledOrder: [],
+          marked: new Set(),
+          winningCells: new Set(),
+          current: null,
+          score: 0,
+          best: loadBest(),
+          streak: 0,
+          timeLeft: TIME_LIMIT,
+          started: false,
+          paused: false,
+          over: false
+        };
+        buildBoard();
+        renderAll();
+        $('callLetter').textContent = '—';
+        $('callNumber').textContent = '--';
+        $('history').replaceChildren();
+        $('statusText').textContent = '准备好了吗？';
+        $('gameStateLabel').textContent = '准备中';
+        pauseBtn.textContent = '暂停';
+        pauseBtn.disabled = false;
+        requestAnimationFrame(fitBoard);
+      }
+
+      function buildBoard() {
+        board.replaceChildren();
+        state.card.forEach((number, index) => {
+          const cell = document.createElement('button');
+          cell.type = 'button';
+          cell.className = 'cell';
+          cell.dataset.index = String(index);
+          cell.textContent = String(number);
+          board.appendChild(cell);
+        });
+      }
+
+      function renderAll() {
+        renderBoard();
+        renderStats();
+        $('callCount').textContent = `${state.called.size} / ${MAX_NUMBER}`;
+        $('markedCount').textContent = `${state.marked.size} / 25`;
+      }
+
+      function renderBoard() {
+        const cells = board.children;
+        state.card.forEach((number, index) => {
+          const cell = cells[index];
+          const called = state.called.has(number);
+          const marked = state.marked.has(number);
+          cell.classList.toggle('called', called && !marked);
+          cell.classList.toggle('marked', marked);
+          cell.classList.toggle('winning', state.winningCells.has(index));
+          cell.disabled = !state.started || state.paused || state.over;
+          cell.setAttribute('aria-pressed', String(marked));
+          cell.setAttribute('aria-label', `${getLetter(number)} ${number}，${marked ? '已标记' : called ? '可以标记' : '尚未叫号'}`);
+        });
+      }
+
+      function renderStats() {
+        $('scoreValue').textContent = String(state.score);
+        $('bestValue').textContent = String(state.best);
+        $('timeValue').textContent = formatTime(state.timeLeft);
+        $('timeValue').classList.toggle('danger', state.timeLeft <= 15 && state.started && !state.over);
+      }
+
+      // 根据可用宽高计算正方形卡面，兼顾小屏与全面屏手机。
+      function fitBoard() {
+        const letterHeight = window.innerHeight <= 620 ? 20 : 27;
+        const size = Math.max(0, Math.min(boardArea.clientWidth, boardArea.clientHeight - letterHeight));
+        boardFrame.style.width = `${size}px`;
+      }
+
+      function startGame() {
+        hideModal();
+        state.started = true;
+        state.paused = false;
+        state.over = false;
+        pauseBtn.disabled = false;
+        pauseBtn.textContent = '暂停';
+        $('gameStateLabel').textContent = '游戏中';
+        renderBoard();
+        renderStats();
+        callNext();
+        startTimers();
+        announce('游戏开始，听号点格！');
+      }
+
+      function restartGame() {
+        setupGame();
+        startGame();
+      }
+
+      function startTimers() {
+        stopTimers();
+        timerId = window.setInterval(() => {
+          if (state.paused || state.over) return;
+          state.timeLeft = Math.max(0, state.timeLeft - 1);
+          renderStats();
+          if (state.timeLeft === 0) endGame(false, [], '时间到！');
+        }, 1000);
+        callTimerId = window.setInterval(callNext, CALL_INTERVAL);
+      }
+
+      function stopTimers() {
+        clearInterval(timerId);
+        clearInterval(callTimerId);
+        timerId = null;
+        callTimerId = null;
+      }
+
+      function callNext() {
+        if (!state.started || state.paused || state.over) return;
+        if (state.callIndex >= state.queue.length) {
+          endGame(false, [], '所有号码已叫完');
+          return;
+        }
+        const number = state.queue[state.callIndex++];
+        state.current = number;
+        state.called.add(number);
+        state.calledOrder.push(number);
+        $('callLetter').textContent = getLetter(number);
+        $('callNumber').textContent = String(number);
+        const ball = $('callBall');
+        ball.classList.remove('pop');
+        void ball.offsetWidth;
+        ball.classList.add('pop');
+        renderHistory();
+        renderAll();
+      }
+
+      function renderHistory() {
+        const fragment = document.createDocumentFragment();
+        state.calledOrder.slice(-5).reverse().forEach((number) => {
+          const chip = document.createElement('span');
+          chip.className = 'history-chip';
+          chip.textContent = `${getLetter(number)}${number}`;
+          fragment.appendChild(chip);
+        });
+        $('history').replaceChildren(fragment);
+      }
+
+      function markCell(index) {
+        if (!state.started || state.paused || state.over) return;
+        const number = state.card[index];
+        if (state.marked.has(number)) return;
+        const cell = board.children[index];
+
+        if (!state.called.has(number)) {
+          state.streak = 0;
+          changeScore(-30);
+          announce('这个号码还没叫到 · −30 分', true);
+          cell.classList.remove('oops');
+          void cell.offsetWidth;
+          cell.classList.add('oops');
+          window.setTimeout(() => cell.classList.remove('oops'), 350);
+          return;
+        }
+
+        state.marked.add(number);
+        state.streak += 1;
+        const gained = 100 + Math.min(100, (state.streak - 1) * 10);
+        changeScore(gained);
+        renderAll();
+        announce(`标记成功 · +${gained} 分${state.streak > 1 ? ` · ${state.streak} 连击` : ''}`);
+
+        const wins = findWinningLines();
+        if (wins.length > 0) endGame(true, wins, '宾果！你赢了');
+      }
+
+      function changeScore(delta) {
+        state.score = Math.max(0, state.score + delta);
+        if (state.score > state.best) {
+          state.best = state.score;
+          saveBest();
+        }
+        renderStats();
+      }
+
+      function findWinningLines() {
+        const wins = [];
+        LINES.forEach((line, lineIndex) => {
+          if (line.every((index) => state.marked.has(state.card[index]))) wins.push(lineIndex);
+        });
+        return wins;
+      }
+
+      function endGame(won, wins, title) {
+        if (state.over) return;
+        stopTimers();
+        clearTimeout(toastTimerId);
+        state.over = true;
+        state.paused = false;
+        pauseBtn.disabled = true;
+        $('gameStateLabel').textContent = won ? '宾果！' : '已结束';
+
+        if (won) {
+          wins.forEach((lineIndex) => LINES[lineIndex].forEach((index) => state.winningCells.add(index)));
+          const bonus = 1000 + state.timeLeft * 10 + Math.max(0, wins.length - 1) * 500;
+          changeScore(bonus);
+          $('statusText').textContent = `连线成功 · 胜利奖励 +${bonus}`;
+        } else {
+          $('statusText').textContent = title;
+        }
+        renderAll();
+
+        const lineText = wins.length > 1 ? `${wins.length} 条连线` : (LINE_NAMES[wins[0]] || '完整连线');
+        const detail = won
+          ? `你完成了<b>${lineText}</b>，剩余时间已转化为奖励分。`
+          : `${title}，本局标记了 <b>${state.marked.size} / 25</b> 格。再试一次吧！`;
+        showResultModal(title, detail, won);
+      }
+
+      function pauseGame() {
+        if (!state.started || state.over || state.paused) return;
+        state.paused = true;
+        stopTimers();
+        pauseBtn.textContent = '继续';
+        $('gameStateLabel').textContent = '已暂停';
+        renderBoard();
+        renderStats();
+        openModal({
+          icon: 'Ⅱ',
+          title: '游戏暂停',
+          text: '计时和叫号都已暂停。<br>准备好后继续寻找宾果连线！',
+          primary: '继续游戏',
+          onPrimary: resumeGame,
+          showRestart: true
+        });
+      }
+
+      function resumeGame() {
+        if (!state.paused || state.over) return;
+        hideModal();
+        state.paused = false;
+        pauseBtn.textContent = '暂停';
+        $('gameStateLabel').textContent = '游戏中';
+        renderBoard();
+        renderStats();
+        startTimers();
+        announce('继续游戏');
+      }
+
+      function announce(message, isError = false) {
+        clearTimeout(toastTimerId);
+        $('statusText').textContent = message;
+        $('statusText').style.color = isError ? 'var(--danger)' : '';
+        toastTimerId = window.setTimeout(() => {
+          if (!state.over && !state.paused) {
+            $('statusText').textContent = '点按发光号码，完成连线';
+            $('statusText').style.color = '';
+          }
+        }, 1600);
+      }
+
+      // ===== 弹窗与焦点管理 =====
+      function openModal({ icon, title, text, primary, onPrimary, showRestart = false }) {
+        $('modalIcon').textContent = icon;
+        $('modalTitle').textContent = title;
+        $('modalText').innerHTML = text;
+        $('modalStats').hidden = true;
+        $('confetti').replaceChildren();
+        modalPrimary.textContent = primary;
+        modalSecondary.hidden = !showRestart;
+        primaryAction = onPrimary;
+        modal.hidden = false;
+        app.inert = true;
+        requestAnimationFrame(() => modalPrimary.focus());
+      }
+
+      function hideModal() {
+        modal.hidden = true;
+        app.inert = false;
+      }
+
+      function showResultModal(title, detail, won) {
+        $('modalIcon').textContent = won ? 'B!' : '⌛';
+        $('modalTitle').textContent = title;
+        $('modalText').innerHTML = detail;
+        $('modalStats').innerHTML = `
+          <div class="result-item"><span>最终得分</span><strong>${state.score}</strong></div>
+          <div class="result-item"><span>历史最高</span><strong>${state.best}</strong></div>`;
+        $('modalStats').hidden = false;
+        modalPrimary.textContent = '再来一局';
+        modalSecondary.hidden = true;
+        primaryAction = restartGame;
+        modal.hidden = false;
+        app.inert = true;
+        if (won) launchConfetti(); else $('confetti').replaceChildren();
+        requestAnimationFrame(() => modalPrimary.focus());
+      }
+
+      function launchConfetti() {
+        const colors = ['#45f3ff', '#ff4fd8', '#8b6cff', '#65ffc3', '#ffd66b'];
+        const fragment = document.createDocumentFragment();
+        for (let i = 0; i < 28; i++) {
+          const piece = document.createElement('i');
+          piece.style.setProperty('--left', `${Math.random() * 100}%`);
+          piece.style.setProperty('--drift', `${Math.random() * 100 - 50}px`);
+          piece.style.setProperty('--delay', `${Math.random() * 1.5}s`);
+          piece.style.setProperty('--color', colors[i % colors.length]);
+          fragment.appendChild(piece);
+        }
+        $('confetti').replaceChildren(fragment);
+      }
+
+      // ===== 触屏、鼠标与键盘事件 =====
+      board.addEventListener('click', (event) => {
+        const cell = event.target.closest('.cell');
+        if (cell) markCell(Number(cell.dataset.index));
+      });
+
+      board.addEventListener('keydown', (event) => {
+        const cell = event.target.closest('.cell');
+        if (!cell || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+        event.preventDefault();
+        const index = Number(cell.dataset.index);
+        const row = Math.floor(index / SIZE);
+        const col = index % SIZE;
+        const moves = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [-1, 0], ArrowDown: [1, 0] };
+        const [dr, dc] = moves[event.key];
+        const nextRow = Math.max(0, Math.min(SIZE - 1, row + dr));
+        const nextCol = Math.max(0, Math.min(SIZE - 1, col + dc));
+        board.children[nextRow * SIZE + nextCol].focus();
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key.toLowerCase() === 'p' && state.started && !state.over) {
+          event.preventDefault();
+          state.paused ? resumeGame() : pauseGame();
+        }
+        if (event.key === 'Escape' && state.paused) resumeGame();
+      });
+
+      pauseBtn.addEventListener('click', () => state.paused ? resumeGame() : pauseGame());
+      $('restartBtn').addEventListener('click', restartGame);
+      modalPrimary.addEventListener('click', () => { if (primaryAction) primaryAction(); });
+      modalSecondary.addEventListener('click', restartGame);
+
+      // 页面切入后台时自动暂停，避免玩家错过叫号。
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && state.started && !state.paused && !state.over) pauseGame();
+      });
+
+      // 禁止双击缩放、双指缩放手势及橡皮筋滚动。
+      document.addEventListener('dblclick', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('gesturestart', (event) => event.preventDefault(), { passive: false });
+      document.addEventListener('touchmove', (event) => event.preventDefault(), { passive: false });
+      window.addEventListener('resize', fitBoard);
+      if ('ResizeObserver' in window) new ResizeObserver(fitBoard).observe(boardArea);
+
+      // 首次进入先展示玩法，点击后开始计时与随机叫号。
+      setupGame();
+      openModal({
+        icon: '✦',
+        title: '霓虹宾果',
+        text: '随机叫号后，<b>点按对应号码</b>进行标记。<br>任意横线、竖线或对角线连成 5 格即获胜。<br>正确标记加分，误点未叫号码扣 30 分。',
+        primary: '开始游戏',
+        onPrimary: startGame
+      });
+    })();
+  </script>
+</body>
+</html>

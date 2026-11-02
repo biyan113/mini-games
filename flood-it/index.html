@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080b16">
+  <title>霓虹浸染 · Flood</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080b16;
+      --panel: rgba(20, 25, 45, 0.72);
+      --line: rgba(255, 255, 255, 0.09);
+      --text: #f4f7ff;
+      --muted: #8e98b5;
+      --accent: #7c5cff;
+      --board-size: min(88vw, 48dvh, 440px);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 4%, rgba(85, 60, 190, 0.22), transparent 34%),
+        radial-gradient(circle at 92% 90%, rgba(0, 183, 214, 0.12), transparent 34%),
+        var(--bg);
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+      border: 0;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    button:focus-visible {
+      outline: 2px solid #b8abff;
+      outline-offset: 3px;
+    }
+
+    button:disabled {
+      cursor: default;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    .ambient {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .ambient::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: 0.17;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: linear-gradient(to bottom, black, transparent 85%);
+    }
+
+    .orb {
+      position: absolute;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.12;
+      background: #7657ff;
+      animation: drift 10s ease-in-out infinite alternate;
+    }
+
+    .orb.one { top: -100px; right: -80px; }
+    .orb.two { bottom: -120px; left: -100px; background: #00c2d7; animation-delay: -5s; }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      width: min(100%, 520px);
+      height: 100vh;
+      height: 100dvh;
+      padding: max(12px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(8px, 1.4dvh, 14px);
+    }
+
+    .header {
+      width: 100%;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      gap: 11px;
+    }
+
+    .brand-mark {
+      position: relative;
+      flex: 0 0 auto;
+      width: 42px;
+      height: 42px;
+      border: 1px solid rgba(163, 143, 255, 0.38);
+      border-radius: 13px;
+      background: linear-gradient(145deg, rgba(139, 105, 255, 0.28), rgba(40, 28, 85, 0.4));
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.12), 0 0 22px rgba(124, 92, 255, 0.13);
+    }
+
+    .brand-mark i {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 4px;
+      box-shadow: 0 0 9px currentColor;
+    }
+
+    .brand-mark i:nth-child(1) { left: 8px; top: 8px; color: #a970ff; background: currentColor; }
+    .brand-mark i:nth-child(2) { right: 8px; top: 8px; color: #38b6ff; background: currentColor; }
+    .brand-mark i:nth-child(3) { left: 8px; bottom: 8px; color: #ff4d8d; background: currentColor; }
+    .brand-mark i:nth-child(4) { right: 8px; bottom: 8px; color: #35e0a1; background: currentColor; }
+
+    h1 {
+      margin: 0;
+      font-size: 21px;
+      line-height: 1.15;
+      letter-spacing: 0.08em;
+      font-weight: 750;
+    }
+
+    .brand-subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.2em;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .control-btn {
+      min-width: 44px;
+      height: 44px;
+      padding: 0 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(255, 255, 255, 0.045);
+      color: #c8cfe2;
+      font-size: 12px;
+      transition: background 160ms ease, transform 160ms ease, border-color 160ms ease;
+    }
+
+    .control-btn.icon-only { padding: 0; }
+    .control-btn svg { width: 17px; height: 17px; }
+    .control-btn:not(:disabled):active { transform: scale(0.94); }
+    .control-btn:not(:disabled):hover { background: rgba(255, 255, 255, 0.09); border-color: rgba(255, 255, 255, 0.16); }
+    .control-btn:disabled { opacity: 0.4; }
+
+    .stats {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      padding: 10px 8px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(27, 32, 57, 0.82), rgba(15, 19, 36, 0.72));
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.04), 0 12px 35px rgba(0, 0, 0, 0.14);
+      backdrop-filter: blur(18px);
+    }
+
+    .stat {
+      position: relative;
+      text-align: center;
+    }
+
+    .stat + .stat::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 8px;
+      bottom: 8px;
+      width: 1px;
+      background: var(--line);
+    }
+
+    .stat-label {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.13em;
+    }
+
+    .stat-value {
+      display: block;
+      font-size: 22px;
+      line-height: 1.25;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-value small {
+      margin-left: 2px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    #movesLeft { color: #c8bbff; text-shadow: 0 0 16px rgba(169, 112, 255, 0.28); }
+    #movesLeft.danger { color: #ff759f; animation: breathe 1s ease-in-out infinite; }
+
+    .board-zone {
+      position: relative;
+      flex: 0 0 auto;
+      width: var(--board-size);
+    }
+
+    .board-frame {
+      position: relative;
+      padding: 8px;
+      border: 1px solid rgba(174, 161, 255, 0.2);
+      border-radius: 24px;
+      background: linear-gradient(145deg, rgba(38, 43, 73, 0.92), rgba(12, 15, 30, 0.96));
+      box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.35),
+        0 0 35px rgba(106, 76, 218, 0.09),
+        inset 0 1px rgba(255, 255, 255, 0.08);
+    }
+
+    .board {
+      width: 100%;
+      aspect-ratio: 1;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 2px;
+      padding: 4px;
+      overflow: hidden;
+      border-radius: 16px;
+      background: #070a13;
+      box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.7);
+    }
+
+    .cell {
+      position: relative;
+      min-width: 0;
+      border-radius: 22%;
+      background: var(--tile);
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.2), inset 0 -1px rgba(0, 0, 0, 0.12);
+      transition: background-color 180ms ease;
+    }
+
+    .cell.origin::after {
+      content: "";
+      position: absolute;
+      inset: 25%;
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      border-radius: 50%;
+      box-shadow: 0 0 4px rgba(0, 0, 0, 0.35);
+    }
+
+    .cell.wave { animation: cell-wave 360ms ease-out both; animation-delay: var(--delay, 0ms); }
+
+    .progress-track {
+      height: 3px;
+      margin: 8px 14px 0;
+      overflow: hidden;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, 0.07);
+    }
+
+    .progress-bar {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #7958f6, #38b6ff, #35e0a1);
+      box-shadow: 0 0 9px rgba(56, 182, 255, 0.5);
+      transition: width 300ms ease;
+    }
+
+    .pause-overlay {
+      position: absolute;
+      inset: 0 0 11px;
+      z-index: 5;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      border-radius: 24px;
+      background: rgba(7, 9, 20, 0.79);
+      backdrop-filter: blur(9px);
+    }
+
+    .pause-card { text-align: center; }
+    .pause-card h2 { margin: 10px 0 5px; font-size: 23px; }
+    .pause-card p { margin: 0 0 17px; color: var(--muted); font-size: 12px; }
+
+    .pause-symbol {
+      width: 48px;
+      height: 48px;
+      margin: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: 1px solid rgba(177, 158, 255, 0.35);
+      border-radius: 16px;
+      background: rgba(124, 92, 255, 0.14);
+      box-shadow: 0 0 25px rgba(124, 92, 255, 0.15);
+    }
+
+    .pause-symbol i { width: 5px; height: 20px; border-radius: 3px; background: #c6b8ff; }
+
+    .palette-wrap { width: 100%; }
+
+    .palette-label {
+      margin: 0 0 7px;
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+    }
+
+    .palette-label span:last-child { letter-spacing: 0; opacity: 0.75; }
+
+    .palette {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: clamp(6px, 1.8vw, 10px);
+    }
+
+    .color-btn {
+      position: relative;
+      aspect-ratio: 1;
+      max-height: 62px;
+      min-height: 44px;
+      overflow: hidden;
+      border: 2px solid rgba(255, 255, 255, 0.14);
+      border-radius: 15px;
+      background: var(--swatch);
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.28), 0 5px 16px color-mix(in srgb, var(--swatch) 20%, transparent);
+      transition: transform 160ms ease, filter 160ms ease, opacity 160ms ease, box-shadow 160ms ease;
+    }
+
+    .color-btn::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.22), transparent 48%, rgba(0, 0, 0, 0.1));
+    }
+
+    .color-btn:not(:disabled):active { transform: scale(0.9); }
+    .color-btn:not(:disabled):hover { filter: brightness(1.12); transform: translateY(-2px); }
+    .color-btn:disabled:not(.is-current) { opacity: 0.3; filter: saturate(0.45); }
+
+    .color-btn.is-current {
+      border-color: rgba(255, 255, 255, 0.9);
+      transform: translateY(-3px);
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1), 0 0 20px color-mix(in srgb, var(--swatch) 42%, transparent);
+    }
+
+    .key-number {
+      position: absolute;
+      top: 4px;
+      left: 6px;
+      color: rgba(8, 11, 22, 0.63);
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .current-check {
+      position: absolute;
+      inset: 0;
+      display: none;
+      place-items: center;
+      color: rgba(8, 11, 22, 0.8);
+      font-size: 22px;
+      font-weight: 900;
+    }
+
+    .is-current .current-check { display: grid; }
+
+    .hint {
+      min-height: 16px;
+      margin: 0;
+      color: var(--muted);
+      text-align: center;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(4, 6, 13, 0.78);
+      backdrop-filter: blur(12px);
+      animation: fade-in 200ms ease-out;
+    }
+
+    .result-card {
+      width: min(100%, 360px);
+      padding: 28px 24px 22px;
+      border: 1px solid rgba(190, 178, 255, 0.19);
+      border-radius: 26px;
+      text-align: center;
+      background: linear-gradient(155deg, rgba(31, 36, 65, 0.98), rgba(13, 17, 32, 0.98));
+      box-shadow: 0 30px 100px rgba(0, 0, 0, 0.5), inset 0 1px rgba(255, 255, 255, 0.07);
+      animation: card-in 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .result-icon {
+      width: 70px;
+      height: 70px;
+      margin: 0 auto 16px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(106, 255, 200, 0.28);
+      border-radius: 22px;
+      background: rgba(53, 224, 161, 0.1);
+      color: #62edbb;
+      box-shadow: 0 0 35px rgba(53, 224, 161, 0.13);
+      font-size: 34px;
+      font-weight: 300;
+    }
+
+    .result-card.loss .result-icon {
+      border-color: rgba(255, 102, 151, 0.26);
+      background: rgba(255, 77, 141, 0.09);
+      color: #ff759f;
+      box-shadow: 0 0 35px rgba(255, 77, 141, 0.1);
+    }
+
+    .result-card h2 { margin: 0 0 8px; font-size: 26px; letter-spacing: 0.04em; }
+    .result-message { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+
+    .record-badge {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 5px 10px;
+      border: 1px solid rgba(255, 230, 109, 0.24);
+      border-radius: 99px;
+      color: #ffe66d;
+      background: rgba(255, 230, 109, 0.07);
+      font-size: 11px;
+    }
+
+    .result-stats {
+      margin: 22px 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      padding: 14px 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .result-stats span { display: block; color: var(--muted); font-size: 10px; }
+    .result-stats strong { display: block; margin-top: 5px; font-size: 19px; font-variant-numeric: tabular-nums; }
+
+    .primary-btn,
+    .secondary-btn {
+      width: 100%;
+      min-height: 48px;
+      border-radius: 14px;
+      font-weight: 650;
+      font-size: 14px;
+      transition: transform 150ms ease, filter 150ms ease;
+    }
+
+    .primary-btn {
+      background: linear-gradient(135deg, #8b6bff, #6650e8);
+      box-shadow: 0 8px 25px rgba(111, 79, 235, 0.28), inset 0 1px rgba(255, 255, 255, 0.2);
+    }
+
+    .secondary-btn { margin-top: 8px; background: transparent; color: var(--muted); }
+    .primary-btn:active, .secondary-btn:active { transform: scale(0.97); }
+    .primary-btn:hover { filter: brightness(1.1); }
+    .keyboard-tip { margin: 12px 0 0; color: #626d8a; font-size: 10px; }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @keyframes cell-wave {
+      0% { transform: scale(0.72); filter: brightness(1.7); }
+      55% { transform: scale(1.09); }
+      100% { transform: scale(1); filter: brightness(1); }
+    }
+
+    @keyframes breathe { 50% { opacity: 0.55; } }
+    @keyframes drift { to { transform: translate(35px, 25px) scale(1.15); } }
+    @keyframes fade-in { from { opacity: 0; } }
+    @keyframes card-in { from { opacity: 0; transform: translateY(16px) scale(0.96); } }
+
+    @media (min-width: 600px) and (min-height: 760px) {
+      :root { --board-size: min(82vw, 50dvh, 440px); }
+      .app { padding: 24px; }
+    }
+
+    @media (max-height: 650px) {
+      :root { --board-size: min(82vw, 43dvh, 320px); }
+      .app { gap: 7px; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+      .brand-subtitle { display: none; }
+      .brand-mark { width: 38px; height: 38px; }
+      .stats { padding: 7px; }
+      .stat-value { font-size: 19px; }
+      .palette-label { margin-bottom: 5px; }
+      .color-btn { min-height: 42px; border-radius: 12px; }
+      .keyboard-tip { display: none; }
+    }
+
+    @media (orientation: landscape) and (max-height: 600px) {
+      :root { --board-size: min(52vw, 66dvh, 360px); }
+      .app {
+        width: min(100%, 860px);
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(250px, 0.8fr);
+        grid-template-rows: auto auto 1fr auto;
+        column-gap: 24px;
+        row-gap: 10px;
+      }
+      .header { grid-column: 1 / -1; }
+      .stats { grid-column: 2; grid-row: 2; }
+      .board-zone { grid-column: 1; grid-row: 2 / 5; justify-self: center; }
+      .palette-wrap { grid-column: 2; grid-row: 3; align-self: center; }
+      .hint { grid-column: 2; grid-row: 4; }
+      .palette { grid-template-columns: repeat(3, 1fr); }
+      .color-btn { aspect-ratio: 2 / 1; max-height: 52px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true">
+    <div class="orb one"></div>
+    <div class="orb two"></div>
+  </div>
+
+  <main class="app" aria-label="霓虹浸染游戏">
+    <header class="header">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+        <div>
+          <h1>霓虹浸染</h1>
+          <p class="brand-subtitle">NEON FLOOD</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="control-btn icon-only" id="newGameBtn" type="button" aria-label="重新开始" title="重新开始（R）">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 7v5h-5"></path><path d="M19 12a7 7 0 1 0-2 5"></path>
+          </svg>
+        </button>
+        <button class="control-btn" id="pauseBtn" type="button" aria-label="暂停游戏" title="暂停 / 继续（P）">
+          <svg id="pauseIcon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect></svg>
+          <span id="pauseText">暂停</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="stats" aria-label="游戏数据">
+      <div class="stat">
+        <span class="stat-label">剩余步数</span>
+        <strong class="stat-value" id="movesLeft">25</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">当前得分</span>
+        <strong class="stat-value" id="score">0</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">最高分</span>
+        <strong class="stat-value" id="bestScore">0</strong>
+      </div>
+    </section>
+
+    <section class="board-zone" aria-label="填色棋盘">
+      <div class="board-frame">
+        <div class="board" id="board" role="img" aria-label="12 乘 12 填色棋盘"></div>
+      </div>
+      <div class="progress-track" aria-hidden="true"><div class="progress-bar" id="progressBar"></div></div>
+      <div class="pause-overlay" id="pauseOverlay" hidden>
+        <div class="pause-card">
+          <div class="pause-symbol" aria-hidden="true"><i></i><i></i></div>
+          <h2>稍作停留</h2>
+          <p>当前浸染进度已保留</p>
+          <button class="primary-btn" id="resumeBtn" type="button">继续游戏</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="palette-wrap" aria-label="选择浸染颜色">
+      <div class="palette-label"><span>选择一种颜色</span><span id="progressText">已浸染 0 / 144</span></div>
+      <div class="palette" id="palette"></div>
+    </section>
+
+    <p class="hint" id="hint">轻点色块，让左上角向外浸染 · 25 步内统一全盘</p>
+    <div class="sr-only" id="liveRegion" role="status" aria-live="polite"></div>
+  </main>
+
+  <div class="modal" id="resultModal" role="dialog" aria-modal="true" aria-labelledby="resultTitle" hidden>
+    <div class="result-card" id="resultCard">
+      <div class="result-icon" id="resultIcon" aria-hidden="true">✓</div>
+      <h2 id="resultTitle">浸染完成！</h2>
+      <p class="result-message" id="resultMessage"></p>
+      <span class="record-badge" id="recordBadge" hidden>✦ 新纪录</span>
+      <div class="result-stats">
+        <div><span>使用步数</span><strong id="resultMoves">0</strong></div>
+        <div><span>本局得分</span><strong id="resultScore">0</strong></div>
+        <div><span>最高分</span><strong id="resultBest">0</strong></div>
+      </div>
+      <button class="primary-btn" id="restartBtn" type="button">再来一局</button>
+      <button class="secondary-btn" id="viewBoardBtn" type="button">查看棋盘</button>
+      <p class="keyboard-tip">按 1–6 选色 · P 暂停 · R 重开</p>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // 游戏常量：12×12 棋盘、6 种颜色、25 步限制。
+      const SIZE = 12;
+      const TOTAL = SIZE * SIZE;
+      const MAX_MOVES = 25;
+      const STORAGE_KEY = "neon-flood-best-v1";
+      const COLORS = ["#ff4d8d", "#ff9f43", "#ffe66d", "#35e0a1", "#38b6ff", "#a970ff"];
+      const COLOR_NAMES = ["玫红", "暖橙", "明黄", "薄荷绿", "天蓝", "星云紫"];
+
+      // 缓存界面元素。
+      const els = {
+        board: document.getElementById("board"),
+        palette: document.getElementById("palette"),
+        movesLeft: document.getElementById("movesLeft"),
+        score: document.getElementById("score"),
+        bestScore: document.getElementById("bestScore"),
+        progressBar: document.getElementById("progressBar"),
+        progressText: document.getElementById("progressText"),
+        hint: document.getElementById("hint"),
+        liveRegion: document.getElementById("liveRegion"),
+        newGameBtn: document.getElementById("newGameBtn"),
+        pauseBtn: document.getElementById("pauseBtn"),
+        pauseText: document.getElementById("pauseText"),
+        pauseIcon: document.getElementById("pauseIcon"),
+        pauseOverlay: document.getElementById("pauseOverlay"),
+        resumeBtn: document.getElementById("resumeBtn"),
+        resultModal: document.getElementById("resultModal"),
+        resultCard: document.getElementById("resultCard"),
+        resultIcon: document.getElementById("resultIcon"),
+        resultTitle: document.getElementById("resultTitle"),
+        resultMessage: document.getElementById("resultMessage"),
+        resultMoves: document.getElementById("resultMoves"),
+        resultScore: document.getElementById("resultScore"),
+        resultBest: document.getElementById("resultBest"),
+        recordBadge: document.getElementById("recordBadge"),
+        restartBtn: document.getElementById("restartBtn"),
+        viewBoardBtn: document.getElementById("viewBoardBtn")
+      };
+
+      let grid = [];
+      let cells = [];
+      let colorButtons = [];
+      let movesUsed = 0;
+      let score = 0;
+      let bestScore = loadBestScore();
+      let bestAtStart = bestScore;
+      let floodedCount = 0;
+      let paused = false;
+      let gameOver = false;
+      let animationTimer = 0;
+
+      // 读取最高分；隐私模式或存储被禁用时仍可正常游戏。
+      function loadBestScore() {
+        try {
+          const saved = Number.parseInt(localStorage.getItem(STORAGE_KEY), 10);
+          return Number.isFinite(saved) && saved > 0 ? saved : 0;
+        } catch (error) {
+          return 0;
+        }
+      }
+
+      // 保存最高分，不让存储异常打断游戏。
+      function saveBestScore() {
+        try {
+          localStorage.setItem(STORAGE_KEY, String(bestScore));
+        } catch (error) {
+          // 无需提示错误，本局数据仍会保留到页面关闭。
+        }
+      }
+
+      // 生成随机棋盘，并保证六种颜色都会出现。
+      function createGrid() {
+        const next = Array.from({ length: TOTAL }, (_, index) => (
+          index < COLORS.length ? index : Math.floor(Math.random() * COLORS.length)
+        ));
+        for (let i = next.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [next[i], next[j]] = [next[j], next[i]];
+        }
+        return next;
+      }
+
+      // 以四邻域搜索从左上角连通的所有同色格。
+      function getFloodedIndices(source) {
+        const targetColor = source[0];
+        const visited = new Uint8Array(TOTAL);
+        const stack = [0];
+        const region = [];
+        visited[0] = 1;
+
+        while (stack.length) {
+          const index = stack.pop();
+          if (source[index] !== targetColor) continue;
+          region.push(index);
+
+          const row = Math.floor(index / SIZE);
+          const col = index % SIZE;
+          const neighbors = [];
+          if (row > 0) neighbors.push(index - SIZE);
+          if (row < SIZE - 1) neighbors.push(index + SIZE);
+          if (col > 0) neighbors.push(index - 1);
+          if (col < SIZE - 1) neighbors.push(index + 1);
+
+          for (const next of neighbors) {
+            if (!visited[next]) {
+              visited[next] = 1;
+              stack.push(next);
+            }
+          }
+        }
+        return region;
+      }
+
+      // 首次创建格子与色块，之后每局复用这些元素。
+      function buildInterface() {
+        const boardFragment = document.createDocumentFragment();
+        for (let index = 0; index < TOTAL; index += 1) {
+          const cell = document.createElement("div");
+          cell.className = "cell" + (index === 0 ? " origin" : "");
+          cell.setAttribute("aria-hidden", "true");
+          cells.push(cell);
+          boardFragment.appendChild(cell);
+        }
+        els.board.appendChild(boardFragment);
+
+        const paletteFragment = document.createDocumentFragment();
+        COLORS.forEach((color, index) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "color-btn";
+          button.style.setProperty("--swatch", color);
+          button.setAttribute("aria-label", `${COLOR_NAMES[index]}，快捷键 ${index + 1}`);
+          button.setAttribute("aria-pressed", "false");
+          button.innerHTML = `<span class="key-number">${index + 1}</span><span class="current-check" aria-hidden="true">✓</span>`;
+          button.addEventListener("click", () => chooseColor(index));
+          colorButtons.push(button);
+          paletteFragment.appendChild(button);
+        });
+        els.palette.appendChild(paletteFragment);
+      }
+
+      // 更新棋盘颜色；浸染波按与起点的距离依次扩散。
+      function renderBoard(changedIndices = []) {
+        window.clearTimeout(animationTimer);
+        for (const cell of cells) cell.classList.remove("wave");
+
+        changedIndices.forEach((index) => {
+          cells[index].style.setProperty("--tile", COLORS[grid[index]]);
+        });
+
+        if (changedIndices.length) {
+          void els.board.offsetWidth;
+          changedIndices.forEach((index) => {
+            const distance = Math.floor(index / SIZE) + (index % SIZE);
+            cells[index].style.setProperty("--delay", `${Math.min(distance * 16, 180)}ms`);
+            cells[index].classList.add("wave");
+          });
+          animationTimer = window.setTimeout(() => {
+            for (const cell of cells) cell.classList.remove("wave");
+          }, 600);
+        }
+
+        const currentColor = COLOR_NAMES[grid[0]];
+        els.board.setAttribute("aria-label", `12 乘 12 填色棋盘，左上区域为${currentColor}，已浸染 ${floodedCount} 格，共 ${TOTAL} 格`);
+      }
+
+      // 同步分数、步数、进度和按钮状态。
+      function renderStatus() {
+        const remaining = MAX_MOVES - movesUsed;
+        els.movesLeft.textContent = remaining;
+        els.movesLeft.classList.toggle("danger", remaining <= 5 && !gameOver);
+        els.score.textContent = score.toLocaleString("zh-CN");
+        els.bestScore.textContent = bestScore.toLocaleString("zh-CN");
+        els.progressText.textContent = `已浸染 ${floodedCount} / ${TOTAL}`;
+        els.progressBar.style.width = `${(floodedCount / TOTAL) * 100}%`;
+        els.pauseText.textContent = paused ? "继续" : "暂停";
+        els.pauseBtn.setAttribute("aria-label", paused ? "继续游戏" : "暂停游戏");
+        els.pauseBtn.disabled = gameOver;
+        els.pauseOverlay.hidden = !paused;
+        els.pauseIcon.innerHTML = paused
+          ? '<path d="M8 5.5v13l10-6.5z"></path>'
+          : '<rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect>';
+
+        colorButtons.forEach((button, index) => {
+          const isCurrent = grid[0] === index;
+          button.classList.toggle("is-current", isCurrent);
+          button.setAttribute("aria-pressed", String(isCurrent));
+          button.disabled = gameOver || paused || isCurrent;
+        });
+      }
+
+      // 记录即时最高分，避免中途关闭页面丢失成绩。
+      function updateBestScore() {
+        if (score > bestScore) {
+          bestScore = score;
+          saveBestScore();
+        }
+      }
+
+      // 执行一步填色，并在染色后重新计算整个连通区域。
+      function chooseColor(colorIndex) {
+        if (paused || gameOver || colorIndex === grid[0]) return;
+
+        const previousRegion = getFloodedIndices(grid);
+        for (const index of previousRegion) grid[index] = colorIndex;
+        const nextRegion = getFloodedIndices(grid);
+        const gainedCells = nextRegion.length - previousRegion.length;
+
+        movesUsed += 1;
+        floodedCount = nextRegion.length;
+        score += gainedCells * 10;
+        updateBestScore();
+        renderBoard(nextRegion);
+        renderStatus();
+
+        if (navigator.vibrate) navigator.vibrate(8);
+
+        if (floodedCount === TOTAL) {
+          finishGame(true);
+        } else if (movesUsed >= MAX_MOVES) {
+          finishGame(false);
+        } else {
+          els.hint.textContent = `吸收 ${gainedCells} 格 · 还剩 ${MAX_MOVES - movesUsed} 步`;
+          els.liveRegion.textContent = `已选择${COLOR_NAMES[colorIndex]}，吸收 ${gainedCells} 格，剩余 ${MAX_MOVES - movesUsed} 步`;
+        }
+      }
+
+      // 结算胜负；提前完成会把剩余步数转化为奖励分。
+      function finishGame(won) {
+        gameOver = true;
+        paused = false;
+        if (won) score += 1000 + (MAX_MOVES - movesUsed) * 100;
+        updateBestScore();
+        renderStatus();
+
+        els.resultCard.classList.toggle("loss", !won);
+        els.resultIcon.textContent = won ? "✓" : "×";
+        els.resultTitle.textContent = won ? "浸染完成！" : "步数用尽";
+        els.resultMessage.textContent = won
+          ? `你用 ${movesUsed} 步统一了整片色彩，漂亮！`
+          : `还差 ${TOTAL - floodedCount} 格就能完成，再试一次吧。`;
+        els.resultMoves.textContent = movesUsed;
+        els.resultScore.textContent = score.toLocaleString("zh-CN");
+        els.resultBest.textContent = bestScore.toLocaleString("zh-CN");
+        els.recordBadge.hidden = !(score > bestAtStart && score > 0);
+        els.hint.textContent = won ? "全盘统一，霓虹已点亮 ✦" : "换一种浸染顺序，下次一定行";
+        els.liveRegion.textContent = won ? "恭喜，你完成了游戏" : "游戏结束，步数已用尽";
+        els.resultModal.hidden = false;
+
+        if (navigator.vibrate) navigator.vibrate(won ? [30, 50, 60] : 40);
+        window.setTimeout(() => els.restartBtn.focus({ preventScroll: true }), 80);
+      }
+
+      // 暂停或继续，只允许进行中的对局切换。
+      function togglePause(forcePause = false) {
+        if (gameOver) return;
+        paused = forcePause ? true : !paused;
+        renderStatus();
+        els.hint.textContent = paused ? "游戏已暂停" : "继续选择颜色，统一全盘";
+        els.liveRegion.textContent = paused ? "游戏已暂停" : "游戏继续";
+        if (paused) els.resumeBtn.focus({ preventScroll: true });
+        else colorButtons[grid[0] === 0 ? 1 : 0].focus({ preventScroll: true });
+      }
+
+      // 开启全新对局并重置本局数据。
+      function newGame() {
+        window.clearTimeout(animationTimer);
+        grid = createGrid();
+        movesUsed = 0;
+        score = 0;
+        bestAtStart = bestScore;
+        floodedCount = getFloodedIndices(grid).length;
+        paused = false;
+        gameOver = false;
+        els.resultModal.hidden = true;
+        els.pauseOverlay.hidden = true;
+        els.hint.textContent = "轻点色块，让左上角向外浸染 · 25 步内统一全盘";
+        renderBoard(Array.from({ length: TOTAL }, (_, index) => index));
+        renderStatus();
+        els.liveRegion.textContent = "新游戏开始";
+      }
+
+      // 绑定按钮及键盘快捷键。
+      els.newGameBtn.addEventListener("click", newGame);
+      els.restartBtn.addEventListener("click", newGame);
+      els.pauseBtn.addEventListener("click", () => togglePause());
+      els.resumeBtn.addEventListener("click", () => togglePause());
+      els.viewBoardBtn.addEventListener("click", () => {
+        els.resultModal.hidden = true;
+        els.newGameBtn.focus({ preventScroll: true });
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.repeat) return;
+        const key = event.key.toLowerCase();
+
+        if (key === "r") {
+          event.preventDefault();
+          newGame();
+          return;
+        }
+        if (!els.resultModal.hidden) {
+          if (key === "escape") {
+            els.resultModal.hidden = true;
+            els.newGameBtn.focus({ preventScroll: true });
+          }
+          return;
+        }
+        if (key === "p" || key === "escape") {
+          event.preventDefault();
+          togglePause();
+          return;
+        }
+        const number = Number.parseInt(key, 10);
+        if (number >= 1 && number <= COLORS.length && !paused) {
+          event.preventDefault();
+          chooseColor(number - 1);
+        }
+      });
+
+      // 禁止双击缩放、双指缩放手势与页面拖动。
+      document.addEventListener("dblclick", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("contextmenu", (event) => event.preventDefault());
+
+      // 切到后台时自动暂停，返回后由玩家主动继续。
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && !gameOver && !paused) togglePause(true);
+      });
+
+      buildInterface();
+      newGame();
+    })();
+  </script>
+</body>
+</html>

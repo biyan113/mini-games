@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080a18">
+  <title>单词记忆 · 霓虹翻牌</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080a18;
+      --panel: rgba(18, 22, 45, 0.78);
+      --line: rgba(151, 166, 255, 0.16);
+      --text: #f4f6ff;
+      --muted: #8f98ba;
+      --cyan: #55e7ff;
+      --purple: #a879ff;
+      --pink: #ff72c6;
+      --green: #62f5bd;
+      --danger: #ff6685;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 0%, rgba(105, 76, 255, 0.18), transparent 35%),
+        radial-gradient(circle at 100% 90%, rgba(0, 220, 255, 0.11), transparent 38%),
+        var(--bg);
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.22;
+      background-image:
+        linear-gradient(rgba(132, 150, 255, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(132, 150, 255, 0.08) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: linear-gradient(to bottom, black, transparent 85%);
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .ambient {
+      position: fixed;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.13;
+      pointer-events: none;
+    }
+
+    .ambient-one {
+      top: 12%;
+      left: -130px;
+      background: var(--purple);
+    }
+
+    .ambient-two {
+      right: -140px;
+      bottom: 8%;
+      background: var(--cyan);
+    }
+
+    #app {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: clamp(7px, 1.35vh, 12px);
+      width: 100%;
+      max-width: 540px;
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: calc(12px + env(safe-area-inset-top)) clamp(12px, 4vw, 22px) calc(12px + env(safe-area-inset-bottom));
+    }
+
+    .header,
+    .brand,
+    .mission-row,
+    .controls {
+      display: flex;
+      align-items: center;
+    }
+
+    .header {
+      justify-content: space-between;
+      flex: 0 0 auto;
+    }
+
+    .brand {
+      gap: 11px;
+    }
+
+    .logo {
+      display: grid;
+      place-items: center;
+      width: 43px;
+      height: 43px;
+      flex: 0 0 auto;
+      border: 1px solid rgba(85, 231, 255, 0.32);
+      border-radius: 14px;
+      color: var(--cyan);
+      background: linear-gradient(145deg, rgba(85, 231, 255, 0.13), rgba(168, 121, 255, 0.12));
+      box-shadow: inset 0 0 18px rgba(85, 231, 255, 0.06), 0 0 24px rgba(85, 231, 255, 0.08);
+    }
+
+    .logo svg {
+      width: 25px;
+      height: 25px;
+    }
+
+    .eyebrow {
+      margin: 0 0 2px;
+      color: var(--cyan);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(20px, 5.5vw, 27px);
+      line-height: 1.1;
+      letter-spacing: 0.06em;
+    }
+
+    .round-chip {
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(14, 17, 36, 0.66);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      flex: 0 0 auto;
+      padding: 10px 6px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: linear-gradient(135deg, rgba(24, 29, 58, 0.86), rgba(13, 17, 37, 0.86));
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18), inset 0 1px rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(16px);
+    }
+
+    .stat {
+      position: relative;
+      text-align: center;
+    }
+
+    .stat + .stat::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 15%;
+      width: 1px;
+      height: 70%;
+      background: var(--line);
+    }
+
+    .stat-label {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+    }
+
+    .stat-value {
+      display: inline-block;
+      font-variant-numeric: tabular-nums;
+      font-size: clamp(19px, 5.4vw, 25px);
+      font-weight: 750;
+      line-height: 1.15;
+    }
+
+    .stat-value.bump {
+      animation: score-bump 0.28s ease;
+    }
+
+    #scoreValue {
+      color: var(--cyan);
+      text-shadow: 0 0 16px rgba(85, 231, 255, 0.24);
+    }
+
+    #bestValue {
+      color: #c7aaff;
+    }
+
+    .time-unit {
+      margin-left: 2px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 500;
+    }
+
+    .stat-time.is-danger .stat-value {
+      color: var(--danger);
+      animation: time-pulse 1s ease-in-out infinite;
+    }
+
+    .mission {
+      flex: 0 0 auto;
+    }
+
+    .mission-row {
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 7px;
+    }
+
+    .instruction {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .combo {
+      flex: 0 0 auto;
+      padding: 4px 8px;
+      border: 1px solid rgba(168, 121, 255, 0.18);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(168, 121, 255, 0.07);
+      font-size: 10px;
+      font-weight: 650;
+      transition: 0.2s ease;
+    }
+
+    .combo.is-hot {
+      border-color: rgba(255, 114, 198, 0.42);
+      color: #ff9bd5;
+      box-shadow: 0 0 14px rgba(255, 114, 198, 0.12);
+    }
+
+    .progress-track {
+      height: 3px;
+      overflow: hidden;
+      border-radius: 99px;
+      background: rgba(151, 166, 255, 0.1);
+    }
+
+    .progress-fill {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--purple), var(--cyan));
+      box-shadow: 0 0 12px rgba(85, 231, 255, 0.45);
+      transition: width 0.35s ease;
+    }
+
+    .board-wrap {
+      display: flex;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-rows: repeat(4, minmax(0, 1fr));
+      gap: clamp(6px, 1.8vw, 10px);
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .card {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: clamp(10px, 3vw, 15px);
+      outline: none;
+      color: var(--text);
+      background: transparent;
+      perspective: 800px;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    .card:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 2px;
+    }
+
+    .card-inner {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      transform-style: preserve-3d;
+      transition: transform 0.42s cubic-bezier(0.2, 0.72, 0.25, 1.08);
+    }
+
+    .card.is-flipped .card-inner,
+    .card.is-matched .card-inner {
+      transform: rotateY(180deg);
+    }
+
+    .card-face {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 1px solid rgba(140, 156, 238, 0.2);
+      border-radius: inherit;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+
+    .card-front {
+      background:
+        radial-gradient(circle at 50% 35%, rgba(133, 111, 255, 0.16), transparent 47%),
+        linear-gradient(145deg, #1a2040, #10152c);
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.05), 0 5px 15px rgba(0, 0, 0, 0.16);
+    }
+
+    .card-front::after {
+      content: "";
+      position: absolute;
+      inset: 5px;
+      border: 1px solid rgba(151, 166, 255, 0.055);
+      border-radius: calc(clamp(10px, 3vw, 15px) - 4px);
+    }
+
+    .front-gem {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: clamp(24px, 7vw, 34px);
+      height: clamp(24px, 7vw, 34px);
+      border: 1px solid rgba(118, 224, 255, 0.38);
+      border-radius: 10px;
+      color: #a5f2ff;
+      background: rgba(85, 231, 255, 0.055);
+      box-shadow: 0 0 18px rgba(85, 231, 255, 0.09), inset 0 0 12px rgba(85, 231, 255, 0.06);
+      font-size: clamp(13px, 4vw, 18px);
+      font-weight: 500;
+      transform: rotate(45deg);
+    }
+
+    .front-gem > span {
+      transform: rotate(-45deg);
+    }
+
+    .card-back {
+      flex-direction: column;
+      gap: clamp(2px, 0.8vh, 6px);
+      padding: 5px 3px;
+      text-align: center;
+      transform: rotateY(180deg);
+      background: linear-gradient(150deg, rgba(27, 34, 65, 0.98), rgba(15, 20, 42, 0.98));
+      box-shadow: inset 0 0 24px rgba(85, 231, 255, 0.025);
+    }
+
+    .card-en .card-back {
+      border-color: rgba(85, 231, 255, 0.35);
+    }
+
+    .card-zh .card-back {
+      border-color: rgba(255, 114, 198, 0.32);
+    }
+
+    .card-language {
+      color: var(--cyan);
+      font-size: clamp(7px, 2vw, 9px);
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      opacity: 0.7;
+    }
+
+    .card-zh .card-language {
+      color: var(--pink);
+    }
+
+    .card-word {
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      font-size: clamp(11px, 3.6vw, 17px);
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.015em;
+    }
+
+    .card-zh .card-word {
+      font-size: clamp(12px, 4vw, 18px);
+      letter-spacing: 0.02em;
+    }
+
+    .card.is-matched {
+      cursor: default;
+    }
+
+    .card.is-matched .card-back {
+      border-color: rgba(98, 245, 189, 0.66);
+      background: linear-gradient(150deg, rgba(24, 62, 61, 0.96), rgba(15, 34, 43, 0.98));
+      box-shadow: inset 0 0 24px rgba(98, 245, 189, 0.06), 0 0 15px rgba(98, 245, 189, 0.1);
+      animation: match-glow 0.55s ease;
+    }
+
+    .card.is-matched .card-language,
+    .card.is-matched .card-word {
+      color: #a4ffdc;
+    }
+
+    .card.is-wrong .card-back {
+      border-color: var(--danger);
+      box-shadow: 0 0 18px rgba(255, 102, 133, 0.2);
+      animation: card-shake 0.38s ease;
+    }
+
+    .feedback {
+      flex: 0 0 auto;
+      min-height: 17px;
+      margin: 0;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 17px;
+      text-align: center;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .feedback.success {
+      color: var(--green);
+    }
+
+    .feedback.error {
+      color: #ff91a8;
+    }
+
+    .controls {
+      flex: 0 0 auto;
+      gap: 10px;
+    }
+
+    .control {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 44px;
+      flex: 1;
+      border: 1px solid rgba(151, 166, 255, 0.22);
+      border-radius: 13px;
+      color: #dce2ff;
+      background: rgba(23, 28, 55, 0.88);
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.035);
+      font-size: 13px;
+      font-weight: 650;
+      cursor: pointer;
+      touch-action: none;
+      transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+    }
+
+    .control:first-child {
+      border-color: rgba(135, 104, 255, 0.4);
+      background: linear-gradient(135deg, rgba(109, 75, 224, 0.32), rgba(42, 36, 96, 0.56));
+    }
+
+    .control:active {
+      transform: scale(0.97);
+    }
+
+    .control:focus-visible,
+    .modal-button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 2px;
+    }
+
+    .control-icon {
+      color: var(--cyan);
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .key-hint {
+      flex: 0 0 auto;
+      margin: -2px 0 0;
+      color: rgba(143, 152, 186, 0.55);
+      font-size: 9px;
+      text-align: center;
+      letter-spacing: 0.04em;
+    }
+
+    .score-pop {
+      position: fixed;
+      z-index: 50;
+      pointer-events: none;
+      color: var(--green);
+      font-size: 17px;
+      font-weight: 800;
+      text-shadow: 0 0 14px rgba(98, 245, 189, 0.5);
+      transform: translate(-50%, -50%);
+      animation: score-float 0.75s ease-out forwards;
+    }
+
+    .modal {
+      position: fixed;
+      z-index: 100;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: calc(22px + env(safe-area-inset-top)) 22px calc(22px + env(safe-area-inset-bottom));
+      background: rgba(4, 6, 16, 0.78);
+      backdrop-filter: blur(12px);
+      animation: fade-in 0.22s ease;
+      touch-action: none;
+    }
+
+    .modal-panel {
+      width: min(100%, 380px);
+      padding: 28px 23px 22px;
+      border: 1px solid rgba(144, 128, 255, 0.3);
+      border-radius: 25px;
+      text-align: center;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(137, 95, 255, 0.16), transparent 45%),
+        linear-gradient(155deg, #181d3a, #0e1228);
+      box-shadow: 0 28px 90px rgba(0, 0, 0, 0.48), 0 0 45px rgba(118, 87, 255, 0.1), inset 0 1px rgba(255, 255, 255, 0.06);
+      animation: modal-in 0.3s cubic-bezier(0.2, 0.8, 0.25, 1.08);
+    }
+
+    .modal-icon {
+      display: grid;
+      place-items: center;
+      width: 62px;
+      height: 62px;
+      margin: 0 auto 16px;
+      border: 1px solid rgba(85, 231, 255, 0.42);
+      border-radius: 20px;
+      color: var(--cyan);
+      background: rgba(85, 231, 255, 0.08);
+      box-shadow: 0 0 30px rgba(85, 231, 255, 0.12);
+      font-size: 29px;
+      font-weight: 700;
+      transform: rotate(-5deg);
+    }
+
+    .modal-overline {
+      margin: 0 0 6px;
+      color: var(--purple);
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: 0.2em;
+    }
+
+    .modal-title {
+      margin: 0;
+      font-size: 25px;
+      line-height: 1.3;
+    }
+
+    .modal-text {
+      margin: 9px 0 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .new-record {
+      display: inline-block;
+      margin: -6px 0 15px;
+      padding: 5px 10px;
+      border: 1px solid rgba(255, 214, 102, 0.28);
+      border-radius: 99px;
+      color: #ffe294;
+      background: rgba(255, 214, 102, 0.07);
+      font-size: 11px;
+    }
+
+    .result-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      margin-bottom: 20px;
+      padding: 13px 4px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: rgba(7, 10, 24, 0.4);
+    }
+
+    .result-stat + .result-stat {
+      border-left: 1px solid var(--line);
+    }
+
+    .result-value {
+      display: block;
+      color: var(--text);
+      font-size: 20px;
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .result-label {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 9px;
+    }
+
+    .modal-actions {
+      display: grid;
+      gap: 9px;
+    }
+
+    .modal-button {
+      min-height: 47px;
+      border: 1px solid rgba(151, 166, 255, 0.22);
+      border-radius: 13px;
+      color: var(--text);
+      background: rgba(30, 35, 67, 0.8);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    .modal-button.primary {
+      border-color: rgba(85, 231, 255, 0.38);
+      color: #071421;
+      background: linear-gradient(100deg, #66edff, #9fa4ff);
+      box-shadow: 0 8px 24px rgba(85, 231, 255, 0.16);
+    }
+
+    .modal-button:active {
+      transform: scale(0.98);
+    }
+
+    @media (hover: hover) {
+      .card:not(.is-matched):hover .card-front {
+        border-color: rgba(85, 231, 255, 0.42);
+        background: linear-gradient(145deg, #20294e, #121932);
+      }
+
+      .control:hover {
+        border-color: rgba(85, 231, 255, 0.42);
+      }
+    }
+
+    @media (max-height: 700px) {
+      #app {
+        gap: 7px;
+        padding-top: calc(8px + env(safe-area-inset-top));
+        padding-bottom: calc(8px + env(safe-area-inset-bottom));
+      }
+
+      .logo {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+      }
+
+      .stats {
+        padding: 7px 5px;
+      }
+
+      .mission-row {
+        margin-bottom: 5px;
+      }
+
+      .key-hint {
+        display: none;
+      }
+    }
+
+    @media (max-height: 590px) {
+      .eyebrow,
+      .round-chip,
+      .key-hint {
+        display: none;
+      }
+
+      .logo {
+        width: 34px;
+        height: 34px;
+      }
+
+      .stats {
+        padding: 5px;
+      }
+
+      .stat-label {
+        font-size: 9px;
+      }
+
+      .control {
+        min-height: 40px;
+      }
+
+      .card-back {
+        gap: 1px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    @keyframes score-bump {
+      50% { transform: scale(1.16); }
+    }
+
+    @keyframes time-pulse {
+      50% { opacity: 0.58; }
+    }
+
+    @keyframes match-glow {
+      45% { box-shadow: 0 0 28px rgba(98, 245, 189, 0.34); }
+    }
+
+    @keyframes card-shake {
+      25% { transform: rotateY(180deg) translateX(4px); }
+      50% { transform: rotateY(180deg) translateX(-4px); }
+      75% { transform: rotateY(180deg) translateX(3px); }
+    }
+
+    @keyframes score-float {
+      to { opacity: 0; transform: translate(-50%, -130%); }
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; }
+    }
+
+    @keyframes modal-in {
+      from { opacity: 0; transform: translateY(14px) scale(0.96); }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+
+  <main id="app">
+    <header class="header">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5z"/>
+            <path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5z"/>
+            <path d="m7.5 8 1 1 2-2"/>
+          </svg>
+        </div>
+        <div>
+          <p class="eyebrow">WORD MEMORY</p>
+          <h1>单词记忆</h1>
+        </div>
+      </div>
+      <span class="round-chip">8 组 · 90 秒</span>
+    </header>
+
+    <section class="stats" aria-label="游戏数据">
+      <div class="stat">
+        <span class="stat-label">得分</span>
+        <span class="stat-value" id="scoreValue">0</span>
+      </div>
+      <div class="stat stat-time" id="timeStat">
+        <span class="stat-label">剩余时间</span>
+        <span class="stat-value"><span id="timeValue">90</span><span class="time-unit">秒</span></span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">最高分</span>
+        <span class="stat-value" id="bestValue">0</span>
+      </div>
+    </section>
+
+    <section class="mission" aria-label="游戏进度">
+      <div class="mission-row">
+        <p class="instruction">点按翻牌，配对英文与中文 · <span id="matchValue">0</span>/8</p>
+        <span class="combo" id="comboValue">连击 ×0</span>
+      </div>
+      <div class="progress-track" id="progressBar" role="progressbar" aria-label="配对进度" aria-valuemin="0" aria-valuemax="8" aria-valuenow="0">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </section>
+
+    <div class="board-wrap">
+      <section class="board" id="board" aria-label="单词配对卡片区"></section>
+    </div>
+
+    <p class="feedback" id="feedback" role="status" aria-live="polite">翻开两张卡片，寻找对应的单词和释义</p>
+
+    <div class="controls">
+      <button class="control" id="pauseButton" type="button" aria-label="暂停游戏">
+        <span class="control-icon" id="pauseIcon" aria-hidden="true">Ⅱ</span>
+        <span id="pauseText">暂停</span>
+      </button>
+      <button class="control" id="restartButton" type="button" aria-label="重新开始游戏">
+        <span class="control-icon" aria-hidden="true">↻</span>
+        <span>重新开始</span>
+      </button>
+    </div>
+    <p class="key-hint">键盘：方向键移动 · 空格翻牌 · P 暂停 · R 重开</p>
+  </main>
+
+  <div class="modal" id="gameModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalText" hidden>
+    <div class="modal-panel">
+      <div class="modal-icon" id="modalIcon" aria-hidden="true">Ⅱ</div>
+      <p class="modal-overline" id="modalOverline">稍作休息</p>
+      <h2 class="modal-title" id="modalTitle">游戏已暂停</h2>
+      <p class="modal-text" id="modalText">倒计时已停止，准备好再继续。</p>
+      <span class="new-record" id="newRecord" hidden>✦ 新纪录</span>
+      <div class="result-stats">
+        <div class="result-stat">
+          <strong class="result-value" id="resultOne">0</strong>
+          <span class="result-label" id="resultOneLabel">当前得分</span>
+        </div>
+        <div class="result-stat">
+          <strong class="result-value" id="resultTwo">0/8</strong>
+          <span class="result-label" id="resultTwoLabel">已配对</span>
+        </div>
+        <div class="result-stat">
+          <strong class="result-value" id="resultThree">90秒</strong>
+          <span class="result-label" id="resultThreeLabel">剩余时间</span>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-button primary" id="modalPrimary" type="button">继续游戏</button>
+        <button class="modal-button" id="modalSecondary" type="button">重新开始</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // 词库：每局随机抽取 8 个单词，英文与中文互为配对。
+      const WORDS = [
+        { en: "apple", zh: "苹果" },
+        { en: "brave", zh: "勇敢的" },
+        { en: "cloud", zh: "云" },
+        { en: "dream", zh: "梦想" },
+        { en: "energy", zh: "能量" },
+        { en: "forest", zh: "森林" },
+        { en: "gentle", zh: "温柔的" },
+        { en: "harbor", zh: "港口" },
+        { en: "island", zh: "岛屿" },
+        { en: "journey", zh: "旅程" },
+        { en: "kindle", zh: "点燃" },
+        { en: "lemon", zh: "柠檬" },
+        { en: "mirror", zh: "镜子" },
+        { en: "nature", zh: "自然" },
+        { en: "ocean", zh: "海洋" },
+        { en: "puzzle", zh: "谜题" },
+        { en: "quiet", zh: "安静的" },
+        { en: "river", zh: "河流" },
+        { en: "spark", zh: "火花" },
+        { en: "travel", zh: "旅行" },
+        { en: "unity", zh: "团结" },
+        { en: "vivid", zh: "生动的" },
+        { en: "wisdom", zh: "智慧" },
+        { en: "wonder", zh: "奇迹" }
+      ];
+
+      const TOTAL_PAIRS = 8;
+      const ROUND_SECONDS = 90;
+      const MISMATCH_DELAY = 760;
+      const STORAGE_KEY = "word-memory-best-v1";
+
+      // 集中缓存 DOM，避免频繁查询页面。
+      const elements = {
+        app: document.getElementById("app"),
+        board: document.getElementById("board"),
+        score: document.getElementById("scoreValue"),
+        time: document.getElementById("timeValue"),
+        timeStat: document.getElementById("timeStat"),
+        best: document.getElementById("bestValue"),
+        matches: document.getElementById("matchValue"),
+        combo: document.getElementById("comboValue"),
+        progressBar: document.getElementById("progressBar"),
+        progressFill: document.getElementById("progressFill"),
+        feedback: document.getElementById("feedback"),
+        pauseButton: document.getElementById("pauseButton"),
+        pauseIcon: document.getElementById("pauseIcon"),
+        pauseText: document.getElementById("pauseText"),
+        restartButton: document.getElementById("restartButton"),
+        modal: document.getElementById("gameModal"),
+        modalIcon: document.getElementById("modalIcon"),
+        modalOverline: document.getElementById("modalOverline"),
+        modalTitle: document.getElementById("modalTitle"),
+        modalText: document.getElementById("modalText"),
+        newRecord: document.getElementById("newRecord"),
+        resultOne: document.getElementById("resultOne"),
+        resultTwo: document.getElementById("resultTwo"),
+        resultThree: document.getElementById("resultThree"),
+        resultOneLabel: document.getElementById("resultOneLabel"),
+        resultTwoLabel: document.getElementById("resultTwoLabel"),
+        resultThreeLabel: document.getElementById("resultThreeLabel"),
+        modalPrimary: document.getElementById("modalPrimary"),
+        modalSecondary: document.getElementById("modalSecondary")
+      };
+
+      let gameState = "idle";
+      let deck = [];
+      let firstCard = null;
+      let secondCard = null;
+      let inputLocked = false;
+      let score = 0;
+      let bestScore = loadBestScore();
+      let bestAtStart = bestScore;
+      let combo = 0;
+      let maxCombo = 0;
+      let matchedPairs = 0;
+      let remainingMs = ROUND_SECONDS * 1000;
+      let timeLeft = ROUND_SECONDS;
+      let deadline = 0;
+      let timerId = null;
+      let mismatchId = null;
+      let previousFocus = null;
+
+      // localStorage 在隐私模式或 file:// 下可能受限，读写均需容错。
+      function loadBestScore() {
+        try {
+          const saved = Number.parseInt(localStorage.getItem(STORAGE_KEY), 10);
+          return Number.isFinite(saved) && saved >= 0 ? saved : 0;
+        } catch (error) {
+          return 0;
+        }
+      }
+
+      function saveBestScore() {
+        try {
+          localStorage.setItem(STORAGE_KEY, String(bestScore));
+        } catch (error) {
+          // 存储不可用时仍可正常游戏，只是不保留最高分。
+        }
+      }
+
+      function shuffle(items) {
+        const result = [...items];
+        for (let i = result.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [result[i], result[j]] = [result[j], result[i]];
+        }
+        return result;
+      }
+
+      function createDeck() {
+        const selectedWords = shuffle(WORDS).slice(0, TOTAL_PAIRS);
+        const cards = selectedWords.flatMap((word, pairId) => [
+          { ...word, pairId, kind: "en", text: word.en },
+          { ...word, pairId, kind: "zh", text: word.zh }
+        ]);
+        return shuffle(cards);
+      }
+
+      function setFeedback(text, type = "") {
+        elements.feedback.textContent = text;
+        elements.feedback.className = `feedback${type ? ` ${type}` : ""}`;
+      }
+
+      function formatNumber(number) {
+        return number.toLocaleString("zh-CN");
+      }
+
+      function updateTimeDisplay() {
+        elements.time.textContent = String(timeLeft);
+        elements.timeStat.classList.toggle("is-danger", timeLeft <= 10 && gameState === "playing");
+      }
+
+      function updateHUD() {
+        elements.score.textContent = formatNumber(score);
+        elements.best.textContent = formatNumber(bestScore);
+        elements.matches.textContent = String(matchedPairs);
+        elements.combo.textContent = `连击 ×${combo}`;
+        elements.combo.classList.toggle("is-hot", combo >= 2);
+        elements.progressFill.style.width = `${(matchedPairs / TOTAL_PAIRS) * 100}%`;
+        elements.progressBar.setAttribute("aria-valuenow", String(matchedPairs));
+        updateTimeDisplay();
+      }
+
+      function addScore(points) {
+        score = Math.max(0, score + points);
+        if (score > bestScore) {
+          bestScore = score;
+          saveBestScore();
+        }
+        updateHUD();
+        elements.score.classList.remove("bump");
+        void elements.score.offsetWidth;
+        elements.score.classList.add("bump");
+      }
+
+      function cardLabel(card) {
+        const data = deck[Number(card.dataset.index)];
+        return `${data.kind === "en" ? "英文" : "中文"}：${data.text}`;
+      }
+
+      function resetCard(card) {
+        if (!card || card.classList.contains("is-matched")) return;
+        card.classList.remove("is-flipped", "is-wrong");
+        card.setAttribute("aria-pressed", "false");
+        card.setAttribute("aria-label", `未翻开的卡片，第 ${Number(card.dataset.index) + 1} 张`);
+      }
+
+      function renderBoard() {
+        const fragment = document.createDocumentFragment();
+        deck.forEach((data, index) => {
+          const card = document.createElement("button");
+          card.type = "button";
+          card.className = `card card-${data.kind}`;
+          card.dataset.index = String(index);
+          card.dataset.pair = String(data.pairId);
+          card.dataset.kind = data.kind;
+          card.setAttribute("aria-label", `未翻开的卡片，第 ${index + 1} 张`);
+          card.setAttribute("aria-pressed", "false");
+
+          // 卡面使用 3D 双面结构，正面朝下，背面显示单词或释义。
+          card.innerHTML = `
+            <span class="card-inner" aria-hidden="true">
+              <span class="card-face card-front">
+                <span class="front-gem"><span>?</span></span>
+              </span>
+              <span class="card-face card-back">
+                <span class="card-language">${data.kind === "en" ? "EN · 英文" : "中 · 中文"}</span>
+                <span class="card-word"></span>
+              </span>
+            </span>`;
+          card.querySelector(".card-word").textContent = data.text;
+          fragment.appendChild(card);
+        });
+        elements.board.replaceChildren(fragment);
+      }
+
+      function clearRoundTimers() {
+        if (timerId !== null) window.clearInterval(timerId);
+        if (mismatchId !== null) window.clearTimeout(mismatchId);
+        timerId = null;
+        mismatchId = null;
+      }
+
+      function resetSelection() {
+        firstCard = null;
+        secondCard = null;
+        inputLocked = false;
+        elements.board.classList.remove("is-locked");
+      }
+
+      function tick() {
+        if (gameState !== "playing") return;
+        remainingMs = Math.max(0, deadline - performance.now());
+        const seconds = Math.ceil(remainingMs / 1000);
+        if (seconds !== timeLeft) {
+          timeLeft = seconds;
+          updateTimeDisplay();
+        }
+        if (remainingMs <= 0) endGame(false);
+      }
+
+      function startTimer() {
+        deadline = performance.now() + remainingMs;
+        timerId = window.setInterval(tick, 200);
+        tick();
+      }
+
+      function startGame() {
+        clearRoundTimers();
+        closeModal(false);
+        deck = createDeck();
+        score = 0;
+        combo = 0;
+        maxCombo = 0;
+        matchedPairs = 0;
+        remainingMs = ROUND_SECONDS * 1000;
+        timeLeft = ROUND_SECONDS;
+        bestAtStart = bestScore;
+        gameState = "playing";
+        resetSelection();
+        renderBoard();
+        elements.board.setAttribute("aria-disabled", "false");
+        elements.pauseIcon.textContent = "Ⅱ";
+        elements.pauseText.textContent = "暂停";
+        elements.pauseButton.setAttribute("aria-label", "暂停游戏");
+        setFeedback("翻开两张卡片，寻找对应的单词和释义");
+        updateHUD();
+        startTimer();
+      }
+
+      function showScorePop(card, text) {
+        const rect = card.getBoundingClientRect();
+        const pop = document.createElement("span");
+        pop.className = "score-pop";
+        pop.textContent = text;
+        pop.style.left = `${rect.left + rect.width / 2}px`;
+        pop.style.top = `${rect.top + rect.height / 2}px`;
+        document.body.appendChild(pop);
+        window.setTimeout(() => pop.remove(), 800);
+      }
+
+      function resolveMatch() {
+        const firstData = deck[Number(firstCard.dataset.index)];
+        matchedPairs += 1;
+        combo += 1;
+        maxCombo = Math.max(maxCombo, combo);
+        const gained = 100 + Math.min(combo - 1, 4) * 25;
+        addScore(gained);
+
+        [firstCard, secondCard].forEach((card) => {
+          card.classList.remove("is-wrong");
+          card.classList.add("is-matched");
+          card.setAttribute("aria-disabled", "true");
+          card.setAttribute("aria-label", `已配对：${firstData.en}，${firstData.zh}`);
+        });
+
+        setFeedback(`${firstData.en} = ${firstData.zh} · +${gained}`, "success");
+        showScorePop(secondCard, `+${gained}`);
+        resetSelection();
+
+        if (matchedPairs === TOTAL_PAIRS) {
+          endGame(true);
+        }
+      }
+
+      function resolveMismatch() {
+        combo = 0;
+        addScore(-25);
+        updateHUD();
+        firstCard.classList.add("is-wrong");
+        secondCard.classList.add("is-wrong");
+        setFeedback("不是一对，记住位置再试试 · -25", "error");
+
+        // 延迟翻回，给玩家留出记忆两张卡片内容的时间。
+        mismatchId = window.setTimeout(() => {
+          resetCard(firstCard);
+          resetCard(secondCard);
+          resetSelection();
+          mismatchId = null;
+          if (gameState === "playing") setFeedback("继续寻找对应的中英文");
+        }, MISMATCH_DELAY);
+      }
+
+      function flipCard(card) {
+        if (gameState !== "playing" || inputLocked || !card) return;
+        if (card.classList.contains("is-flipped") || card.classList.contains("is-matched")) return;
+
+        card.classList.add("is-flipped");
+        card.setAttribute("aria-pressed", "true");
+        card.setAttribute("aria-label", cardLabel(card));
+
+        if (!firstCard) {
+          firstCard = card;
+          setFeedback(`再找一张${card.dataset.kind === "en" ? "中文释义" : "英文单词"}`);
+          return;
+        }
+
+        secondCard = card;
+        inputLocked = true;
+        elements.board.classList.add("is-locked");
+        if (firstCard.dataset.pair === secondCard.dataset.pair) {
+          resolveMatch();
+        } else {
+          resolveMismatch();
+        }
+      }
+
+      function cancelPendingMismatch() {
+        if (mismatchId === null) return;
+        window.clearTimeout(mismatchId);
+        mismatchId = null;
+        resetCard(firstCard);
+        resetCard(secondCard);
+        resetSelection();
+      }
+
+      function pauseGame() {
+        if (gameState !== "playing") return;
+        cancelPendingMismatch();
+        remainingMs = Math.max(0, deadline - performance.now());
+        if (timerId !== null) window.clearInterval(timerId);
+        timerId = null;
+        gameState = "paused";
+        inputLocked = true;
+        elements.board.setAttribute("aria-disabled", "true");
+        elements.pauseIcon.textContent = "▶";
+        elements.pauseText.textContent = "继续";
+        elements.pauseButton.setAttribute("aria-label", "继续游戏");
+        updateTimeDisplay();
+        showPauseModal();
+      }
+
+      function resumeGame() {
+        if (gameState !== "paused") return;
+        gameState = "playing";
+        inputLocked = false;
+        elements.board.setAttribute("aria-disabled", "false");
+        elements.pauseIcon.textContent = "Ⅱ";
+        elements.pauseText.textContent = "暂停";
+        elements.pauseButton.setAttribute("aria-label", "暂停游戏");
+        closeModal();
+        setFeedback("游戏继续，加油！");
+        updateTimeDisplay();
+        startTimer();
+      }
+
+      function togglePause() {
+        if (gameState === "playing") pauseGame();
+        else if (gameState === "paused") resumeGame();
+      }
+
+      function endGame(won) {
+        if (gameState !== "playing") return;
+        gameState = won ? "won" : "lost";
+        clearRoundTimers();
+        inputLocked = true;
+        elements.board.setAttribute("aria-disabled", "true");
+        if (won) addScore(timeLeft * 5);
+        updateHUD();
+        showResultModal(won);
+      }
+
+      function setResultStats(one, two, three, labels) {
+        elements.resultOne.textContent = one;
+        elements.resultTwo.textContent = two;
+        elements.resultThree.textContent = three;
+        elements.resultOneLabel.textContent = labels[0];
+        elements.resultTwoLabel.textContent = labels[1];
+        elements.resultThreeLabel.textContent = labels[2];
+      }
+
+      function openModal() {
+        previousFocus = document.activeElement;
+        elements.modal.hidden = false;
+        elements.app.inert = true;
+        window.setTimeout(() => elements.modalPrimary.focus(), 0);
+      }
+
+      function closeModal(restoreFocus = true) {
+        elements.modal.hidden = true;
+        elements.app.inert = false;
+        if (restoreFocus && previousFocus && previousFocus.isConnected) {
+          previousFocus.focus();
+        }
+      }
+
+      function showPauseModal() {
+        elements.modalIcon.textContent = "Ⅱ";
+        elements.modalOverline.textContent = "稍作休息";
+        elements.modalTitle.textContent = "游戏已暂停";
+        elements.modalText.textContent = "倒计时已停止，准备好再继续。";
+        elements.newRecord.hidden = true;
+        setResultStats(formatNumber(score), `${matchedPairs}/8`, `${timeLeft}秒`, ["当前得分", "已配对", "剩余时间"]);
+        elements.modalPrimary.textContent = "继续游戏";
+        elements.modalSecondary.hidden = false;
+        openModal();
+      }
+
+      function showResultModal(won) {
+        const isNewRecord = score > bestAtStart && score > 0;
+        elements.modalIcon.textContent = won ? "✓" : "⌛";
+        elements.modalOverline.textContent = won ? "挑战完成" : "本局结束";
+        elements.modalTitle.textContent = won ? "太棒了，全部配对！" : "时间到，再试一次！";
+        elements.modalText.textContent = won
+          ? `时间奖励 +${timeLeft * 5} 分，新的单词已经记住啦。`
+          : `还差 ${TOTAL_PAIRS - matchedPairs} 组完成，再来一局巩固记忆吧。`;
+        elements.newRecord.hidden = !isNewRecord;
+        setResultStats(formatNumber(score), `${matchedPairs}/8`, `×${maxCombo}`, ["最终得分", "成功配对", "最高连击"]);
+        elements.modalPrimary.textContent = "再玩一局";
+        elements.modalSecondary.hidden = true;
+        openModal();
+      }
+
+      // 使用事件委托处理触屏与鼠标产生的 click，避免重复绑定卡片事件。
+      elements.board.addEventListener("click", (event) => {
+        const card = event.target.closest(".card");
+        if (card) flipCard(card);
+      });
+
+      elements.pauseButton.addEventListener("click", togglePause);
+      elements.restartButton.addEventListener("click", startGame);
+      elements.modalSecondary.addEventListener("click", startGame);
+      elements.modalPrimary.addEventListener("click", () => {
+        if (gameState === "paused") resumeGame();
+        else startGame();
+      });
+
+      // 方向键在卡片间移动；空格和回车由原生 button 自动触发翻牌。
+      elements.board.addEventListener("keydown", (event) => {
+        const card = event.target.closest(".card");
+        if (!card || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+        event.preventDefault();
+        const index = Number(card.dataset.index);
+        const row = Math.floor(index / 4);
+        const column = index % 4;
+        let next = index;
+        if (event.key === "ArrowLeft" && column > 0) next -= 1;
+        if (event.key === "ArrowRight" && column < 3) next += 1;
+        if (event.key === "ArrowUp" && row > 0) next -= 4;
+        if (event.key === "ArrowDown" && row < 3) next += 4;
+        elements.board.children[next].focus();
+      });
+
+      document.addEventListener("keydown", (event) => {
+        // 弹窗打开时将 Tab 焦点限制在弹窗按钮内。
+        if (!elements.modal.hidden && event.key === "Tab") {
+          const buttons = [elements.modalPrimary, elements.modalSecondary].filter((button) => !button.hidden);
+          const current = buttons.indexOf(document.activeElement);
+          const next = event.shiftKey
+            ? (current <= 0 ? buttons.length - 1 : current - 1)
+            : (current + 1) % buttons.length;
+          event.preventDefault();
+          buttons[next].focus();
+          return;
+        }
+
+        if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+        const key = event.key.toLowerCase();
+        if (key === "p" || event.key === "Escape") {
+          if (gameState === "playing" || gameState === "paused") {
+            event.preventDefault();
+            togglePause();
+          }
+        } else if (key === "r" && elements.modal.hidden) {
+          event.preventDefault();
+          startGame();
+        }
+      });
+
+      // 禁止移动端页面拖动、双击缩放与长按菜单，保留按钮点按操作。
+      document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("dblclick", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
+      elements.board.addEventListener("contextmenu", (event) => event.preventDefault());
+
+      // 切到后台时自动暂停，避免倒计时在玩家看不见时结束。
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && gameState === "playing") pauseGame();
+      });
+
+      startGame();
+    })();
+  </script>
+</body>
+</html>

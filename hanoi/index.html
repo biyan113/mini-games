@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080914">
+  <title>霓虹汉诺塔</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080914;
+      --panel: rgba(17, 20, 39, 0.82);
+      --line: rgba(139, 156, 255, 0.16);
+      --text: #f3f5ff;
+      --muted: #8f96b8;
+      --cyan: #47e9ff;
+      --violet: #9a7bff;
+      --pink: #ff64c3;
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      touch-action: none;
+      overscroll-behavior: none;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 4%, rgba(80, 69, 180, 0.24), transparent 36%),
+        radial-gradient(circle at 92% 88%, rgba(0, 209, 255, 0.12), transparent 38%),
+        var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    /* 背景网格仅作装饰，不影响棋盘触控。 */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.22;
+      background-image:
+        linear-gradient(rgba(119, 126, 190, 0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(119, 126, 190, 0.07) 1px, transparent 1px);
+      background-size: 36px 36px;
+      mask-image: linear-gradient(to bottom, black, transparent 80%);
+    }
+
+    button { font: inherit; }
+    button:focus-visible, #board:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 2px;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 720px;
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: calc(10px + env(safe-area-inset-top)) 14px calc(8px + env(safe-area-inset-bottom));
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      gap: 10px;
+    }
+
+    .topbar, .brand, .actions { display: flex; align-items: center; }
+    .topbar { justify-content: space-between; gap: 10px; }
+    .brand { min-width: 0; gap: 10px; }
+
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column-reverse;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      border: 1px solid rgba(71, 233, 255, 0.25);
+      border-radius: 12px;
+      background: linear-gradient(145deg, rgba(71, 233, 255, 0.1), rgba(154, 123, 255, 0.09));
+      box-shadow: inset 0 0 16px rgba(71, 233, 255, 0.06), 0 0 20px rgba(71, 233, 255, 0.06);
+    }
+    .brand-mark i { display: block; height: 3px; border-radius: 5px; background: var(--cyan); box-shadow: 0 0 8px currentColor; }
+    .brand-mark i:nth-child(1) { width: 23px; color: var(--pink); background: var(--pink); }
+    .brand-mark i:nth-child(2) { width: 17px; color: var(--violet); background: var(--violet); }
+    .brand-mark i:nth-child(3) { width: 10px; }
+
+    h1 { margin: 0; font-size: 22px; line-height: 1.1; letter-spacing: 4px; font-weight: 750; }
+    .subtitle { margin-top: 4px; color: #7e87ad; font-size: 8px; letter-spacing: 2.4px; }
+    .actions { gap: 7px; }
+
+    .icon-button {
+      min-width: 48px;
+      height: 38px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      color: #cbd1ed;
+      background: rgba(21, 24, 45, 0.8);
+      font-size: 12px;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s, transform 0.15s;
+    }
+    .icon-button:active { transform: scale(0.95); }
+    .icon-button:hover { border-color: rgba(71, 233, 255, 0.45); background: rgba(30, 36, 63, 0.9); }
+    .icon-button:disabled { opacity: 0.4; cursor: default; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 7px;
+    }
+    .stat {
+      position: relative;
+      min-width: 0;
+      padding: 8px 5px 7px;
+      overflow: hidden;
+      text-align: center;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: linear-gradient(150deg, rgba(25, 29, 53, 0.88), rgba(13, 16, 32, 0.8));
+    }
+    .stat::after {
+      content: "";
+      position: absolute;
+      left: 24%;
+      right: 24%;
+      bottom: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(71, 233, 255, 0.5), transparent);
+    }
+    .stat-label { display: block; margin-bottom: 3px; color: var(--muted); font-size: 10px; letter-spacing: 1px; }
+    .stat-value { display: block; overflow: hidden; font-size: 18px; line-height: 1.15; font-weight: 700; font-variant-numeric: tabular-nums; text-overflow: ellipsis; }
+    .stat:nth-child(3) .stat-value { color: var(--cyan); }
+    .stat:nth-child(4) .stat-value { color: #c0adff; }
+
+    .game-shell {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      overflow: hidden;
+      border: 1px solid rgba(135, 149, 237, 0.19);
+      border-radius: 20px;
+      background: linear-gradient(160deg, rgba(21, 24, 46, 0.84), rgba(9, 12, 27, 0.92));
+      box-shadow: 0 18px 55px rgba(0, 0, 0, 0.25), inset 0 1px rgba(255, 255, 255, 0.025);
+    }
+
+    .mission {
+      min-height: 36px;
+      padding: 10px 13px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: #a6aecb;
+      border-bottom: 1px solid rgba(135, 149, 237, 0.09);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+    .mission-dot { display: inline-block; width: 5px; height: 5px; margin-right: 6px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); vertical-align: 1px; }
+    .level { color: #777f9f; font-size: 9px; }
+
+    #board {
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+      isolation: isolate;
+      touch-action: none;
+      outline: none;
+      background: radial-gradient(ellipse at 83% 75%, rgba(71, 233, 255, 0.055), transparent 35%);
+    }
+
+    .tower { position: absolute; top: 0; bottom: 0; width: 33.3333%; pointer-events: none; }
+    .tower:nth-of-type(1) { left: 0; }
+    .tower:nth-of-type(2) { left: 33.3333%; }
+    .tower:nth-of-type(3) { left: 66.6666%; }
+
+    .rod {
+      position: absolute;
+      left: 50%;
+      bottom: 34px;
+      width: 6px;
+      height: calc(100% - 84px);
+      transform: translateX(-50%);
+      border: 1px solid rgba(139, 221, 255, 0.25);
+      border-radius: 8px 8px 2px 2px;
+      background: linear-gradient(90deg, #33415f, #a1d8e5 48%, #34405d);
+      box-shadow: 0 0 12px rgba(71, 233, 255, 0.12);
+      opacity: 0.68;
+      transition: opacity 0.2s, box-shadow 0.2s;
+    }
+    .platform {
+      position: absolute;
+      left: 8%;
+      bottom: 22px;
+      width: 84%;
+      height: 12px;
+      border: 1px solid rgba(134, 164, 213, 0.23);
+      border-radius: 50%;
+      background: linear-gradient(180deg, #27304a, #11162b);
+      box-shadow: 0 5px 12px rgba(0, 0, 0, 0.4), inset 0 1px rgba(255, 255, 255, 0.08);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .tower-label {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 2px;
+      color: #79819f;
+      text-align: center;
+      font-size: 10px;
+      letter-spacing: 1px;
+      transition: color 0.2s;
+    }
+    .tower-label small { margin-left: 4px; color: #575f7d; font-size: 8px; letter-spacing: 0; }
+    .tower:last-of-type .tower-label small { color: #5bb7c4; }
+    .tower.is-keyboard .tower-label { color: var(--cyan); }
+    .tower.is-keyboard .platform { border-color: rgba(71, 233, 255, 0.65); }
+    .tower.is-over .rod { opacity: 1; box-shadow: 0 0 20px rgba(71, 233, 255, 0.5); }
+    .tower.is-over .platform { border-color: var(--cyan); box-shadow: 0 0 20px rgba(71, 233, 255, 0.24); }
+
+    .disk {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255, 255, 255, 0.32);
+      border-radius: 999px;
+      background: linear-gradient(180deg, var(--c1), var(--c2));
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.32), 0 0 13px var(--glow), inset 0 1px rgba(255, 255, 255, 0.45);
+      color: rgba(6, 10, 27, 0.62);
+      font-size: 9px;
+      font-weight: 800;
+      cursor: default;
+      touch-action: none;
+      will-change: left, top;
+      transition: left 0.22s ease, top 0.22s ease, filter 0.18s, box-shadow 0.18s;
+    }
+    .disk::before {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 13%;
+      right: 13%;
+      height: 22%;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.22);
+      pointer-events: none;
+    }
+    .disk.is-top { cursor: grab; }
+    .disk.is-top:hover { filter: brightness(1.12); }
+    .disk.is-pressed { filter: brightness(1.18); }
+    .disk.is-selected {
+      filter: brightness(1.2) saturate(1.12);
+      box-shadow: 0 5px 12px rgba(0, 0, 0, 0.35), 0 0 22px var(--c1), inset 0 1px rgba(255, 255, 255, 0.6);
+    }
+    .disk.is-dragging {
+      z-index: 100 !important;
+      cursor: grabbing;
+      filter: brightness(1.18) saturate(1.15);
+      transition: none;
+      box-shadow: 0 12px 22px rgba(0, 0, 0, 0.4), 0 0 25px var(--c1);
+    }
+    #board.is-layout .disk { transition: none; }
+    .disk.shake { animation: shake 0.25s ease; }
+    @keyframes shake { 25% { transform: translateX(-5px); } 55% { transform: translateX(5px); } 80% { transform: translateX(-3px); } }
+
+    .toast {
+      position: absolute;
+      z-index: 200;
+      left: 50%;
+      bottom: 47px;
+      max-width: 88%;
+      padding: 8px 13px;
+      color: #f2eefe;
+      border: 1px solid rgba(255, 100, 195, 0.3);
+      border-radius: 999px;
+      background: rgba(24, 19, 43, 0.94);
+      box-shadow: 0 6px 22px rgba(0, 0, 0, 0.3);
+      font-size: 11px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, 8px);
+      transition: opacity 0.18s, transform 0.18s;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    .help { padding: 0 3px; text-align: center; color: #858eaf; font-size: 10px; line-height: 1.5; }
+    .help p { margin: 0; }
+    .help strong { color: #c6d2ef; font-weight: 600; }
+    .help .rule { color: #626b8b; font-size: 9px; }
+    .help .key-help { margin-top: 2px; color: #535c7b; font-size: 8px; }
+
+    /* 暂停与胜利共用弹窗，减少重复界面代码。 */
+    .modal {
+      position: fixed;
+      z-index: 1000;
+      inset: 0;
+      padding: 24px;
+      display: grid;
+      place-items: center;
+      background: rgba(4, 5, 14, 0.76);
+      backdrop-filter: blur(9px);
+      -webkit-backdrop-filter: blur(9px);
+      touch-action: none;
+    }
+    .dialog {
+      position: relative;
+      width: min(100%, 360px);
+      padding: 27px 22px 21px;
+      overflow: hidden;
+      text-align: center;
+      border: 1px solid rgba(122, 224, 255, 0.24);
+      border-radius: 24px;
+      background: linear-gradient(155deg, rgba(29, 33, 61, 0.98), rgba(12, 14, 31, 0.98));
+      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.55), 0 0 45px rgba(71, 233, 255, 0.07);
+      animation: dialog-in 0.28s ease-out;
+    }
+    .dialog::before {
+      content: "";
+      position: absolute;
+      top: -90px;
+      left: 50%;
+      width: 240px;
+      height: 160px;
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background: rgba(71, 233, 255, 0.12);
+      filter: blur(35px);
+      pointer-events: none;
+    }
+    @keyframes dialog-in { from { opacity: 0; transform: translateY(14px) scale(0.96); } }
+    .dialog-icon {
+      position: relative;
+      width: 58px;
+      height: 58px;
+      margin: 0 auto 14px;
+      display: grid;
+      place-items: center;
+      color: var(--cyan);
+      border: 1px solid rgba(71, 233, 255, 0.42);
+      border-radius: 19px;
+      background: rgba(71, 233, 255, 0.08);
+      box-shadow: 0 0 24px rgba(71, 233, 255, 0.15);
+      font-size: 27px;
+      font-weight: 300;
+    }
+    .dialog-icon.win { color: #8dffdc; border-color: rgba(141, 255, 220, 0.45); background: rgba(141, 255, 220, 0.08); }
+    .dialog h2 { position: relative; margin: 0 0 8px; font-size: 24px; letter-spacing: 2px; }
+    .dialog-text { margin: 0 0 18px; color: #929bbc; font-size: 12px; line-height: 1.7; }
+    .record-badge { display: inline-block; margin: -7px 0 14px; padding: 4px 10px; color: #ffe794; border: 1px solid rgba(255, 222, 112, 0.25); border-radius: 999px; background: rgba(255, 215, 90, 0.07); font-size: 10px; }
+    .result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-bottom: 20px; }
+    .result-item { padding: 10px 4px; border: 1px solid rgba(135, 149, 237, 0.12); border-radius: 12px; background: rgba(7, 10, 24, 0.36); }
+    .result-item span { display: block; margin-bottom: 4px; color: #747e9f; font-size: 9px; }
+    .result-item strong { color: #e7eaff; font-size: 17px; font-variant-numeric: tabular-nums; }
+    .result-item:last-child strong { color: var(--cyan); }
+    .dialog-actions { display: grid; gap: 9px; }
+    .dialog-button { height: 45px; border-radius: 13px; font-size: 14px; font-weight: 650; letter-spacing: 1px; cursor: pointer; }
+    .dialog-button.primary { color: #07131e; border: 0; background: linear-gradient(100deg, #53edff, #9ba5ff); box-shadow: 0 7px 24px rgba(71, 233, 255, 0.18); }
+    .dialog-button.secondary { color: #959ebb; border: 1px solid rgba(135, 149, 237, 0.16); background: rgba(21, 24, 45, 0.7); }
+    .dialog-button:active { transform: scale(0.98); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+    @media (min-width: 600px) {
+      .app { padding-left: 22px; padding-right: 22px; gap: 13px; }
+      h1 { font-size: 25px; }
+      .stat { padding: 10px; }
+      .stat-value { font-size: 21px; }
+      .mission { font-size: 11px; }
+      .help { font-size: 11px; }
+    }
+
+    /* 矮屏手机压缩留白，确保三根柱子始终完整可见。 */
+    @media (max-height: 650px) {
+      .app { gap: 7px; padding-top: calc(7px + env(safe-area-inset-top)); }
+      .brand-mark { width: 34px; height: 34px; }
+      h1 { font-size: 19px; }
+      .subtitle { font-size: 7px; }
+      .icon-button { height: 34px; }
+      .stat { padding: 6px 4px; }
+      .stat-value { font-size: 16px; }
+      .mission { min-height: 31px; padding-top: 7px; padding-bottom: 6px; }
+      .help .key-help { display: none; }
+    }
+    @media (max-height: 500px) {
+      .help { display: none; }
+      .app { grid-template-rows: auto auto minmax(0, 1fr); }
+    }
+    @media (max-width: 350px) {
+      .app { padding-left: 9px; padding-right: 9px; }
+      .brand { gap: 7px; }
+      .brand-mark { display: none; }
+      .actions { gap: 5px; }
+      .icon-button { min-width: 44px; padding: 0 7px; }
+      .stat-label { font-size: 9px; }
+      .stat-value { font-size: 16px; }
+      .mission { padding-left: 9px; padding-right: 9px; font-size: 9px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <div>
+          <h1>汉诺塔</h1>
+          <div class="subtitle">TOWER OF HANOI</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="icon-button" id="pauseButton" type="button" aria-label="暂停游戏">Ⅱ 暂停</button>
+        <button class="icon-button" id="restartButton" type="button" aria-label="重新开始">↻ 重开</button>
+      </div>
+    </header>
+
+    <section class="stats" aria-label="游戏数据">
+      <div class="stat"><span class="stat-label">步数</span><strong class="stat-value" id="movesValue">0</strong></div>
+      <div class="stat"><span class="stat-label">用时</span><strong class="stat-value" id="timeValue">00:00</strong></div>
+      <div class="stat" title="12000 分起，超出最优步数和用时会扣分"><span class="stat-label">得分</span><strong class="stat-value" id="scoreValue">12,000</strong></div>
+      <div class="stat"><span class="stat-label">最高分</span><strong class="stat-value" id="bestValue">—</strong></div>
+    </section>
+
+    <section class="game-shell" aria-label="汉诺塔游戏区">
+      <div class="mission">
+        <span><i class="mission-dot"></i>目标：全部移至右柱</span>
+        <span class="level">6 层 · 最优 63 步</span>
+      </div>
+      <div id="board" tabindex="0" role="application" aria-label="汉诺塔棋盘。左右方向键选柱，空格或回车取盘、放盘。">
+        <div class="tower" aria-hidden="true">
+          <div class="rod"></div><div class="platform"></div>
+          <div class="tower-label">左柱<small>起点</small></div>
+        </div>
+        <div class="tower" aria-hidden="true">
+          <div class="rod"></div><div class="platform"></div>
+          <div class="tower-label">中柱<small>辅助</small></div>
+        </div>
+        <div class="tower" aria-hidden="true">
+          <div class="rod"></div><div class="platform"></div>
+          <div class="tower-label">右柱<small>目标</small></div>
+        </div>
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <footer class="help">
+      <p><strong>拖动</strong>最上方圆盘至目标柱，或<strong>轻点圆盘</strong>后轻点目标柱</p>
+      <p class="rule">每次只移动一个圆盘，大圆盘不能放在小圆盘上</p>
+      <p class="key-help">键盘：← → 选柱 · 空格取 / 放 · P 暂停 · R 重开</p>
+    </footer>
+  </main>
+
+  <div class="modal" id="modal" hidden>
+    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalText">
+      <div class="dialog-icon" id="modalIcon" aria-hidden="true">Ⅱ</div>
+      <h2 id="modalTitle">游戏已暂停</h2>
+      <p class="dialog-text" id="modalText">时间已停止，准备好后继续。</p>
+      <div class="record-badge" id="recordBadge" hidden>✦ 刷新历史最高分 ✦</div>
+      <div class="result-grid">
+        <div class="result-item"><span>步数</span><strong id="resultMoves">0</strong></div>
+        <div class="result-item"><span>用时</span><strong id="resultTime">00:00</strong></div>
+        <div class="result-item"><span>得分</span><strong id="resultScore">0</strong></div>
+      </div>
+      <div class="dialog-actions">
+        <button class="dialog-button primary" id="modalPrimary" type="button">继续游戏</button>
+        <button class="dialog-button secondary" id="modalSecondary" type="button">重新开始</button>
+      </div>
+    </section>
+  </div>
+  <div class="sr-only" id="liveMessage" aria-live="polite"></div>
+
+  <script>
+    'use strict';
+
+    // 游戏配置：数组按“从底到顶”的顺序保存圆盘编号，编号越大圆盘越大。
+    const DISK_COUNT = 6;
+    const OPTIMAL_MOVES = 2 ** DISK_COUNT - 1;
+    const BEST_KEY = 'neon-hanoi-best-v1';
+    const board = document.getElementById('board');
+    const towerElements = [...board.querySelectorAll('.tower')];
+    const diskElements = new Map();
+    const movesValue = document.getElementById('movesValue');
+    const timeValue = document.getElementById('timeValue');
+    const scoreValue = document.getElementById('scoreValue');
+    const bestValue = document.getElementById('bestValue');
+    const pauseButton = document.getElementById('pauseButton');
+    const restartButton = document.getElementById('restartButton');
+    const toast = document.getElementById('toast');
+    const liveMessage = document.getElementById('liveMessage');
+    const modal = document.getElementById('modal');
+    const modalIcon = document.getElementById('modalIcon');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalText = document.getElementById('modalText');
+    const modalPrimary = document.getElementById('modalPrimary');
+    const modalSecondary = document.getElementById('modalSecondary');
+    const recordBadge = document.getElementById('recordBadge');
+
+    let towers = [];
+    let moves = 0;
+    let elapsed = 0;
+    let timerId = null;
+    let paused = false;
+    let won = false;
+    let selected = null;
+    let activeDrag = null;
+    let keyboardTower = 0;
+    let modalMode = '';
+    let toastTimer = null;
+    let bestScore = loadBestScore();
+
+    const diskColors = [
+      ['#63f3ff', '#35bfea', 'rgba(71,233,255,.32)'],
+      ['#67e4e2', '#39b9c8', 'rgba(71,225,220,.28)'],
+      ['#79d3ff', '#657fe8', 'rgba(101,127,232,.3)'],
+      ['#a99aff', '#785bd7', 'rgba(154,123,255,.32)'],
+      ['#dc91ff', '#aa58d5', 'rgba(199,99,239,.3)'],
+      ['#ff9bd5', '#df579f', 'rgba(255,100,195,.3)']
+    ];
+
+    // localStorage 在隐私模式下可能不可用，读写都做好降级。
+    function loadBestScore() {
+      try {
+        const value = Number.parseInt(localStorage.getItem(BEST_KEY) || '0', 10);
+        return Number.isFinite(value) && value > 0 ? value : 0;
+      } catch (error) {
+        return 0;
+      }
+    }
+
+    function saveBestScore() {
+      try { localStorage.setItem(BEST_KEY, String(bestScore)); } catch (error) { /* 无存储权限时仅保留本次纪录 */ }
+    }
+
+    function createDisks() {
+      for (let size = DISK_COUNT; size >= 1; size -= 1) {
+        const disk = document.createElement('div');
+        const colors = diskColors[size - 1];
+        disk.className = 'disk';
+        disk.dataset.size = String(size);
+        disk.style.setProperty('--c1', colors[0]);
+        disk.style.setProperty('--c2', colors[1]);
+        disk.style.setProperty('--glow', colors[2]);
+        disk.innerHTML = `<span>${size}</span>`;
+        disk.addEventListener('pointerdown', onDiskPointerDown);
+        disk.addEventListener('pointermove', onDiskPointerMove);
+        disk.addEventListener('pointerup', onDiskPointerUp);
+        disk.addEventListener('pointercancel', onDiskPointerCancel);
+        board.appendChild(disk);
+        diskElements.set(size, disk);
+      }
+    }
+
+    function formatTime(seconds) {
+      const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
+      const rest = (seconds % 60).toString().padStart(2, '0');
+      return `${minutes}:${rest}`;
+    }
+
+    // 12000 分起；超过最优 63 步后每步扣 120 分，每秒扣 8 分。
+    function calculateScore() {
+      const extraMoves = Math.max(0, moves - OPTIMAL_MOVES);
+      return Math.max(1000, 12000 - extraMoves * 120 - elapsed * 8);
+    }
+
+    function updateStats() {
+      movesValue.textContent = String(moves);
+      timeValue.textContent = formatTime(elapsed);
+      scoreValue.textContent = calculateScore().toLocaleString('zh-CN');
+      bestValue.textContent = bestScore ? bestScore.toLocaleString('zh-CN') : '—';
+    }
+
+    // 根据容器实际尺寸布置圆盘，横竖屏和不同手机尺寸都能自适应。
+    function positionDisk(disk, size, towerIndex, level) {
+      const rect = board.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const gap = Math.max(1, Math.min(3, rect.width / 220));
+      const diskHeight = Math.max(16, Math.min(30, (rect.height - 74) / DISK_COUNT - 2));
+      const columnWidth = rect.width / 3;
+      const width = columnWidth * (0.4 + size * 0.078);
+      const baseLine = rect.height - 34;
+      let top = baseLine - (level + 1) * (diskHeight + gap);
+      if (selected && selected.size === size) top -= Math.min(10, diskHeight * 0.4);
+      disk.style.width = `${width}px`;
+      disk.style.height = `${diskHeight}px`;
+      disk.style.left = `${columnWidth * (towerIndex + 0.5) - width / 2}px`;
+      disk.style.top = `${top}px`;
+    }
+
+    function updateTowerStates() {
+      towerElements.forEach((tower, index) => {
+        tower.classList.toggle('is-keyboard', document.activeElement === board && keyboardTower === index);
+      });
+    }
+
+    function render(immediate = false) {
+      if (immediate) board.classList.add('is-layout');
+      towers.forEach((stack, towerIndex) => {
+        stack.forEach((size, level) => {
+          const disk = diskElements.get(size);
+          disk.classList.toggle('is-top', stack[stack.length - 1] === size);
+          disk.classList.toggle('is-selected', Boolean(selected && selected.size === size));
+          disk.style.zIndex = String(10 + level);
+          positionDisk(disk, size, towerIndex, level);
+        });
+      });
+      updateTowerStates();
+      updateStats();
+      if (immediate) requestAnimationFrame(() => board.classList.remove('is-layout'));
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 1700);
+    }
+
+    function shakeDisk(size) {
+      const disk = diskElements.get(size);
+      if (!disk) return;
+      disk.classList.remove('shake');
+      void disk.offsetWidth;
+      disk.classList.add('shake');
+      setTimeout(() => disk.classList.remove('shake'), 280);
+    }
+
+    function getTowerFromPoint(clientX, clientY) {
+      const rect = board.getBoundingClientRect();
+      const margin = 36;
+      if (clientX < rect.left - 12 || clientX > rect.right + 12 || clientY < rect.top - margin || clientY > rect.bottom + margin) return -1;
+      const x = Math.max(rect.left, Math.min(rect.right - 1, clientX));
+      return Math.min(2, Math.floor((x - rect.left) / (rect.width / 3)));
+    }
+
+    function highlightTower(index) {
+      towerElements.forEach((tower, towerIndex) => tower.classList.toggle('is-over', towerIndex === index));
+    }
+
+    function findDiskTower(size) {
+      return towers.findIndex(stack => stack.includes(size));
+    }
+
+    // 拖动与轻点共用同一套合法性判断，保证鼠标和触屏规则一致。
+    function attemptMove(source, target) {
+      highlightTower(-1);
+      if (source < 0 || target < 0 || source > 2 || target > 2) return false;
+      if (source === target) {
+        selected = null;
+        render();
+        return false;
+      }
+      const sourceStack = towers[source];
+      const size = sourceStack[sourceStack.length - 1];
+      if (size === undefined) {
+        selected = null;
+        render();
+        return false;
+      }
+      const targetStack = towers[target];
+      const targetTop = targetStack[targetStack.length - 1];
+      if (targetTop !== undefined && targetTop < size) {
+        selected = null;
+        render();
+        showToast('大圆盘不能放在小圆盘上');
+        shakeDisk(size);
+        if (navigator.vibrate) navigator.vibrate(25);
+        return false;
+      }
+
+      sourceStack.pop();
+      targetStack.push(size);
+      moves += 1;
+      selected = null;
+      keyboardTower = target;
+      liveMessage.textContent = `圆盘 ${size} 已移到${['左', '中', '右'][target]}柱，共 ${moves} 步`;
+      render();
+      if (towers[2].length === DISK_COUNT) finishGame();
+      return true;
+    }
+
+    function onDiskPointerDown(event) {
+      if (event.button !== 0 || paused || won || activeDrag) return;
+      event.preventDefault();
+      board.focus({ preventScroll: true });
+      const disk = event.currentTarget;
+      const size = Number(disk.dataset.size);
+      const source = findDiskTower(size);
+
+      // 已取盘时，轻点另一根柱上的圆盘也视为轻点该目标柱。
+      if (selected && selected.tower !== source) {
+        attemptMove(selected.tower, source);
+        return;
+      }
+      if (towers[source][towers[source].length - 1] !== size) {
+        showToast('只能移动最上方的圆盘');
+        shakeDisk(size);
+        return;
+      }
+
+      keyboardTower = source;
+      updateTowerStates();
+      const rect = disk.getBoundingClientRect();
+      activeDrag = {
+        pointerId: event.pointerId,
+        disk, size, source,
+        offsetX: event.clientX - rect.left,
+        offsetY: event.clientY - rect.top,
+        startX: event.clientX,
+        startY: event.clientY,
+        lastX: event.clientX,
+        lastY: event.clientY,
+        moved: false
+      };
+      disk.setPointerCapture(event.pointerId);
+      disk.classList.add('is-pressed');
+    }
+
+    function onDiskPointerMove(event) {
+      const drag = activeDrag;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      event.preventDefault();
+      drag.lastX = event.clientX;
+      drag.lastY = event.clientY;
+      if (!drag.moved && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 6) return;
+
+      if (!drag.moved) {
+        drag.moved = true;
+        selected = null;
+        diskElements.forEach(disk => disk.classList.remove('is-selected'));
+        drag.disk.classList.remove('is-pressed');
+        drag.disk.classList.add('is-dragging');
+      }
+      const rect = board.getBoundingClientRect();
+      drag.disk.style.left = `${event.clientX - rect.left - drag.offsetX}px`;
+      drag.disk.style.top = `${event.clientY - rect.top - drag.offsetY}px`;
+      highlightTower(getTowerFromPoint(event.clientX, event.clientY));
+    }
+
+    function onDiskPointerUp(event) {
+      const drag = activeDrag;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      event.preventDefault();
+      activeDrag = null;
+      if (drag.disk.hasPointerCapture(event.pointerId)) drag.disk.releasePointerCapture(event.pointerId);
+      drag.disk.classList.remove('is-pressed', 'is-dragging');
+      highlightTower(-1);
+
+      if (drag.moved) {
+        const target = getTowerFromPoint(drag.lastX, drag.lastY);
+        if (target < 0) {
+          selected = null;
+          render();
+          showToast('请将圆盘放在柱位内');
+        } else {
+          attemptMove(drag.source, target);
+        }
+      } else {
+        // 未发生位移时视为轻点：再次轻点同一圆盘可取消选择。
+        selected = selected && selected.size === drag.size ? null : { tower: drag.source, size: drag.size };
+        render();
+        if (selected) liveMessage.textContent = `已选中圆盘 ${drag.size}，请轻点目标柱`;
+      }
+    }
+
+    function onDiskPointerCancel(event) {
+      if (!activeDrag || activeDrag.pointerId !== event.pointerId) return;
+      activeDrag.disk.classList.remove('is-pressed', 'is-dragging');
+      activeDrag = null;
+      selected = null;
+      highlightTower(-1);
+      render(true);
+    }
+
+    function cancelActiveDrag() {
+      if (!activeDrag) return;
+      const drag = activeDrag;
+      activeDrag = null;
+      try {
+        if (drag.disk.hasPointerCapture(drag.pointerId)) drag.disk.releasePointerCapture(drag.pointerId);
+      } catch (error) { /* 指针已释放时无需额外处理 */ }
+      drag.disk.classList.remove('is-pressed', 'is-dragging');
+      highlightTower(-1);
+    }
+
+    function onBoardPointerDown(event) {
+      if (event.target.closest('.disk') || paused || won) return;
+      board.focus({ preventScroll: true });
+      const target = getTowerFromPoint(event.clientX, event.clientY);
+      if (target < 0) return;
+      keyboardTower = target;
+      if (selected) {
+        event.preventDefault();
+        attemptMove(selected.tower, target);
+      } else {
+        updateTowerStates();
+      }
+    }
+
+    function startTimer() {
+      clearInterval(timerId);
+      timerId = setInterval(() => {
+        if (paused || won) return;
+        elapsed += 1;
+        updateStats();
+      }, 1000);
+    }
+
+    function finishGame() {
+      won = true;
+      clearInterval(timerId);
+      timerId = null;
+      pauseButton.disabled = true;
+      const finalScore = calculateScore();
+      const isRecord = finalScore > bestScore;
+      if (isRecord) {
+        bestScore = finalScore;
+        saveBestScore();
+      }
+      updateStats();
+      liveMessage.textContent = `胜利！共用 ${moves} 步，得分 ${finalScore}`;
+      setTimeout(() => { if (won) showModal('win', isRecord); }, 450);
+    }
+
+    function showModal(mode, isRecord = false) {
+      modalMode = mode;
+      const isWin = mode === 'win';
+      modalIcon.textContent = isWin ? '✓' : 'Ⅱ';
+      modalIcon.classList.toggle('win', isWin);
+      modalTitle.textContent = isWin ? (isRecord ? '新纪录！' : '漂亮，胜利！') : '游戏已暂停';
+      modalText.textContent = isWin ? `全部 ${DISK_COUNT} 个圆盘已成功移至右柱` : '时间已停止，准备好后继续。';
+      recordBadge.hidden = !isWin || !isRecord;
+      modalPrimary.textContent = isWin ? '再玩一次' : '继续游戏';
+      modalSecondary.textContent = isWin ? '查看棋盘' : '重新开始';
+      document.getElementById('resultMoves').textContent = String(moves);
+      document.getElementById('resultTime').textContent = formatTime(elapsed);
+      document.getElementById('resultScore').textContent = calculateScore().toLocaleString('zh-CN');
+      modal.hidden = false;
+      setTimeout(() => modalPrimary.focus({ preventScroll: true }), 30);
+    }
+
+    function pauseGame() {
+      if (paused || won) return;
+      cancelActiveDrag();
+      paused = true;
+      selected = null;
+      clearInterval(timerId);
+      timerId = null;
+      pauseButton.textContent = '▶ 继续';
+      pauseButton.setAttribute('aria-label', '继续游戏');
+      render();
+      showModal('pause');
+    }
+
+    function resumeGame() {
+      if (!paused || won) return;
+      paused = false;
+      modal.hidden = true;
+      modalMode = '';
+      pauseButton.textContent = 'Ⅱ 暂停';
+      pauseButton.setAttribute('aria-label', '暂停游戏');
+      startTimer();
+      board.focus({ preventScroll: true });
+    }
+
+    function resetGame() {
+      cancelActiveDrag();
+      clearInterval(timerId);
+      towers = [
+        Array.from({ length: DISK_COUNT }, (_, index) => DISK_COUNT - index),
+        [],
+        []
+      ];
+      moves = 0;
+      elapsed = 0;
+      paused = false;
+      won = false;
+      selected = null;
+      keyboardTower = 0;
+      modalMode = '';
+      modal.hidden = true;
+      pauseButton.disabled = false;
+      pauseButton.textContent = 'Ⅱ 暂停';
+      pauseButton.setAttribute('aria-label', '暂停游戏');
+      toast.classList.remove('show');
+      liveMessage.textContent = '新游戏开始，请将右柱作为目标柱';
+      render(true);
+      startTimer();
+    }
+
+    // 键盘操作：方向键选柱，空格/回车取放，P 暂停，R 重开。
+    board.addEventListener('keydown', event => {
+      if (['ArrowLeft', 'ArrowRight', ' ', 'Enter'].includes(event.key)) event.preventDefault();
+      if (paused || won) return;
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        keyboardTower = (keyboardTower + (event.key === 'ArrowRight' ? 1 : 2)) % 3;
+        updateTowerStates();
+      } else if (event.key === ' ' || event.key === 'Enter') {
+        if (selected) {
+          attemptMove(selected.tower, keyboardTower);
+        } else {
+          const stack = towers[keyboardTower];
+          const size = stack[stack.length - 1];
+          if (size === undefined) showToast('这根柱子还是空的');
+          else {
+            selected = { tower: keyboardTower, size };
+            liveMessage.textContent = `已选中圆盘 ${size}，方向键选柱后按空格放下`;
+            render();
+          }
+        }
+      }
+    });
+
+    document.addEventListener('keydown', event => {
+      if (event.repeat) return;
+      const key = event.key.toLowerCase();
+      if (key === 'p') {
+        event.preventDefault();
+        paused ? resumeGame() : pauseGame();
+      } else if (key === 'r') {
+        event.preventDefault();
+        resetGame();
+      } else if (event.key === 'Escape') {
+        if (paused) resumeGame();
+        else if (won) modal.hidden = true;
+        else if (selected) { selected = null; render(); }
+        else pauseGame();
+      }
+    });
+
+    board.addEventListener('pointerdown', onBoardPointerDown);
+    board.addEventListener('focus', updateTowerStates);
+    board.addEventListener('blur', updateTowerStates);
+    board.addEventListener('contextmenu', event => event.preventDefault());
+    pauseButton.addEventListener('click', () => paused ? resumeGame() : pauseGame());
+    restartButton.addEventListener('click', resetGame);
+    modalPrimary.addEventListener('click', () => modalMode === 'win' ? resetGame() : resumeGame());
+    modalSecondary.addEventListener('click', () => {
+      if (modalMode === 'win') modal.hidden = true;
+      else resetGame();
+    });
+
+    // 切到后台时自动暂停，避免移动端计时失真。
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && !paused && !won) pauseGame();
+    });
+
+    // 禁止双击缩放、双指缩放与页面回弹，棋盘使用 Pointer Events 同时支持触屏和鼠标。
+    document.addEventListener('dblclick', event => event.preventDefault(), { passive: false });
+    document.addEventListener('gesturestart', event => event.preventDefault(), { passive: false });
+    document.addEventListener('touchmove', event => event.preventDefault(), { passive: false });
+    document.addEventListener('touchstart', event => {
+      if (event.touches.length > 1) event.preventDefault();
+    }, { passive: false });
+
+    createDisks();
+    resetGame();
+
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(() => render(true)).observe(board);
+    } else {
+      window.addEventListener('resize', () => render(true));
+    }
+  </script>
+</body>
+</html>

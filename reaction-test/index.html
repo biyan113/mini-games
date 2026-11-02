@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#070a12">
+  <title>反应测试 · Reflex Lab</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070a12;
+      --panel: rgba(17, 22, 36, 0.82);
+      --line: rgba(255, 255, 255, 0.09);
+      --text: #f5f7ff;
+      --muted: #8b94ab;
+      --cyan: #61f5ff;
+      --violet: #9b7bff;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 4%, rgba(94, 70, 180, 0.2), transparent 34%),
+        radial-gradient(circle at 92% 92%, rgba(0, 199, 220, 0.12), transparent 36%),
+        var(--bg);
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* 细碎网格与光晕只作背景，不接收触摸事件 */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.24;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+      background-size: 28px 28px;
+      mask-image: linear-gradient(to bottom, black, transparent 85%);
+    }
+
+    .ambient {
+      position: fixed;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: 0.12;
+      pointer-events: none;
+    }
+
+    .ambient-a {
+      top: -100px;
+      right: -90px;
+      background: var(--violet);
+    }
+
+    .ambient-b {
+      bottom: -120px;
+      left: -80px;
+      background: var(--cyan);
+    }
+
+    button {
+      margin: 0;
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    button:disabled {
+      cursor: default;
+      opacity: 0.38;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: clamp(10px, 2vh, 18px);
+      width: min(100%, 560px);
+      height: 100vh;
+      height: 100dvh;
+      margin: 0 auto;
+      padding:
+        calc(14px + env(safe-area-inset-top))
+        calc(16px + env(safe-area-inset-right))
+        calc(14px + env(safe-area-inset-bottom))
+        calc(16px + env(safe-area-inset-left));
+    }
+
+    .topbar,
+    .brand {
+      display: flex;
+      align-items: center;
+    }
+
+    .topbar {
+      flex: 0 0 auto;
+      justify-content: space-between;
+    }
+
+    .brand {
+      gap: 11px;
+    }
+
+    .brand-mark {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border: 1px solid rgba(97, 245, 255, 0.22);
+      border-radius: 14px;
+      color: var(--cyan);
+      background: linear-gradient(145deg, rgba(97, 245, 255, 0.12), rgba(155, 123, 255, 0.08));
+      box-shadow: inset 0 0 18px rgba(97, 245, 255, 0.05);
+    }
+
+    .brand-mark svg {
+      width: 22px;
+      height: 22px;
+      filter: drop-shadow(0 0 7px rgba(97, 245, 255, 0.6));
+    }
+
+    .eyebrow,
+    .modal-kicker {
+      margin: 0 0 2px;
+      color: var(--cyan);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 2.4px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 19px;
+      font-weight: 750;
+      letter-spacing: 1px;
+    }
+
+    .icon-button {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.045);
+      transition: border-color 160ms ease, background 160ms ease;
+    }
+
+    .icon-button:not(:disabled):active {
+      background: rgba(97, 245, 255, 0.12);
+      border-color: rgba(97, 245, 255, 0.35);
+    }
+
+    .icon-button svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .stats {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      padding: 11px 4px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.16), inset 0 1px rgba(255, 255, 255, 0.025);
+      backdrop-filter: blur(14px);
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat + .stat {
+      border-left: 1px solid var(--line);
+    }
+
+    .stat-label {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.8px;
+    }
+
+    .stat strong {
+      font-size: clamp(18px, 5vw, 23px);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.5px;
+    }
+
+    .stat small {
+      margin-left: 2px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .stat:last-child strong {
+      color: var(--cyan);
+      text-shadow: 0 0 16px rgba(97, 245, 255, 0.24);
+    }
+
+    .arena {
+      flex: 1 1 auto;
+      display: flex;
+      min-height: 0;
+    }
+
+    .reaction-pad {
+      --accent: #8993aa;
+      --accent-rgb: 137, 147, 170;
+      position: relative;
+      isolation: isolate;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(14px, 3vh, 25px);
+      min-height: 0;
+      width: 100%;
+      padding: 24px 20px;
+      overflow: hidden;
+      border: 1px solid rgba(var(--accent-rgb), 0.2);
+      border-radius: clamp(24px, 7vw, 34px);
+      background:
+        radial-gradient(circle at 50% 34%, rgba(var(--accent-rgb), 0.13), transparent 43%),
+        linear-gradient(155deg, rgba(255, 255, 255, 0.035), transparent 45%),
+        rgba(11, 15, 26, 0.94);
+      box-shadow:
+        inset 0 0 50px rgba(var(--accent-rgb), 0.035),
+        0 18px 60px rgba(0, 0, 0, 0.26);
+      text-align: center;
+      transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+    }
+
+    .reaction-pad::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      inset: 0;
+      opacity: 0.28;
+      background: repeating-linear-gradient(to bottom, transparent 0, transparent 5px, rgba(255, 255, 255, 0.018) 6px);
+      pointer-events: none;
+    }
+
+    .reaction-pad::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 12%;
+      width: 76%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(var(--accent-rgb), 0.65), transparent);
+    }
+
+    .state-waiting {
+      --accent: #ff5277;
+      --accent-rgb: 255, 82, 119;
+      box-shadow: inset 0 0 60px rgba(255, 50, 90, 0.04), 0 18px 60px rgba(0, 0, 0, 0.26);
+    }
+
+    .state-ready {
+      --accent: #63ffc2;
+      --accent-rgb: 99, 255, 194;
+      border-color: rgba(99, 255, 194, 0.58);
+      background:
+        radial-gradient(circle at 50% 40%, rgba(99, 255, 194, 0.2), transparent 54%),
+        rgba(7, 27, 25, 0.97);
+      box-shadow: inset 0 0 70px rgba(99, 255, 194, 0.08), 0 0 35px rgba(99, 255, 194, 0.11);
+    }
+
+    .state-early {
+      --accent: #ffc760;
+      --accent-rgb: 255, 199, 96;
+    }
+
+    .state-result {
+      --accent: #61f5ff;
+      --accent-rgb: 97, 245, 255;
+    }
+
+    .state-paused,
+    .state-finished {
+      --accent: #9b7bff;
+      --accent-rgb: 155, 123, 255;
+    }
+
+    .signal-wrap {
+      position: relative;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      width: clamp(86px, 24vw, 128px);
+      aspect-ratio: 1;
+      border: 1px solid rgba(var(--accent-rgb), 0.24);
+      border-radius: 50%;
+      background: rgba(var(--accent-rgb), 0.035);
+      box-shadow: inset 0 0 24px rgba(var(--accent-rgb), 0.08), 0 0 25px rgba(var(--accent-rgb), 0.06);
+      transition: all 180ms ease;
+    }
+
+    .signal-wrap::before,
+    .signal-wrap::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .signal-wrap::before {
+      inset: 10px;
+      border: 1px dashed rgba(var(--accent-rgb), 0.22);
+    }
+
+    .signal-wrap::after {
+      inset: -1px;
+      border: 1px solid var(--accent);
+      opacity: 0;
+    }
+
+    .signal-light {
+      width: 48%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow:
+        0 0 12px var(--accent),
+        0 0 32px rgba(var(--accent-rgb), 0.7),
+        0 0 65px rgba(var(--accent-rgb), 0.34),
+        inset 0 -6px 12px rgba(0, 0, 0, 0.15);
+      transition: all 160ms ease;
+    }
+
+    .state-idle .signal-light,
+    .state-paused .signal-light,
+    .state-finished .signal-light {
+      opacity: 0.55;
+      box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.25);
+    }
+
+    .state-waiting .signal-light {
+      animation: breathe 1.5s ease-in-out infinite;
+    }
+
+    .state-ready .signal-wrap::after {
+      animation: signal-ring 900ms ease-out infinite;
+    }
+
+    .state-ready .signal-light {
+      width: 55%;
+    }
+
+    .pad-copy {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .round-label {
+      color: var(--accent);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .pad-title {
+      margin: 0;
+      color: var(--text);
+      font-size: clamp(31px, 9vw, 50px);
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -1.5px;
+      line-height: 1.12;
+      text-shadow: 0 0 26px rgba(var(--accent-rgb), 0.16);
+    }
+
+    .state-ready .pad-title {
+      color: var(--accent);
+      font-size: clamp(54px, 17vw, 84px);
+      text-shadow: 0 0 30px rgba(var(--accent-rgb), 0.4);
+    }
+
+    .pad-hint {
+      max-width: 300px;
+      margin: 0;
+      color: #aab2c5;
+      font-size: clamp(12px, 3.5vw, 14px);
+      line-height: 1.6;
+    }
+
+    .pad-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 30px;
+      padding: 6px 13px;
+      border: 1px solid rgba(var(--accent-rgb), 0.14);
+      border-radius: 999px;
+      color: var(--accent);
+      background: rgba(var(--accent-rgb), 0.06);
+      font-size: 10px;
+      font-weight: 650;
+      letter-spacing: 0.4px;
+    }
+
+    .game-footer {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .progress-dots {
+      display: flex;
+      gap: 8px;
+    }
+
+    .progress-dot {
+      width: 22px;
+      height: 4px;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, 0.1);
+      transition: background 180ms ease, box-shadow 180ms ease;
+    }
+
+    .progress-dot.current {
+      background: rgba(155, 123, 255, 0.65);
+    }
+
+    .progress-dot.done {
+      background: var(--cyan);
+      box-shadow: 0 0 9px rgba(97, 245, 255, 0.5);
+    }
+
+    .control-tip {
+      margin: 0;
+      color: #687188;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    /* 开始、暂停和结算共用同一层弹窗，避免页面发生滚动 */
+    .modal {
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding:
+        calc(16px + env(safe-area-inset-top))
+        calc(16px + env(safe-area-inset-right))
+        calc(16px + env(safe-area-inset-bottom))
+        calc(16px + env(safe-area-inset-left));
+      background: rgba(3, 5, 10, 0.76);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      animation: fade-in 180ms ease-out;
+    }
+
+    .modal-panel {
+      position: relative;
+      width: min(100%, 420px);
+      max-height: 100%;
+      padding: clamp(22px, 5vw, 32px);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      border-radius: 28px;
+      background:
+        radial-gradient(circle at 50% 0, rgba(97, 245, 255, 0.07), transparent 35%),
+        linear-gradient(155deg, rgba(24, 30, 48, 0.98), rgba(10, 14, 25, 0.99));
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55), inset 0 1px rgba(255, 255, 255, 0.05);
+      text-align: center;
+      animation: panel-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .hero-icon {
+      display: grid;
+      place-items: center;
+      width: 58px;
+      height: 58px;
+      margin: 0 auto 17px;
+      border: 1px solid rgba(97, 245, 255, 0.25);
+      border-radius: 19px;
+      color: var(--cyan);
+      background: rgba(97, 245, 255, 0.07);
+      box-shadow: 0 0 30px rgba(97, 245, 255, 0.08);
+    }
+
+    .hero-icon svg {
+      width: 28px;
+      height: 28px;
+      filter: drop-shadow(0 0 8px rgba(97, 245, 255, 0.6));
+    }
+
+    .modal-kicker {
+      margin-bottom: 9px;
+    }
+
+    .modal-panel h2 {
+      margin: 0;
+      font-size: clamp(30px, 8vw, 40px);
+      line-height: 1.16;
+      letter-spacing: -1px;
+    }
+
+    .modal-panel h2 span {
+      color: var(--cyan);
+      text-shadow: 0 0 22px rgba(97, 245, 255, 0.28);
+    }
+
+    .modal-description {
+      margin: 13px auto 18px;
+      max-width: 330px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.75;
+    }
+
+    .rules {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 19px;
+      text-align: left;
+    }
+
+    .rule {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 13px;
+      color: #b5bdd0;
+      background: rgba(255, 255, 255, 0.025);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .rule-number {
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      width: 24px;
+      height: 24px;
+      border-radius: 8px;
+      color: var(--cyan);
+      background: rgba(97, 245, 255, 0.08);
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .primary-button,
+    .secondary-button {
+      width: 100%;
+      min-height: 52px;
+      border-radius: 15px;
+      font-size: 14px;
+      font-weight: 750;
+      letter-spacing: 0.5px;
+      transition: transform 100ms ease, filter 100ms ease;
+    }
+
+    .primary-button {
+      color: #041014;
+      background: linear-gradient(110deg, #61f5ff, #80ffd7);
+      box-shadow: 0 10px 30px rgba(97, 245, 255, 0.16);
+    }
+
+    .primary-button span {
+      margin-left: 8px;
+      font-size: 18px;
+    }
+
+    .secondary-button {
+      margin-top: 9px;
+      border: 1px solid var(--line);
+      color: #b8c0d2;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .primary-button:active,
+    .secondary-button:active {
+      transform: scale(0.98);
+      filter: brightness(0.9);
+    }
+
+    .key-tip,
+    .score-rule {
+      margin: 12px 0 0;
+      color: #626c82;
+      font-size: 10px;
+    }
+
+    kbd {
+      padding: 2px 6px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 5px;
+      color: #99a3b8;
+      background: rgba(255, 255, 255, 0.05);
+      font: inherit;
+    }
+
+    .pause-symbol,
+    .trophy {
+      display: grid;
+      place-items: center;
+      width: 62px;
+      height: 62px;
+      margin: 0 auto 18px;
+      border-radius: 50%;
+      color: var(--violet);
+      background: rgba(155, 123, 255, 0.09);
+      box-shadow: 0 0 30px rgba(155, 123, 255, 0.09);
+      font-size: 27px;
+    }
+
+    .trophy {
+      color: var(--cyan);
+      background: rgba(97, 245, 255, 0.08);
+    }
+
+    .average-result {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 19px 0 15px;
+      padding: 16px;
+      border: 1px solid rgba(97, 245, 255, 0.12);
+      border-radius: 20px;
+      background: rgba(97, 245, 255, 0.035);
+    }
+
+    .average-result > span:first-child {
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 1.5px;
+    }
+
+    .average-result strong {
+      margin: 3px 0;
+      color: var(--cyan);
+      font-size: clamp(46px, 13vw, 62px);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -2px;
+      line-height: 1.15;
+      text-shadow: 0 0 28px rgba(97, 245, 255, 0.25);
+    }
+
+    .average-result strong small {
+      margin-left: 5px;
+      color: #8f9bb2;
+      font-size: 15px;
+      letter-spacing: 0;
+    }
+
+    .rating {
+      color: #c5cbda;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+    }
+
+    .summary-item {
+      padding: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 13px;
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .summary-item span {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .summary-item strong {
+      font-size: 18px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .round-history {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin: 13px 0;
+    }
+
+    .history-chip {
+      flex: 1;
+      min-width: 0;
+      padding: 7px 2px;
+      border-radius: 9px;
+      color: #9da7bc;
+      background: rgba(255, 255, 255, 0.035);
+      font-size: 9px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .history-chip b {
+      display: block;
+      margin-bottom: 2px;
+      color: #69748a;
+      font-size: 8px;
+      font-weight: 600;
+    }
+
+    .new-record {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 5px 11px;
+      border: 1px solid rgba(255, 215, 97, 0.24);
+      border-radius: 99px;
+      color: #ffdc75;
+      background: rgba(255, 215, 97, 0.07);
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: 1px;
+    }
+
+    .record-text {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    @keyframes breathe {
+      0%, 100% { opacity: 0.68; transform: scale(0.94); }
+      50% { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes signal-ring {
+      from { opacity: 0.65; transform: scale(1); }
+      to { opacity: 0; transform: scale(1.35); }
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes panel-in {
+      from { opacity: 0; transform: translateY(12px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* 矮屏适当收紧间距，保证所有操作仍完整可见 */
+    @media (max-height: 650px) {
+      .app { gap: 9px; padding-top: calc(9px + env(safe-area-inset-top)); }
+      .brand-mark, .icon-button { width: 37px; height: 37px; }
+      .stats { padding: 8px 4px; }
+      .reaction-pad { gap: 11px; padding: 16px; }
+      .signal-wrap { width: clamp(70px, 19vh, 100px); }
+      .game-footer { gap: 5px; }
+      .modal-panel { padding: 19px 22px; }
+      .hero-icon { display: none; }
+      .modal-description { margin: 9px auto 12px; line-height: 1.55; }
+      .rules { gap: 5px; margin-bottom: 12px; }
+      .rule { padding: 7px 10px; }
+      .key-tip, .score-rule { margin-top: 8px; }
+      .trophy, .pause-symbol { width: 45px; height: 45px; margin-bottom: 10px; font-size: 22px; }
+      .average-result { margin: 10px 0; padding: 10px; }
+      .average-result strong { font-size: 43px; }
+      .round-history { margin: 9px 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 2 4.5 13H11l-1 9 8.5-11H12l1-9Z"/>
+          </svg>
+        </span>
+        <div>
+          <p class="eyebrow">REFLEX LAB</p>
+          <h1>反应测试</h1>
+        </div>
+      </div>
+      <button class="icon-button" id="pauseButton" type="button" aria-label="暂停游戏" disabled>
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <rect x="5" y="4" width="4" height="16" rx="1"/>
+          <rect x="15" y="4" width="4" height="16" rx="1"/>
+        </svg>
+      </button>
+    </header>
+
+    <section class="stats" aria-label="游戏数据">
+      <div class="stat">
+        <span class="stat-label">当前进度</span>
+        <strong id="roundValue">0<small>/5</small></strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">本次得分</span>
+        <strong id="scoreValue">0</strong>
+      </div>
+      <div class="stat">
+        <span class="stat-label">最高分</span>
+        <strong id="highScoreValue">0</strong>
+      </div>
+    </section>
+
+    <section class="arena">
+      <button class="reaction-pad state-idle" id="reactionPad" type="button" aria-label="反应测试区域">
+        <span class="signal-wrap" aria-hidden="true">
+          <span class="signal-light"></span>
+        </span>
+        <span class="pad-copy">
+          <span class="round-label" id="roundLabel">REACTION TEST</span>
+          <strong class="pad-title" id="padTitle" aria-live="polite">准备好了吗？</strong>
+          <span class="pad-hint" id="padHint">红灯变绿的瞬间，轻触中央测试区</span>
+        </span>
+        <span class="pad-action" id="padAction">5 次有效测试 · 取平均</span>
+      </button>
+    </section>
+
+    <footer class="game-footer">
+      <div class="progress-dots" id="progressDots" aria-label="测试进度">
+        <span class="progress-dot current"></span>
+        <span class="progress-dot"></span>
+        <span class="progress-dot"></span>
+        <span class="progress-dot"></span>
+        <span class="progress-dot"></span>
+      </div>
+      <p class="control-tip">轻触中央区域 · 鼠标点击 · 空格键</p>
+    </footer>
+  </main>
+
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <section class="modal-panel" id="startPanel">
+      <div class="hero-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M13 2 4.5 13H11l-1 9 8.5-11H12l1-9Z"/>
+        </svg>
+      </div>
+      <p class="modal-kicker">5 ROUNDS · 1 AVERAGE</p>
+      <h2 id="modalTitle">盯住红灯<br><span>绿了就点</span></h2>
+      <p class="modal-description">灯光由红变绿的瞬间，轻触中央测试区。完成 5 次有效测试，看看你的平均反应速度。</p>
+      <div class="rules">
+        <div class="rule"><span class="rule-number">01</span><span>红灯亮起时，保持耐心，不要提前点击</span></div>
+        <div class="rule"><span class="rule-number">02</span><span>变绿后立即轻触；抢跑本轮不计入成绩</span></div>
+        <div class="rule"><span class="rule-number">03</span><span>每轮得分 = 1000 − 反应毫秒，最低 0 分</span></div>
+      </div>
+      <button class="primary-button" id="startButton" type="button">开始测试 <span>→</span></button>
+      <p class="key-tip">电脑也可按 <kbd>空格</kbd> 开始</p>
+    </section>
+
+    <section class="modal-panel" id="pausePanel" hidden>
+      <div class="pause-symbol" aria-hidden="true">Ⅱ</div>
+      <p class="modal-kicker">TAKE A BREATH</p>
+      <h2>游戏已暂停</h2>
+      <p class="modal-description">准备好后继续。若暂停时已经变绿，本轮会重新随机计时，确保成绩公平。</p>
+      <button class="primary-button" id="resumeButton" type="button">继续测试</button>
+      <button class="secondary-button" id="pauseRestartButton" type="button">重新开始</button>
+      <p class="key-tip">按 <kbd>P</kbd> 或 <kbd>Esc</kbd> 继续</p>
+    </section>
+
+    <section class="modal-panel" id="finishPanel" hidden>
+      <div class="trophy" aria-hidden="true">ϟ</div>
+      <span class="new-record" id="newRecord" hidden>NEW RECORD · 新纪录</span>
+      <p class="modal-kicker">TEST COMPLETE</p>
+      <h2>测试完成！</h2>
+      <div class="average-result">
+        <span>平均反应时间</span>
+        <strong id="finalAverage">--<small>ms</small></strong>
+        <span class="rating" id="finalRating">继续挑战，突破自己</span>
+      </div>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <span>最快反应</span>
+          <strong id="finalBest">-- ms</strong>
+        </div>
+        <div class="summary-item">
+          <span>本次总分</span>
+          <strong id="finalScore">0</strong>
+        </div>
+      </div>
+      <div class="round-history" id="roundHistory" aria-label="每轮成绩"></div>
+      <p class="record-text" id="recordText">最高分会自动保存在本机</p>
+      <button class="primary-button" id="restartButton" type="button">再测一次 <span>↻</span></button>
+      <p class="score-rule">5 次有效成绩的平均值 · 抢跑不计分</p>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const TOTAL_ROUNDS = 5;
+      const HIGH_SCORE_KEY = "reflex-lab-high-score-v1";
+      const $ = (id) => document.getElementById(id);
+
+      const elements = {
+        pad: $("reactionPad"),
+        roundLabel: $("roundLabel"),
+        padTitle: $("padTitle"),
+        padHint: $("padHint"),
+        padAction: $("padAction"),
+        roundValue: $("roundValue"),
+        scoreValue: $("scoreValue"),
+        highScoreValue: $("highScoreValue"),
+        progressDots: Array.from($("progressDots").children),
+        pauseButton: $("pauseButton"),
+        modal: $("modal"),
+        panels: [$("startPanel"), $("pausePanel"), $("finishPanel")],
+        startButton: $("startButton"),
+        resumeButton: $("resumeButton"),
+        pauseRestartButton: $("pauseRestartButton"),
+        restartButton: $("restartButton"),
+        finalAverage: $("finalAverage"),
+        finalBest: $("finalBest"),
+        finalScore: $("finalScore"),
+        finalRating: $("finalRating"),
+        roundHistory: $("roundHistory"),
+        newRecord: $("newRecord"),
+        recordText: $("recordText")
+      };
+
+      // 游戏状态只通过 setState 切换，避免计时器与界面不同步
+      let state = "idle";
+      let results = [];
+      let roundTimer = null;
+      let waitStartedAt = 0;
+      let scheduledDelay = 0;
+      let greenAt = 0;
+      let pausedState = null;
+      let pausedRemaining = 0;
+      let highScore = loadHighScore();
+
+      function loadHighScore() {
+        try {
+          const saved = Number.parseInt(localStorage.getItem(HIGH_SCORE_KEY), 10);
+          return Number.isFinite(saved) && saved > 0 ? saved : 0;
+        } catch (error) {
+          // 隐私模式或禁用存储时仍可正常游戏
+          return 0;
+        }
+      }
+
+      function saveHighScore() {
+        try {
+          localStorage.setItem(HIGH_SCORE_KEY, String(highScore));
+        } catch (error) {
+          // 存储不可用时仅保留当前页面中的最高分
+        }
+      }
+
+      function totalScore() {
+        return results.reduce((sum, item) => sum + item.score, 0);
+      }
+
+      function clearRoundTimer() {
+        if (roundTimer !== null) {
+          clearTimeout(roundTimer);
+          roundTimer = null;
+        }
+      }
+
+      function randomDelay() {
+        // 1.4～4.2 秒的随机等待，降低预判绿灯的可能
+        return 1400 + Math.random() * 2800;
+      }
+
+      function ratingFor(milliseconds) {
+        if (milliseconds <= 180) return "⚡ 神速反应";
+        if (milliseconds <= 240) return "🔥 极其迅速";
+        if (milliseconds <= 300) return "✨ 表现出色";
+        if (milliseconds <= 400) return "👍 状态不错";
+        return "继续练习，突破自己";
+      }
+
+      function setState(nextState) {
+        state = nextState;
+        elements.pad.className = `reaction-pad state-${nextState}`;
+        renderPad();
+      }
+
+      function renderPad() {
+        const nextRound = Math.min(results.length + 1, TOTAL_ROUNDS);
+        const latest = results[results.length - 1];
+        let label = "REACTION TEST";
+        let title = "准备好了吗？";
+        let hint = "红灯变绿的瞬间，轻触中央测试区";
+        let action = "5 次有效测试 · 取平均";
+        let ariaLabel = "反应测试区域";
+
+        if (state === "waiting") {
+          label = `第 ${nextRound} 次 / 共 ${TOTAL_ROUNDS} 次`;
+          title = "等待绿灯";
+          hint = "保持专注，别提前点击……";
+          action = "红灯亮起 · 耐心等待";
+          ariaLabel = "红灯等待中，请勿点击";
+        } else if (state === "ready") {
+          label = `第 ${nextRound} 次 / 共 ${TOTAL_ROUNDS} 次`;
+          title = "点！";
+          hint = "就是现在！";
+          action = "立即轻触";
+          ariaLabel = "绿灯亮起，立即点击";
+        } else if (state === "early") {
+          label = `第 ${nextRound} 次 / 共 ${TOTAL_ROUNDS} 次`;
+          title = "抢跑了";
+          hint = "本次不计入成绩，下一轮请等绿灯再点";
+          action = "轻触重新等待";
+          ariaLabel = "抢跑，本次无效，点击重新等待";
+        } else if (state === "result" && latest) {
+          label = `第 ${results.length} 次完成 · +${latest.score} 分`;
+          title = `${latest.ms} ms`;
+          hint = ratingFor(latest.ms);
+          action = results.length === TOTAL_ROUNDS ? "轻触查看总成绩" : "轻触进入下一次";
+          ariaLabel = `本次反应 ${latest.ms} 毫秒，${action}`;
+        } else if (state === "paused") {
+          label = "PAUSED";
+          title = "已暂停";
+          hint = "稍作休息，准备好再继续";
+          action = "计时已停止";
+        } else if (state === "finished") {
+          label = "TEST COMPLETE";
+          title = "漂亮！";
+          hint = "5 次有效测试已全部完成";
+          action = "查看本次成绩";
+        }
+
+        elements.roundLabel.textContent = label;
+        elements.padTitle.textContent = title;
+        elements.padHint.textContent = hint;
+        elements.padAction.textContent = action;
+        elements.pad.setAttribute("aria-label", ariaLabel);
+      }
+
+      function updateStats() {
+        elements.roundValue.innerHTML = `${results.length}<small>/${TOTAL_ROUNDS}</small>`;
+        elements.scoreValue.textContent = totalScore();
+        elements.highScoreValue.textContent = highScore;
+        elements.progressDots.forEach((dot, index) => {
+          dot.classList.toggle("done", index < results.length);
+          dot.classList.toggle("current", index === results.length && results.length < TOTAL_ROUNDS && state !== "idle");
+        });
+      }
+
+      function openModal(panel) {
+        elements.panels.forEach((item) => {
+          item.hidden = item !== panel;
+        });
+        elements.modal.hidden = false;
+        const focusTarget = panel.querySelector("button");
+        if (focusTarget) {
+          requestAnimationFrame(() => focusTarget.focus({ preventScroll: true }));
+        }
+      }
+
+      function closeModal() {
+        elements.modal.hidden = true;
+      }
+
+      function startWaiting(delay = randomDelay()) {
+        clearRoundTimer();
+        setState("waiting");
+        updateStats();
+        scheduledDelay = delay;
+        waitStartedAt = performance.now();
+        roundTimer = window.setTimeout(turnGreen, delay);
+      }
+
+      function turnGreen() {
+        if (state !== "waiting") return;
+        roundTimer = null;
+        greenAt = performance.now();
+        setState("ready");
+      }
+
+      function registerResult() {
+        if (state !== "ready") return;
+        const milliseconds = Math.max(1, Math.round(performance.now() - greenAt));
+        // 反应越快得分越高，每轮最多约 1000 分，慢于 1 秒仍为 0 分
+        const score = Math.max(0, 1000 - milliseconds);
+        results.push({ ms: milliseconds, score });
+        setState("result");
+        updateStats();
+        if (navigator.vibrate) navigator.vibrate(18);
+      }
+
+      function handlePadAction() {
+        if (state === "waiting") {
+          // 红灯阶段点击属于抢跑，不占用 5 次有效成绩
+          clearRoundTimer();
+          setState("early");
+          updateStats();
+          if (navigator.vibrate) navigator.vibrate([35, 30, 35]);
+        } else if (state === "ready") {
+          registerResult();
+        } else if (state === "early") {
+          startWaiting();
+        } else if (state === "result") {
+          if (results.length === TOTAL_ROUNDS) {
+            finishGame();
+          } else {
+            startWaiting();
+          }
+        }
+      }
+
+      function startGame() {
+        clearRoundTimer();
+        results = [];
+        pausedState = null;
+        pausedRemaining = 0;
+        closeModal();
+        elements.pauseButton.disabled = false;
+        startWaiting();
+      }
+
+      function pauseGame() {
+        const pausableStates = ["waiting", "ready", "early", "result"];
+        if (!pausableStates.includes(state) || !elements.modal.hidden) return;
+
+        pausedState = state;
+        if (state === "waiting") {
+          pausedRemaining = Math.max(300, scheduledDelay - (performance.now() - waitStartedAt));
+        }
+        clearRoundTimer();
+        setState("paused");
+        updateStats();
+        elements.pauseButton.disabled = true;
+        openModal($("pausePanel"));
+      }
+
+      function resumeGame() {
+        if (state !== "paused") return;
+        const stateToResume = pausedState;
+        pausedState = null;
+        closeModal();
+        elements.pauseButton.disabled = false;
+
+        if (stateToResume === "waiting") {
+          startWaiting(pausedRemaining);
+        } else if (stateToResume === "ready") {
+          // 绿灯后暂停会重置本轮，避免利用暂停获得不真实成绩
+          startWaiting();
+        } else {
+          setState(stateToResume || "early");
+          updateStats();
+        }
+      }
+
+      function finishGame() {
+        clearRoundTimer();
+        setState("finished");
+        elements.pauseButton.disabled = true;
+
+        const average = Math.round(results.reduce((sum, item) => sum + item.ms, 0) / TOTAL_ROUNDS);
+        const fastest = Math.min(...results.map((item) => item.ms));
+        const score = totalScore();
+        const isNewRecord = score > highScore;
+
+        if (isNewRecord) {
+          highScore = score;
+          saveHighScore();
+        }
+        updateStats();
+
+        elements.finalAverage.innerHTML = `${average}<small>ms</small>`;
+        elements.finalBest.textContent = `${fastest} ms`;
+        elements.finalScore.textContent = score;
+        elements.finalRating.textContent = ratingFor(average);
+        elements.newRecord.hidden = !isNewRecord;
+        elements.recordText.textContent = isNewRecord
+          ? `新最高分 ${highScore} 分，已保存到本机`
+          : `历史最高分 ${highScore} 分 · 保存在本机`;
+
+        // 使用 DOM 节点生成历史成绩，避免拼接不可信 HTML
+        const chips = results.map((item, index) => {
+          const chip = document.createElement("span");
+          chip.className = "history-chip";
+          const round = document.createElement("b");
+          round.textContent = `第 ${index + 1} 次`;
+          chip.append(round, document.createTextNode(`${item.ms} ms`));
+          return chip;
+        });
+        elements.roundHistory.replaceChildren(...chips);
+        openModal($("finishPanel"));
+      }
+
+      // pointerdown 比 click 少一层等待，触屏与鼠标都能更准确地计时
+      elements.pad.addEventListener("pointerdown", (event) => {
+        if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
+        event.preventDefault();
+        handlePadAction();
+      });
+
+      // 键盘触发按钮时会产生 detail 为 0 的 click，用它兼容辅助技术
+      elements.pad.addEventListener("click", (event) => {
+        if (event.detail === 0) handlePadAction();
+      });
+      elements.pad.addEventListener("contextmenu", (event) => event.preventDefault());
+      elements.startButton.addEventListener("click", startGame);
+      elements.restartButton.addEventListener("click", startGame);
+      elements.pauseRestartButton.addEventListener("click", startGame);
+      elements.pauseButton.addEventListener("click", pauseGame);
+      elements.resumeButton.addEventListener("click", resumeGame);
+
+      document.addEventListener("keydown", (event) => {
+        if (event.repeat) return;
+        const key = event.key.toLowerCase();
+
+        if (key === "p" || event.key === "Escape") {
+          if (state === "paused") {
+            event.preventDefault();
+            resumeGame();
+          } else if (elements.modal.hidden) {
+            event.preventDefault();
+            pauseGame();
+          }
+          return;
+        }
+
+        // 焦点不在按钮上时，空格和回车等价于轻触测试区
+        const isActivationKey = event.code === "Space" || event.key === "Enter";
+        if (isActivationKey && !(event.target instanceof HTMLButtonElement)) {
+          event.preventDefault();
+          if (!elements.modal.hidden) {
+            if (state === "idle" || state === "finished") startGame();
+            else if (state === "paused") resumeGame();
+          } else {
+            handlePadAction();
+          }
+        }
+      });
+
+      // 禁止双指缩放、双击缩放和页面拖动，按钮仍可正常接收触摸
+      document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
+      document.addEventListener("gesturestart", (event) => event.preventDefault());
+      document.addEventListener("dblclick", (event) => event.preventDefault());
+
+      // 切到后台时自动暂停，避免错过绿灯后产生无效的超长成绩
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && elements.modal.hidden && (state === "waiting" || state === "ready")) {
+          pauseGame();
+        }
+      });
+
+      updateStats();
+      renderPad();
+      elements.startButton.focus({ preventScroll: true });
+    })();
+  </script>
+</body>
+</html>
